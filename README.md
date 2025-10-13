@@ -159,7 +159,7 @@ Zaobserwowany wzrost wartości wraz z rzędem n-gramów jest zgodny z założeni
 * Bazy referencyjne
 
     ```
-    ➜  Task03 (main) dotnet run --project Task03/Task03.csproj -- -i corpus.txt -b1 mono_ref.txt -b2 bi_ref.txt -b3 tri_ref.txt -b4 quad_ref.txt  
+    ➜  Task03 (main) dotnet run --project Task03/Task03.csproj -- -i corpus.txt -b1 mono_ref.txt -b2 bi_ref.txt -b3 tri_ref.txt -b4 quad_ref.txt                                                                                               ✭
     ```
 
 * Monogramy
@@ -216,7 +216,7 @@ założeniami.
 * Bazy referencyjne
 
     ```
-    ➜  Task04 (main) dotnet run --project Task04/Task04.csproj -- -i corpus.txt -b1 mono_ref.txt -b2 bi_ref.txt -b3 tri_ref.txt -b4 quad_ref.txt        
+    ➜  Task04 (main) dotnet run --project Task04/Task04.csproj -- -i corpus.txt -b1 mono_ref.txt -b2 bi_ref.txt -b3 tri_ref.txt -b4 quad_ref.txt                                                                                               ✭
     ```
 
 * Tekst jawny dla różnych długości próbek
