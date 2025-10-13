@@ -1,57 +1,79 @@
-using Task02.Application.Abstractions;
-using Task02.Application.Models;
-using Task02.Domain.Enums;
+using Task03.Application.Abstractions;
+using Task03.Application.Models;
+using Task03.Domain.Enums;
 
-namespace Task02.Application.Validation;
+namespace Task03.Application.Validation;
 
 public sealed class AppOptionsValidator : IOptionsValidator
 {
     public IReadOnlyList<string> Validate(AppOptions options)
     {
+        if (options.ShowHelp) return [];
+
         var errors = new List<string>();
-        if (options.ShowHelp) return errors;
 
         var hasCipher = options.Mode is not OperationMode.Unspecified;
         var hasNgrams = options.AnyNGramRequested;
         var hasChi2 = options.ComputeChiSquare || options.ReferenceOrder is not null;
+        var hasBuild = options.AnyRefBuildRequested;
 
-        var selectedModes =
-            (hasCipher ? 1 : 0) + (hasNgrams ? 1 : 0) + (hasChi2 ? 1 : 0);
-        switch (selectedModes)
+        ValidateModeSelection(hasCipher, hasNgrams, hasChi2, hasBuild, errors);
+        if (errors.Count > 0) return errors;
+
+        if (hasCipher) ValidateCipher(options, errors);
+        if (hasNgrams) ValidateRequiresInput(options, errors);
+        if (hasBuild) ValidateRequiresCorpus(options, errors);
+        if (hasChi2) ValidateChiSquare(options, errors);
+
+        return errors;
+    }
+
+    private static void ValidateModeSelection(bool hasCipher, bool hasNgrams, bool hasChi2, bool hasBuild,
+        List<string> errors)
+    {
+        var selected = (hasCipher ? 1 : 0) + (hasNgrams ? 1 : 0) + (hasChi2 ? 1 : 0) + (hasBuild ? 1 : 0);
+        switch (selected)
         {
             case 0:
-                errors.Add("No operation selected. Use cipher (-e/-d), n-grams (-g1..-g4) or chi-square (-s with -rX).");
-                return errors;
+                errors.Add("Select one mode: cipher | n-grams | chi-square | build-ref.");
+                return;
             case > 1:
-                errors.Add("Cannot mix modes. Choose one: cipher, n-grams, or chi-square.");
+                errors.Add("Cannot mix modes. Choose exactly one.");
                 break;
         }
+    }
 
-        if (hasCipher)
-        {
-            if (string.IsNullOrWhiteSpace(options.InputPath))
-                errors.Add("Missing input path. Use -i <file>.");
-            if (string.IsNullOrWhiteSpace(options.OutputPath))
-                errors.Add("Missing output path. Use -o <file>.");
-            if (string.IsNullOrWhiteSpace(options.KeyPath))
-                errors.Add("Missing key path. Use -k <file>.");
-        }
-
-        if (hasNgrams && string.IsNullOrWhiteSpace(options.InputPath))
-        {
+    private static void ValidateCipher(AppOptions o, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(o.InputPath))
             errors.Add("Missing input path. Use -i <file>.");
-        }
+        if (string.IsNullOrWhiteSpace(o.OutputPath))
+            errors.Add("Missing output path. Use -o <file>.");
+        if (string.IsNullOrWhiteSpace(o.KeyPath))
+            errors.Add("Missing key path. Use -k <file>.");
+    }
 
-        if (!hasChi2) return errors;
-        if (!options.ComputeChiSquare)
+    private static void ValidateRequiresInput(AppOptions o, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(o.InputPath))
+            errors.Add("Missing input path. Use -i <file>.");
+    }
+
+    private static void ValidateRequiresCorpus(AppOptions o, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(o.InputPath))
+            errors.Add("Missing input path. Use -i <corpus_file>.");
+    }
+
+    private static void ValidateChiSquare(AppOptions o, List<string> errors)
+    {
+        if (!o.ComputeChiSquare)
             errors.Add("Chi-square requires -s flag.");
-        if (string.IsNullOrWhiteSpace(options.InputPath))
+
+        if (string.IsNullOrWhiteSpace(o.InputPath))
             errors.Add("Missing input path. Use -i <file>.");
-        var rCount =
-            (options.R1Path is null ? 0 : 1) +
-            (options.R2Path is null ? 0 : 1) +
-            (options.R3Path is null ? 0 : 1) +
-            (options.R4Path is null ? 0 : 1);
+
+        var rCount = CountProvided(o.R1Path, o.R2Path, o.R3Path, o.R4Path);
         switch (rCount)
         {
             case 0:
@@ -61,7 +83,8 @@ public sealed class AppOptionsValidator : IOptionsValidator
                 errors.Add("Select exactly one reference base: -r1 or -r2 or -r3 or -r4.");
                 break;
         }
-
-        return errors;
     }
+
+    private static int CountProvided(params string?[] paths) =>
+        paths.Count(p => !string.IsNullOrWhiteSpace(p));
 }

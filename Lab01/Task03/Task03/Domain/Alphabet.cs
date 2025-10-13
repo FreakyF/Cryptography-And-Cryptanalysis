@@ -1,4 +1,4 @@
-namespace Task02.Domain;
+namespace Task03.Domain;
 
 public static class Alphabet
 {

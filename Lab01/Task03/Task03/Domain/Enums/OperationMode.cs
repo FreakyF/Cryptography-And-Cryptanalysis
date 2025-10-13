@@ -1,4 +1,4 @@
-namespace Task02.Domain.Enums;
+namespace Task03.Domain.Enums;
 
 public enum OperationMode
 {

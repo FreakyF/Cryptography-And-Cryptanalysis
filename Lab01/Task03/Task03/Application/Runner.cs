@@ -1,9 +1,9 @@
-using Task02.Application.Abstractions;
-using Task02.Application.Analysis;
-using Task02.Application.Models;
-using Task02.Domain.Enums;
+using Task03.Application.Abstractions;
+using Task03.Application.Analysis;
+using Task03.Application.Models;
+using Task03.Domain.Enums;
 
-namespace Task02.Application;
+namespace Task03.Application;
 
 public sealed class Runner(
     IKeyLoader keyLoader,
@@ -11,9 +11,7 @@ public sealed class Runner(
     IFileWriter writer,
     ITextNormalizer normalizer,
     ISubstitutionCipher cipher,
-    INGramCounter ngramCounter,
-    IReferenceLoader referenceLoader,
-    IChiSquareCalculator chiSquare)
+    AnalysisServices analysis)
     : IRunner
 {
     private readonly IKeyLoader _keyLoader = keyLoader ?? throw new ArgumentNullException(nameof(keyLoader));
@@ -21,12 +19,12 @@ public sealed class Runner(
     private readonly IFileWriter _writer = writer ?? throw new ArgumentNullException(nameof(writer));
     private readonly ITextNormalizer _normalizer = normalizer ?? throw new ArgumentNullException(nameof(normalizer));
     private readonly ISubstitutionCipher _cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
-    private readonly INGramCounter _ngrams = ngramCounter ?? throw new ArgumentNullException(nameof(ngramCounter));
 
-    private readonly IReferenceLoader _refLoader =
-        referenceLoader ?? throw new ArgumentNullException(nameof(referenceLoader));
+    private readonly INGramCounter _ngrams = analysis.NGramCounter
+                                             ?? throw new ArgumentNullException(nameof(analysis));
 
-    private readonly IChiSquareCalculator _chi2 = chiSquare ?? throw new ArgumentNullException(nameof(chiSquare));
+    private readonly IReferenceLoader _refLoader = analysis.ReferenceLoader;
+    private readonly IChiSquareCalculator _chi2 = analysis.ChiSquare;
 
     public int Run(AppOptions options)
     {
@@ -37,6 +35,7 @@ public sealed class Runner(
 
             var isCipher = options.Mode is not OperationMode.Unspecified;
             var isChi2 = options.ComputeChiSquare;
+            var isBuild = options.AnyRefBuildRequested;
 
             if (isCipher)
             {
@@ -54,15 +53,23 @@ public sealed class Runner(
 
             if (isChi2)
             {
-                var refPath = options.ReferencePath!;
-                var reference = _refLoader.Load(refPath);
+                var reference = _refLoader.Load(options.ReferencePath!);
                 var n = options.ReferenceOrder!.Value;
                 var t = _chi2.Compute(normalized, n, reference);
                 Console.WriteLine(t.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 return 0;
             }
 
-            // n-gramy generowanie
+            if (isBuild)
+            {
+                BuildRefIfRequested(normalized, 1, options.B1OutputPath);
+                BuildRefIfRequested(normalized, 2, options.B2OutputPath);
+                BuildRefIfRequested(normalized, 3, options.B3OutputPath);
+                BuildRefIfRequested(normalized, 4, options.B4OutputPath);
+                return 0;
+            }
+
+            // n-gram counts
             GenerateIfRequested(normalized, 1, options.G1OutputPath);
             GenerateIfRequested(normalized, 2, options.G2OutputPath);
             GenerateIfRequested(normalized, 3, options.G3OutputPath);
@@ -81,6 +88,14 @@ public sealed class Runner(
         if (string.IsNullOrWhiteSpace(outPath)) return;
         var counts = _ngrams.Count(normalized, n);
         var report = NGramReportBuilder.Build(counts);
+        _writer.WriteAll(outPath, report);
+    }
+
+    private void BuildRefIfRequested(string normalized, int n, string? outPath)
+    {
+        if (string.IsNullOrWhiteSpace(outPath)) return;
+        var counts = _ngrams.Count(normalized, n);
+        var report = ReferenceReportBuilder.BuildProbabilities(counts);
         _writer.WriteAll(outPath, report);
     }
 }

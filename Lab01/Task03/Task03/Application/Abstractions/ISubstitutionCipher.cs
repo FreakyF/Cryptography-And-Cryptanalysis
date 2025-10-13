@@ -1,6 +1,6 @@
-using Task02.Domain;
+using Task03.Domain;
 
-namespace Task02.Application.Abstractions;
+namespace Task03.Application.Abstractions;
 
 public interface ISubstitutionCipher
 {

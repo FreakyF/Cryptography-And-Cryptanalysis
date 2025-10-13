@@ -1,6 +1,6 @@
-using Task02.Application.Models;
+using Task03.Application.Models;
 
-namespace Task02.Application.Abstractions;
+namespace Task03.Application.Abstractions;
 
 public interface IOptionsValidator
 {

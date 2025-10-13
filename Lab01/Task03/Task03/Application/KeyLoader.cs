@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text;
-using Task02.Application.Abstractions;
-using Task02.Domain;
+using Task03.Application.Abstractions;
+using Task03.Domain;
 
-namespace Task02.Application;
+namespace Task03.Application;
 
 public sealed class KeyLoader(IFileReader reader) : IKeyLoader
 {

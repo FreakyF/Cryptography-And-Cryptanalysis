@@ -1,4 +1,4 @@
-namespace Task02.Application.Abstractions;
+namespace Task03.Application.Abstractions;
 
 public sealed class NGramReference
 {

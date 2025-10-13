@@ -1,6 +1,6 @@
-using Task02.Application.Abstractions;
+using Task03.Application.Abstractions;
 
-namespace Task02.Application.Analysis;
+namespace Task03.Application.Analysis;
 
 public sealed class NGramCounter : INGramCounter
 {

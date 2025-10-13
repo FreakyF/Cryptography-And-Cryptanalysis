@@ -1,16 +1,16 @@
-﻿using Task02.Application;
-using Task02.Application.Abstractions;
-using Task02.Application.Analysis;
-using Task02.Application.Cipher;
-using Task02.Application.Reference;
-using Task02.Application.Text;
-using Task02.Application.Validation;
-using Task02.Infrastructure.CLI;
-using Task02.Infrastructure.Common;
-using Task02.Infrastructure.IO;
-using Task02.Infrastructure.Validation;
+﻿using Task03.Application;
+using Task03.Application.Abstractions;
+using Task03.Application.Analysis;
+using Task03.Application.Cipher;
+using Task03.Application.Reference;
+using Task03.Application.Text;
+using Task03.Application.Validation;
+using Task03.Infrastructure.CLI;
+using Task03.Infrastructure.Common;
+using Task03.Infrastructure.IO;
+using Task03.Infrastructure.Validation;
 
-namespace Task02;
+namespace Task03;
 
 #pragma warning disable CA1859
 internal static class Program
@@ -46,15 +46,21 @@ internal static class Program
         }
 
         var reader = new FileReader();
+        var ngrams = new NGramCounter();
+
+        var analysis = new AnalysisServices(
+            nGramCounter: ngrams,
+            referenceLoader: new ReferenceLoader(reader),
+            chiSquare: new ChiSquareCalculator(ngrams));
+
         IRunner runner = new Runner(
             keyLoader: new KeyLoader(reader),
             reader: reader,
             writer: new FileWriter(),
             normalizer: new TextNormalizer(),
             cipher: new SubstitutionCipher(),
-            ngramCounter: new NGramCounter(),
-            referenceLoader: new ReferenceLoader(reader),
-            chiSquare: new ChiSquareCalculator(new NGramCounter()));
+            analysis: analysis);
+
         return runner.Run(options);
     }
 }

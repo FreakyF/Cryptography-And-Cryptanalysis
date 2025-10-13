@@ -1,8 +1,8 @@
-using Task02.Application.Abstractions;
-using Task02.Application.Models;
-using Task02.Domain.Enums;
+using Task03.Application.Abstractions;
+using Task03.Application.Models;
+using Task03.Domain.Enums;
 
-namespace Task02.Infrastructure.Validation;
+namespace Task03.Infrastructure.Validation;
 
 #pragma warning disable S2325
 public sealed class FileSystemOptionsValidator : IOptionsValidator
@@ -18,6 +18,7 @@ public sealed class FileSystemOptionsValidator : IOptionsValidator
         var hasCipher = options.Mode is not OperationMode.Unspecified;
         var hasNgrams = options.AnyNGramRequested;
         var hasChi2 = options.ComputeChiSquare || options.ReferenceOrder is not null;
+        var hasBuild = options.AnyRefBuildRequested;
 
         if (hasCipher)
         {
@@ -34,12 +35,18 @@ public sealed class FileSystemOptionsValidator : IOptionsValidator
             ValidateOutputPath(options.G4OutputPath, options.InputPath, errors, "-g4");
         }
 
-        if (hasChi2)
+        if (hasBuild)
         {
-            var rPath = options.ReferencePath;
-            if (rPath is null || !File.Exists(rPath))
-                errors.Add($"Reference file not found: {rPath}");
+            ValidateOutputPath(options.B1OutputPath, options.InputPath, errors, "-b1");
+            ValidateOutputPath(options.B2OutputPath, options.InputPath, errors, "-b2");
+            ValidateOutputPath(options.B3OutputPath, options.InputPath, errors, "-b3");
+            ValidateOutputPath(options.B4OutputPath, options.InputPath, errors, "-b4");
         }
+
+        if (!hasChi2) return errors;
+        var rPath = options.ReferencePath;
+        if (rPath is null || !File.Exists(rPath))
+            errors.Add($"Reference file not found: {rPath}");
 
         return errors;
     }

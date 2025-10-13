@@ -1,7 +1,7 @@
 using System.Globalization;
-using Task02.Application.Abstractions;
+using Task03.Application.Abstractions;
 
-namespace Task02.Application.Reference;
+namespace Task03.Application.Reference;
 
 public sealed class ReferenceLoader(IFileReader reader) : IReferenceLoader
 {
@@ -12,49 +12,85 @@ public sealed class ReferenceLoader(IFileReader reader) : IReferenceLoader
         var text = _reader.ReadAll(path);
         var dict = new Dictionary<string, double>(StringComparer.Ordinal);
         int? order = null;
-        int lineNo = 0;
+        var lineNo = 0;
 
         using var sr = new StringReader(text);
-        string? line;
-        while ((line = sr.ReadLine()) is not null)
+        while (sr.ReadLine() is { } line)
         {
             lineNo++;
-            var trimmed = StripComment(line).Trim();
-            if (trimmed.Length == 0) continue;
+            if (!TryGetTokens(line, out var tokens)) continue;
 
-            var parts = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2)
-                throw new InvalidDataException($"Ref line {lineNo}: expected 2 tokens, got {parts.Length}.");
+            var gram = ParseGram(tokens[0], lineNo);
+            order = EnsureAndGetOrder(order, gram.Length, lineNo);
 
-            var gram = parts[0].ToUpperInvariant();
-            if (!gram.All(c => c is >= 'A' and <= 'Z'))
-                throw new InvalidDataException($"Ref line {lineNo}: gram must be A–Z only, got '{parts[0]}'.");
-
-            order ??= gram.Length;
-            if (gram.Length != order.Value)
-                throw new InvalidDataException($"Ref line {lineNo}: mixed n-gram lengths.");
-
-            if (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var p))
-                throw new InvalidDataException($"Ref line {lineNo}: invalid probability '{parts[1]}'.");
-
-            if (p < 0d || p > 1d)
-                throw new InvalidDataException($"Ref line {lineNo}: probability out of range [0,1].");
-
-            if (dict.ContainsKey(gram))
-                throw new InvalidDataException($"Ref line {lineNo}: duplicate gram '{gram}'.");
-
-            dict[gram] = p;
+            var p = ParseProbability(tokens[1], lineNo);
+            AddUnique(dict, gram, p, lineNo);
         }
 
+        EnsureNotEmpty(order, dict);
+        EnsureSumToOne(dict);
+
+        return new NGramReference(order!.Value, dict);
+    }
+
+    private static bool TryGetTokens(string line, out string[] tokens)
+    {
+        var trimmed = StripComment(line).Trim();
+        if (trimmed.Length == 0)
+        {
+            tokens = [];
+            return false;
+        }
+
+        tokens = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Length != 2
+            ? throw new InvalidDataException($"Ref line invalid: expected 2 tokens, got {tokens.Length}.")
+            : true;
+    }
+
+    private static string ParseGram(string token, int lineNo)
+    {
+        var gram = token.ToUpperInvariant();
+        return !gram.All(c => c is >= 'A' and <= 'Z')
+            ? throw new InvalidDataException($"Ref line {lineNo}: gram must be A–Z only, got '{token}'.")
+            : gram;
+    }
+
+    private static int EnsureAndGetOrder(int? current, int length, int lineNo)
+    {
+        if (current is null) return length;
+        return length != current.Value
+            ? throw new InvalidDataException($"Ref line {lineNo}: mixed n-gram lengths.")
+            : current.Value;
+    }
+
+    private static double ParseProbability(string token, int lineNo)
+    {
+        if (!double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out var p))
+            throw new InvalidDataException($"Ref line {lineNo}: invalid probability '{token}'.");
+        return p is < 0d or > 1d
+            ? throw new InvalidDataException($"Ref line {lineNo}: probability out of range [0,1].")
+            : p;
+    }
+
+    private static void AddUnique(Dictionary<string, double> dict, string gram, double p, int lineNo)
+    {
+        if (!dict.TryAdd(gram, p))
+            throw new InvalidDataException($"Ref line {lineNo}: duplicate gram '{gram}'.");
+    }
+
+    private static void EnsureNotEmpty(int? order, Dictionary<string, double> dict)
+    {
         if (order is null || dict.Count == 0)
             throw new InvalidDataException("Reference file is empty.");
+    }
 
+    private static void EnsureSumToOne(Dictionary<string, double> dict)
+    {
         var sum = dict.Values.Sum();
         if (Math.Abs(sum - 1d) > 1e-6)
             throw new InvalidDataException(
                 $"Reference probabilities must sum to 1. Current sum={sum.ToString(CultureInfo.InvariantCulture)}.");
-
-        return new NGramReference(order.Value, dict);
     }
 
     private static string StripComment(string s)

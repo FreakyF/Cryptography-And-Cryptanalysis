@@ -1,6 +1,6 @@
-using Task02.Application.Abstractions;
+using Task03.Application.Abstractions;
 
-namespace Task02.Application.Text;
+namespace Task03.Application.Text;
 
 public sealed class TextNormalizer : ITextNormalizer
 {

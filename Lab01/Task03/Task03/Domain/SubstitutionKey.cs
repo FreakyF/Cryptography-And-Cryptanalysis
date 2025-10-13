@@ -1,4 +1,4 @@
-namespace Task02.Domain;
+namespace Task03.Domain;
 
 public sealed class SubstitutionKey(IReadOnlyDictionary<char, char> forward, IReadOnlyDictionary<char, char> reverse)
 {

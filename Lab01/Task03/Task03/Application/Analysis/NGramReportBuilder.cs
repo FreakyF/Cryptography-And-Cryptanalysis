@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Task02.Application.Analysis;
+namespace Task03.Application.Analysis;
 
 public static class NGramReportBuilder
 {

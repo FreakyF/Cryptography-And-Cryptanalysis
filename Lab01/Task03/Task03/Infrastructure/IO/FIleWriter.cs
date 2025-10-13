@@ -1,6 +1,6 @@
-using Task02.Application.Abstractions;
+using Task03.Application.Abstractions;
 
-namespace Task02.Infrastructure.IO;
+namespace Task03.Infrastructure.IO;
 
 public sealed class FileWriter : IFileWriter
 {

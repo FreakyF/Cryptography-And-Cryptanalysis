@@ -1,8 +1,8 @@
 using System.Text;
-using Task02.Application.Abstractions;
-using Task02.Domain;
+using Task03.Application.Abstractions;
+using Task03.Domain;
 
-namespace Task02.Application.Cipher;
+namespace Task03.Application.Cipher;
 
 public sealed class SubstitutionCipher : ISubstitutionCipher
 {

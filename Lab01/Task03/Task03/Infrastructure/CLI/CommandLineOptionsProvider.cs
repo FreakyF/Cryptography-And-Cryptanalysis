@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Configuration;
-using Task02.Application.Abstractions;
-using Task02.Application.Models;
-using Task02.Domain.Enums;
+using Task03.Application.Abstractions;
+using Task03.Application.Models;
+using Task03.Domain.Enums;
 
-namespace Task02.Infrastructure.CLI;
+namespace Task03.Infrastructure.CLI;
 
 public sealed class CommandLineOptionsProvider : IAppOptionsProvider
 {
@@ -17,13 +17,16 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
             ["-d"] = "decrypt", ["--decrypt"] = "decrypt",
             ["-h"] = "help", ["--help"] = "help",
 
-            // n-gramy generowanie
             ["-g1"] = "g1", ["--g1"] = "g1",
             ["-g2"] = "g2", ["--g2"] = "g2",
             ["-g3"] = "g3", ["--g3"] = "g3",
             ["-g4"] = "g4", ["--g4"] = "g4",
 
-            // baza referencyjna i test chi^2
+            ["-b1"] = "b1", ["--b1"] = "b1",
+            ["-b2"] = "b2", ["--b2"] = "b2",
+            ["-b3"] = "b3", ["--b3"] = "b3",
+            ["-b4"] = "b4", ["--b4"] = "b4",
+
             ["-r1"] = "r1", ["--r1"] = "r1",
             ["-r2"] = "r2", ["--r2"] = "r2",
             ["-r3"] = "r3", ["--r3"] = "r3",
@@ -35,7 +38,7 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
     {
         errors = [];
 
-        var normalized = NormalizeBooleanSwitches(args); // tylko przełączniki bool
+        var normalized = NormalizeBooleanSwitches(args);
         IConfiguration config = new ConfigurationBuilder()
             .AddCommandLine(normalized, SwitchMap)
             .Build();
@@ -48,6 +51,10 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
         var g2 = config["g2"];
         var g3 = config["g3"];
         var g4 = config["g4"];
+        var b1 = config["b1"];
+        var b2 = config["b2"];
+        var b3 = config["b3"];
+        var b4 = config["b4"];
         var r1 = config["r1"];
         var r2 = config["r2"];
         var r3 = config["r3"];
@@ -59,10 +66,20 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
         var chisq = ParseBool(config["chisq"]);
 
         var mode = OperationMode.Unspecified;
-        if (encrypt && decrypt)
-            errors.Add("Cannot use -e and -d together.");
-        else if (encrypt) mode = OperationMode.Encrypt;
-        else if (decrypt) mode = OperationMode.Decrypt;
+        switch (encrypt)
+        {
+            case true when decrypt:
+                errors.Add("Cannot use -e and -d together.");
+                break;
+            case true:
+                mode = OperationMode.Encrypt;
+                break;
+            default:
+            {
+                if (decrypt) mode = OperationMode.Decrypt;
+                break;
+            }
+        }
 
         options = new AppOptions
         {
@@ -77,6 +94,11 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
             G3OutputPath = g3,
             G4OutputPath = g4,
 
+            B1OutputPath = b1,
+            B2OutputPath = b2,
+            B3OutputPath = b3,
+            B4OutputPath = b4,
+
             ComputeChiSquare = chisq,
             R1Path = r1,
             R2Path = r2,
@@ -89,7 +111,7 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
 
     private static string[] NormalizeBooleanSwitches(string[] args)
     {
-        var list = args
+        return args
             .Select((t, i) => (t, NextIsValue(args, i)) switch
             {
                 ("-e" or "--encrypt", false) => "--encrypt=true",
@@ -98,9 +120,7 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
                 ("-s" or "--chisq", _) => "--chisq=true",
                 _ => t
             })
-            .ToList();
-
-        return list.ToArray();
+            .ToArray();
 
         static bool NextIsValue(string[] a, int idx) =>
             idx + 1 < a.Length && !a[idx + 1].StartsWith('-');

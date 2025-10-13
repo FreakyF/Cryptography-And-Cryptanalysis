@@ -1,6 +1,6 @@
-using Task02.Domain.Enums;
+using Task03.Domain.Enums;
 
-namespace Task02.Application.Models;
+namespace Task03.Application.Models;
 
 public sealed class AppOptions
 {
@@ -14,6 +14,11 @@ public sealed class AppOptions
     public string? G2OutputPath { get; init; }
     public string? G3OutputPath { get; init; }
     public string? G4OutputPath { get; init; }
+
+    public string? B1OutputPath { get; init; }
+    public string? B2OutputPath { get; init; }
+    public string? B3OutputPath { get; init; }
+    public string? B4OutputPath { get; init; }
 
     public bool ComputeChiSquare { get; init; }
     public string? R1Path { get; init; }
@@ -29,12 +34,23 @@ public sealed class AppOptions
         !string.IsNullOrWhiteSpace(G3OutputPath) ||
         !string.IsNullOrWhiteSpace(G4OutputPath);
 
-    public int? ReferenceOrder =>
-        !string.IsNullOrWhiteSpace(R1Path) ? 1 :
-        !string.IsNullOrWhiteSpace(R2Path) ? 2 :
-        !string.IsNullOrWhiteSpace(R3Path) ? 3 :
-        !string.IsNullOrWhiteSpace(R4Path) ? 4 :
-        null;
+    public bool AnyRefBuildRequested =>
+        !string.IsNullOrWhiteSpace(B1OutputPath) ||
+        !string.IsNullOrWhiteSpace(B2OutputPath) ||
+        !string.IsNullOrWhiteSpace(B3OutputPath) ||
+        !string.IsNullOrWhiteSpace(B4OutputPath);
+
+    public int? ReferenceOrder
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(R1Path)) return 1;
+            if (!string.IsNullOrWhiteSpace(R2Path)) return 2;
+            if (!string.IsNullOrWhiteSpace(R3Path)) return 3;
+            if (!string.IsNullOrWhiteSpace(R4Path)) return 4;
+            return null;
+        }
+    }
 
     public string? ReferencePath =>
         ReferenceOrder switch
