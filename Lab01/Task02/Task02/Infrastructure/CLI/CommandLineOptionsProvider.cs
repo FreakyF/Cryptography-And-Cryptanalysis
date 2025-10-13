@@ -15,15 +15,18 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
             ["-k"] = "key", ["--key"] = "key",
             ["-e"] = "encrypt", ["--encrypt"] = "encrypt",
             ["-d"] = "decrypt", ["--decrypt"] = "decrypt",
-            ["-h"] = "help", ["--help"] = "help"
+            ["-h"] = "help", ["--help"] = "help",
+            ["-g1"] = "g1", ["--g1"] = "g1",
+            ["-g2"] = "g2", ["--g2"] = "g2",
+            ["-g3"] = "g3", ["--g3"] = "g3",
+            ["-g4"] = "g4", ["--g4"] = "g4"
         };
 
     public bool TryGetOptions(string[] args, out AppOptions options, out List<string> errors)
     {
         errors = [];
 
-        var normalized = NormalizeBooleanSwitches(args);
-
+        var normalized = NormalizeBooleanSwitches(args); // tylko -e/-d/-h
         IConfiguration config = new ConfigurationBuilder()
             .AddCommandLine(normalized, SwitchMap)
             .Build();
@@ -31,15 +34,19 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
         var input = config["input"];
         var output = config["output"];
         var key = config["key"];
+        var g1 = config["g1"];
+        var g2 = config["g2"];
+        var g3 = config["g3"];
+        var g4 = config["g4"];
 
-        var encryptFlag = ParseBool(config["encrypt"]);
-        var decryptFlag = ParseBool(config["decrypt"]);
-        var helpFlag = ParseBool(config["help"]);
+        var encrypt = ParseBool(config["encrypt"]);
+        var decrypt = ParseBool(config["decrypt"]);
+        var help = ParseBool(config["help"]);
 
         var mode = OperationMode.Unspecified;
-        switch (encryptFlag)
+        switch (encrypt)
         {
-            case true when decryptFlag:
+            case true when decrypt:
                 errors.Add("Cannot use -e and -d together.");
                 break;
             case true:
@@ -47,8 +54,7 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
                 break;
             default:
             {
-                if (decryptFlag)
-                    mode = OperationMode.Decrypt;
+                if (decrypt) mode = OperationMode.Decrypt;
                 break;
             }
         }
@@ -59,7 +65,11 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
             OutputPath = output,
             KeyPath = key,
             Mode = mode,
-            ShowHelp = helpFlag
+            ShowHelp = help,
+            G1OutputPath = g1,
+            G2OutputPath = g2,
+            G3OutputPath = g3,
+            G4OutputPath = g4
         };
 
         return errors.Count == 0;
@@ -67,20 +77,13 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
 
     private static string[] NormalizeBooleanSwitches(string[] args)
     {
-        var list = new List<string>(args.Length);
-        for (var i = 0; i < args.Length; i++)
+        var list = args.Select((t, i) => t switch
         {
-            var t = args[i];
-            var nextIsValue = NextIsValue(args, i);
-
-            list.Add((t, nextIsValue) switch
-            {
-                ("-e" or "--encrypt", false) => "--encrypt=true",
-                ("-d" or "--decrypt", false) => "--decrypt=true",
-                ("-h" or "--help", _) => "--help=true",
-                _ => t
-            });
-        }
+            "-h" or "--help" => "--help=true",
+            "-e" or "--encrypt" when !NextIsValue(args, i) => "--encrypt=true",
+            "-d" or "--decrypt" when !NextIsValue(args, i) => "--decrypt=true",
+            _ => t
+        }).ToList();
 
         return list.ToArray();
 

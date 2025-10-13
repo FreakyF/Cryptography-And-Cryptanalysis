@@ -1,5 +1,6 @@
 using Task02.Application.Abstractions;
 using Task02.Application.Models;
+using Task02.Domain.Enums;
 
 namespace Task02.Infrastructure.Validation;
 
@@ -11,43 +12,46 @@ public sealed class FileSystemOptionsValidator : IOptionsValidator
         if (options.ShowHelp) return [];
 
         var errors = new List<string>();
-        ValidateInputPath(options.InputPath, errors);
-        ValidateKeyPath(options.KeyPath, errors);
-        ValidateOutputPath(options.OutputPath, options.InputPath, errors);
+
+        if (options.InputPath is null || !File.Exists(options.InputPath))
+            errors.Add($"Input file not found: {options.InputPath}");
+
+        var hasCipher = options.Mode is not OperationMode.Unspecified;
+        var hasNgrams = options.AnyNGramRequested;
+
+        if (hasCipher)
+        {
+            if (options.KeyPath is null || !File.Exists(options.KeyPath))
+                errors.Add($"Key file not found: {options.KeyPath}");
+
+            ValidateOutputPath(options.OutputPath, options.InputPath, errors);
+        }
+
+        if (!hasNgrams) return errors;
+        ValidateOutputPath(options.G1OutputPath, options.InputPath, errors, label: "-g1");
+        ValidateOutputPath(options.G2OutputPath, options.InputPath, errors, label: "-g2");
+        ValidateOutputPath(options.G3OutputPath, options.InputPath, errors, label: "-g3");
+        ValidateOutputPath(options.G4OutputPath, options.InputPath, errors, label: "-g4");
+
         return errors;
     }
 
-    private static void ValidateInputPath(string? inputPath, List<string> errors)
+    private static void ValidateOutputPath(string? outputPath, string? inputPath, List<string> errors,
+        string? label = null)
     {
-        if (string.IsNullOrWhiteSpace(inputPath) || !File.Exists(inputPath))
-            errors.Add($"Input file not found: {inputPath}");
-    }
-
-    private static void ValidateKeyPath(string? keyPath, List<string> errors)
-    {
-        if (string.IsNullOrWhiteSpace(keyPath) || !File.Exists(keyPath))
-            errors.Add($"Key file not found: {keyPath}");
-    }
-
-    private static void ValidateOutputPath(string? outputPath, string? inputPath, List<string> errors)
-    {
-        if (string.IsNullOrWhiteSpace(outputPath))
-        {
-            errors.Add("Missing output path.");
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(outputPath)) return;
 
         if (Directory.Exists(outputPath))
-            errors.Add("Output path points to a directory.");
+            errors.Add($"{Label(label)}Output path points to a directory.");
 
         var inFull = GetFullPathOrNull(inputPath);
         var outFull = GetFullPathOrNull(outputPath);
 
         if (inFull is not null && outFull is not null && PathsEqual(inFull, outFull))
-            errors.Add("Input and output paths must differ.");
+            errors.Add($"{Label(label)}Input and output paths must differ.");
 
         if (outFull is null || Path.GetDirectoryName(outFull) is null)
-            errors.Add("Output path is invalid.");
+            errors.Add($"{Label(label)}Output path is invalid.");
     }
 
     private static string? GetFullPathOrNull(string? path)
@@ -68,4 +72,6 @@ public sealed class FileSystemOptionsValidator : IOptionsValidator
         var cmp = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         return cmp.Equals(a, b);
     }
+
+    private static string Label(string? label) => string.IsNullOrEmpty(label) ? "" : $"{label}: ";
 }

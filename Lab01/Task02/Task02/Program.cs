@@ -1,5 +1,6 @@
 ﻿using Task02.Application;
 using Task02.Application.Abstractions;
+using Task02.Application.Analysis;
 using Task02.Application.Cipher;
 using Task02.Application.Text;
 using Task02.Application.Validation;
@@ -49,7 +50,8 @@ internal static class Program
             reader: reader,
             writer: new FileWriter(),
             normalizer: new TextNormalizer(),
-            cipher: new SubstitutionCipher());
+            cipher: new SubstitutionCipher(),
+            ngramCounter: new NGramCounter());
         return runner.Run(options);
     }
 }
