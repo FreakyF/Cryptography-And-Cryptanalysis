@@ -1,6 +1,12 @@
 ﻿using Task01.Application;
-using Task01.Domain;
-using Task01.Infrastructure;
+using Task01.Application.Abstractions;
+using Task01.Application.Cipher;
+using Task01.Application.Text;
+using Task01.Application.Validation;
+using Task01.Infrastructure.CLI;
+using Task01.Infrastructure.Common;
+using Task01.Infrastructure.IO;
+using Task01.Infrastructure.Validation;
 
 namespace Task01;
 
@@ -9,37 +15,41 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
-        try
+        IAppOptionsProvider provider = new CommandLineOptionsProvider();
+        if (!provider.TryGetOptions(args, out var options, out var parseErrors))
         {
-            IOptionsParser parser = new ConfigurationOptionsParser();
-            
-            var options = parser.Parse(args);
+            Printer.Errors(parseErrors);
+            Printer.Usage();
+            return 2;
+        }
 
-            IKeyLoader keyLoader = new KeyLoader();
-            var keyMap = keyLoader.Load(options.KeyFile);
-
-            ICipher cipher = new SubstitutionCipher(keyMap);
-            ITextPreprocessor preprocessor = new TextPreprocessor();
-
-            var inputText = File.ReadAllText(options.InputFile);
-            var cleanedText = preprocessor.Clean(inputText);
-
-            var result = options.Mode switch
-            {
-                CipherMode.Encrypt => cipher.Encrypt(cleanedText),
-                CipherMode.Decrypt => cipher.Decrypt(cleanedText),
-                _ => throw new InvalidOperationException("Unknown type")
-            };
-
-            File.WriteAllText(options.OutputFile, result);
-
-            Console.WriteLine($"Task ended. Results are saved in {options.OutputFile}");
+        if (options.ShowHelp)
+        {
+            Printer.Usage();
             return 0;
         }
-        catch (Exception e)
+
+        var validators = new IOptionsValidator[]
         {
-            Console.WriteLine($"Error: {e.Message}");
-            return 1;
+            new AppOptionsValidator(),
+            new FileSystemOptionsValidator()
+        };
+
+        var allErrors = validators.SelectMany(v => v.Validate(options)).ToList();
+        if (allErrors.Count > 0)
+        {
+            Printer.Errors(allErrors);
+            Printer.Usage();
+            return 2;
         }
+
+        var reader = new FileReader();
+        IRunner runner = new Runner(
+            keyLoader: new KeyLoader(reader),
+            reader: reader,
+            writer: new FileWriter(),
+            normalizer: new TextNormalizer(),
+            cipher: new SubstitutionCipher());
+        return runner.Run(options);
     }
 }
