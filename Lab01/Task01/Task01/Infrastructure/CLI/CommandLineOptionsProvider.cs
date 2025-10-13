@@ -67,20 +67,13 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
 
     private static string[] NormalizeBooleanSwitches(string[] args)
     {
-        var list = new List<string>(args.Length);
-        for (var i = 0; i < args.Length; i++)
+        var list = args.Select((t, i) => t switch
         {
-            var t = args[i];
-            var nextIsValue = NextIsValue(args, i);
-
-            list.Add((t, nextIsValue) switch
-            {
-                ("-e" or "--encrypt", false) => "--encrypt=true",
-                ("-d" or "--decrypt", false) => "--decrypt=true",
-                ("-h" or "--help", _) => "--help=true",
-                _ => t
-            });
-        }
+            "-h" or "--help" => "--help=true",
+            "-e" or "--encrypt" when !NextIsValue(args, i) => "--encrypt=true",
+            "-d" or "--decrypt" when !NextIsValue(args, i) => "--decrypt=true",
+            _ => t
+        }).ToList();
 
         return list.ToArray();
 
