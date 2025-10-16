@@ -39,10 +39,9 @@ public sealed class Runner(
             if (options.ComputeChiSquare)
                 return ProcessChiSquare(options, normalized);
 
-            if (options.AnyRefBuildRequested)
-                return ProcessBuild(options, normalized);
-
-            return ProcessCounts(options, normalized);
+            return options.AnyRefBuildRequested
+                ? ProcessBuild(options, normalized)
+                : ProcessCounts(options, normalized);
         }
         catch (Exception ex)
         {
