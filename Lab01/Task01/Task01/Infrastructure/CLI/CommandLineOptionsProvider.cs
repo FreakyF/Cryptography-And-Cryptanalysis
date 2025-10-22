@@ -18,6 +18,11 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
             ["-h"] = "help", ["--help"] = "help"
         };
 
+    /// <summary>Parses command line arguments into application options while collecting parsing errors.</summary>
+    /// <param name="args">The command line arguments provided by the user.</param>
+    /// <param name="options">When successful, receives the populated application options.</param>
+    /// <param name="errors">Receives any parsing error messages encountered during processing.</param>
+    /// <returns><see langword="true"/> if options were parsed without errors; otherwise <see langword="false"/>.</returns>
     public bool TryGetOptions(string[] args, out AppOptions options, out List<string> errors)
     {
         errors = [];
@@ -65,6 +70,9 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
         return errors.Count == 0;
     }
 
+    /// <summary>Normalizes boolean command line switches to ensure configuration parsing receives explicit values.</summary>
+    /// <param name="args">The raw command line arguments provided to the program.</param>
+    /// <returns>An array of arguments where boolean switches are rewritten to include explicit assignments.</returns>
     private static string[] NormalizeBooleanSwitches(string[] args)
     {
         var list = args.Select((t, i) => t switch
@@ -81,6 +89,9 @@ public sealed class CommandLineOptionsProvider : IAppOptionsProvider
             idx + 1 < a.Length && !a[idx + 1].StartsWith('-');
     }
 
+    /// <summary>Parses the provided string as a boolean value and defaults to false when parsing fails.</summary>
+    /// <param name="value">The string representation of a boolean flag.</param>
+    /// <returns><see langword="true"/> when the value parses as true; otherwise <see langword="false"/>.</returns>
     private static bool ParseBool(string? value) =>
         bool.TryParse(value, out var b) && b;
 }

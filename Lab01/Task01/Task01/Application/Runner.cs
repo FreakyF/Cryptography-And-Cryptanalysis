@@ -18,6 +18,9 @@ public sealed class Runner(
     private readonly ITextNormalizer _normalizer = normalizer ?? throw new ArgumentNullException(nameof(normalizer));
     private readonly ISubstitutionCipher _cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
 
+    /// <summary>Orchestrates reading, normalizing, encrypting or decrypting, and writing text according to the options.</summary>
+    /// <param name="options">The application options describing file paths and the operation mode.</param>
+    /// <returns>Zero when the workflow succeeds; otherwise one when an error occurs.</returns>
     public int Run(AppOptions options)
     {
         try

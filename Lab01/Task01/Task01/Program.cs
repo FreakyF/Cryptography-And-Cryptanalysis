@@ -13,6 +13,9 @@ namespace Task01;
 #pragma warning disable CA1859
 internal static class Program
 {
+    /// <summary>Entry point that parses command line options, validates them, and runs the substitution cipher workflow.</summary>
+    /// <param name="args">The command line arguments passed to the application.</param>
+    /// <returns>An exit code where zero indicates success, one indicates runtime failure, and two indicates validation failure.</returns>
     private static int Main(string[] args)
     {
         IAppOptionsProvider provider = new CommandLineOptionsProvider();

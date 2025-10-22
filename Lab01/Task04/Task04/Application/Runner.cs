@@ -27,6 +27,9 @@ public sealed class Runner(
     private readonly IReferenceLoader _refLoader = analysis.ReferenceLoader;
     private readonly IChiSquareCalculator _chi2 = analysis.ChiSquare;
 
+    /// <summary>Coordinates cipher execution, chi-square analysis, reference building, or n-gram reporting based on options.</summary>
+    /// <param name="options">The application options containing file paths, mode selection, and report destinations.</param>
+    /// <returns>Zero when the requested operation completes successfully; otherwise one when an error occurs.</returns>
     public int Run(AppOptions options)
     {
         try
@@ -50,6 +53,10 @@ public sealed class Runner(
         }
     }
 
+    /// <summary>Processes encryption or decryption requests and writes the transformed text to the output path.</summary>
+    /// <param name="options">The options specifying key, input, and output paths as well as operation mode.</param>
+    /// <param name="normalized">The normalized text to transform.</param>
+    /// <returns>An exit code of zero when the operation succeeds.</returns>
     private int ProcessCipher(AppOptions options, string normalized)
     {
         var key = _keyLoader.Load(options.KeyPath!);
@@ -64,6 +71,10 @@ public sealed class Runner(
         return 0;
     }
 
+    /// <summary>Calculates and prints the chi-square statistic for the normalized text using the selected reference.</summary>
+    /// <param name="options">The options describing reference paths, exclusions, and sample length.</param>
+    /// <param name="normalized">The normalized text whose n-gram distribution is analyzed.</param>
+    /// <returns>Zero when the statistic is computed and printed successfully.</returns>
     private int ProcessChiSquare(AppOptions options, string normalized)
     {
         if (options.SampleLength is { } nlen && nlen < normalized.Length)
@@ -80,6 +91,10 @@ public sealed class Runner(
         return 0;
     }
 
+    /// <summary>Builds n-gram probability references for the requested orders.</summary>
+    /// <param name="options">The options providing destination paths for each requested reference order.</param>
+    /// <param name="normalized">The normalized corpus text used to derive probabilities.</param>
+    /// <returns>Always returns zero after processing all requested references.</returns>
     private int ProcessBuild(AppOptions options, string normalized)
     {
         BuildRefIfRequested(normalized, 1, options.B1OutputPath);
@@ -89,6 +104,10 @@ public sealed class Runner(
         return 0;
     }
 
+    /// <summary>Generates n-gram frequency reports for each requested order.</summary>
+    /// <param name="options">The options describing destination paths for each frequency table.</param>
+    /// <param name="normalized">The normalized text whose counts populate the reports.</param>
+    /// <returns>Always returns zero after producing all requested reports.</returns>
     private int ProcessCounts(AppOptions options, string normalized)
     {
         GenerateIfRequested(normalized, 1, options.G1OutputPath);
@@ -98,6 +117,10 @@ public sealed class Runner(
         return 0;
     }
 
+    /// <summary>Parses a comma-separated list of n-grams into a normalized exclusion set.</summary>
+    /// <param name="csv">The comma-separated exclusion list provided by the user.</param>
+    /// <param name="n">The n-gram order used to validate exclusion lengths.</param>
+    /// <returns>A set of uppercase n-grams to exclude from chi-square analysis.</returns>
     private static HashSet<string> ParseExclusions(string? csv, int n)
     {
         var set = new HashSet<string>(StringComparer.Ordinal);
@@ -113,6 +136,10 @@ public sealed class Runner(
         return set;
     }
 
+    /// <summary>Generates and writes an n-gram frequency report when an output path is provided.</summary>
+    /// <param name="normalized">The normalized text that should be analyzed.</param>
+    /// <param name="n">The n-gram size requested for the analysis.</param>
+    /// <param name="outPath">The destination file path for the generated report.</param>
     private void GenerateIfRequested(string normalized, int n, string? outPath)
     {
         if (string.IsNullOrWhiteSpace(outPath)) return;
@@ -121,6 +148,10 @@ public sealed class Runner(
         _writer.WriteAll(outPath, report);
     }
 
+    /// <summary>Builds and writes an n-gram probability reference when a destination path is supplied.</summary>
+    /// <param name="normalized">The normalized corpus text used to derive probabilities.</param>
+    /// <param name="n">The n-gram order to build.</param>
+    /// <param name="outPath">The output file path that should receive the probability table.</param>
     private void BuildRefIfRequested(string normalized, int n, string? outPath)
     {
         if (string.IsNullOrWhiteSpace(outPath)) return;

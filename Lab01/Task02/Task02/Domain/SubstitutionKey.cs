@@ -8,6 +8,9 @@ public sealed class SubstitutionKey(IReadOnlyDictionary<char, char> forward, IRe
     public IReadOnlyDictionary<char, char> Reverse { get; } =
         reverse ?? throw new ArgumentNullException(nameof(reverse));
 
+    /// <summary>Constructs a substitution key from a forward mapping by automatically creating the reverse mapping.</summary>
+    /// <param name="forward">The mapping from plaintext characters to ciphertext characters.</param>
+    /// <returns>A substitution key containing both forward and reverse dictionaries.</returns>
     public static SubstitutionKey FromForward(IDictionary<char, char> forward)
     {
         ArgumentNullException.ThrowIfNull(forward);

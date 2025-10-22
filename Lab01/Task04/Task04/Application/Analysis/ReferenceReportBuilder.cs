@@ -4,6 +4,9 @@ namespace Task04.Application.Analysis;
 
 public static class ReferenceReportBuilder
 {
+    /// <summary>Formats n-gram counts into a probability table sorted by frequency then gram name.</summary>
+    /// <param name="counts">The dictionary of n-gram counts used to compute probabilities.</param>
+    /// <returns>A newline-delimited string with each n-gram and its probability.</returns>
     public static string BuildProbabilities(IReadOnlyDictionary<string, int> counts)
     {
         var total = counts.Values.Sum();
