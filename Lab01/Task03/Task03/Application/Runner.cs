@@ -26,6 +26,9 @@ public sealed class Runner(
     private readonly IReferenceLoader _refLoader = analysis.ReferenceLoader;
     private readonly IChiSquareCalculator _chi2 = analysis.ChiSquare;
 
+    /// <summary>Coordinates cipher execution, chi-square analysis, reference building, or n-gram reporting based on options.</summary>
+    /// <param name="options">The application options containing file paths, mode selection, and report destinations.</param>
+    /// <returns>Zero when the requested operation completes successfully; otherwise one when an error occurs.</returns>
     public int Run(AppOptions options)
     {
         try
@@ -83,6 +86,10 @@ public sealed class Runner(
         }
     }
 
+    /// <summary>Generates and writes an n-gram frequency report when an output path is provided.</summary>
+    /// <param name="normalized">The normalized text that should be analyzed.</param>
+    /// <param name="n">The n-gram size requested for the analysis.</param>
+    /// <param name="outPath">The destination file path for the generated report.</param>
     private void GenerateIfRequested(string normalized, int n, string? outPath)
     {
         if (string.IsNullOrWhiteSpace(outPath)) return;
@@ -91,6 +98,10 @@ public sealed class Runner(
         _writer.WriteAll(outPath, report);
     }
 
+    /// <summary>Builds and writes an n-gram probability reference when a destination path is supplied.</summary>
+    /// <param name="normalized">The normalized corpus text used to derive probabilities.</param>
+    /// <param name="n">The n-gram order to build.</param>
+    /// <param name="outPath">The output file path that should receive the probability table.</param>
     private void BuildRefIfRequested(string normalized, int n, string? outPath)
     {
         if (string.IsNullOrWhiteSpace(outPath)) return;

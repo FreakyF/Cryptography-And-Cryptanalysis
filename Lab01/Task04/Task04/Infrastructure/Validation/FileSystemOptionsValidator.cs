@@ -7,6 +7,9 @@ namespace Task04.Infrastructure.Validation;
 #pragma warning disable S2325
 public sealed class FileSystemOptionsValidator : IOptionsValidator
 {
+    /// <summary>Checks that required files exist and output destinations are valid for the chosen operations.</summary>
+    /// <param name="options">The parsed application options providing paths and requested tasks.</param>
+    /// <returns>A collection containing descriptions of any file system validation errors.</returns>
     public IReadOnlyList<string> Validate(AppOptions options)
     {
         if (options.ShowHelp) return [];
@@ -51,6 +54,11 @@ public sealed class FileSystemOptionsValidator : IOptionsValidator
         return errors;
     }
 
+    /// <summary>Validates an output path ensuring it differs from the input and can be created, annotating errors with labels.</summary>
+    /// <param name="outputPath">The candidate output file path.</param>
+    /// <param name="inputPath">The input path used to detect conflicts.</param>
+    /// <param name="errors">The collection that accumulates validation error messages.</param>
+    /// <param name="label">An optional label identifying the option that supplied the path.</param>
     private static void ValidateOutputPath(string? outputPath, string? inputPath, List<string> errors,
         string? label = null)
     {
@@ -69,6 +77,9 @@ public sealed class FileSystemOptionsValidator : IOptionsValidator
             errors.Add($"{Prefix(label)}Output path is invalid.");
     }
 
+    /// <summary>Converts the provided path to its absolute representation or returns null when conversion fails.</summary>
+    /// <param name="path">The path value to normalize.</param>
+    /// <returns>The absolute path string if obtainable; otherwise null.</returns>
     private static string? GetFullPathOrNull(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
@@ -82,11 +93,18 @@ public sealed class FileSystemOptionsValidator : IOptionsValidator
         }
     }
 
+    /// <summary>Determines whether two file system paths refer to the same location using platform-aware comparison.</summary>
+    /// <param name="a">The first normalized path.</param>
+    /// <param name="b">The second normalized path.</param>
+    /// <returns><see langword="true"/> when both paths identify the same location; otherwise <see langword="false"/>.</returns>
     private static bool PathsEqual(string a, string b)
     {
         var cmp = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         return cmp.Equals(a, b);
     }
 
+    /// <summary>Formats an optional label prefix for validation messages.</summary>
+    /// <param name="label">The command-line flag label associated with the message.</param>
+    /// <returns>An empty string when no label is supplied; otherwise the label followed by a separator.</returns>
     private static string Prefix(string? label) => string.IsNullOrEmpty(label) ? "" : $"{label}: ";
 }

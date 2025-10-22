@@ -9,6 +9,9 @@ public sealed class KeyLoader(IFileReader reader) : IKeyLoader
 {
     private readonly IFileReader _reader = reader ?? throw new ArgumentNullException(nameof(reader));
 
+    /// <summary>Loads a substitution key from the specified path by parsing its character mappings.</summary>
+    /// <param name="path">The path to the text file that defines the substitution key.</param>
+    /// <returns>A substitution key created from the parsed mappings.</returns>
     public SubstitutionKey Load(string path)
     {
         var text = _reader.ReadAll(path);
@@ -16,6 +19,9 @@ public sealed class KeyLoader(IFileReader reader) : IKeyLoader
         return SubstitutionKey.FromForward(forward);
     }
 
+    /// <summary>Parses the raw key file text into a dictionary mapping plaintext characters to ciphertext characters.</summary>
+    /// <param name="raw">The raw file contents representing the key definition.</param>
+    /// <returns>A dictionary describing the forward substitution mapping.</returns>
     private static Dictionary<char, char> ParseForwardMap(string raw)
     {
         var map = new Dictionary<char, char>(26);
@@ -48,12 +54,20 @@ public sealed class KeyLoader(IFileReader reader) : IKeyLoader
         return map;
     }
 
+    /// <summary>Removes comments that start with '#' from a line of key text.</summary>
+    /// <param name="s">The line from which comments should be stripped.</param>
+    /// <returns>The line content without any trailing comment text.</returns>
     private static string StripComment(string s)
     {
         var idx = s.IndexOf('#');
         return idx >= 0 ? s[..idx] : s;
     }
 
+    /// <summary>Parses and validates a single letter token from the key file.</summary>
+    /// <param name="token">The token text expected to contain a single letter.</param>
+    /// <param name="lineNo">The line number currently being processed, used for error reporting.</param>
+    /// <param name="position">The token position on the line for diagnostics.</param>
+    /// <returns>The uppercase Latin letter represented by the token.</returns>
     private static char ParseLetter(string token, int lineNo, int position)
     {
         if (token.Length != 1)
@@ -66,6 +80,8 @@ public sealed class KeyLoader(IFileReader reader) : IKeyLoader
             : c;
     }
 
+    /// <summary>Ensures the substitution mapping defines a complete bijection over the uppercase Latin alphabet.</summary>
+    /// <param name="map">The mapping to validate for completeness and uniqueness.</param>
     private static void ValidateBijection(Dictionary<char, char> map)
     {
         var missingLhs = Alphabet.LatinUpper.Where(c => !map.ContainsKey(c)).ToArray();

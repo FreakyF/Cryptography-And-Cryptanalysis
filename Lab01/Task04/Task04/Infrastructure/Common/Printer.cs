@@ -2,12 +2,15 @@ namespace Task04.Infrastructure.Common;
 
 internal static class Printer
 {
+    /// <summary>Writes each validation error message to the standard error output.</summary>
+    /// <param name="errors">The collection of error messages to be printed.</param>
     public static void Errors(IEnumerable<string> errors)
     {
         foreach (var e in errors)
             Console.Error.WriteLine($"ERROR: {e}");
     }
 
+    /// <summary>Displays the command line usage information for cipher, n-gram, reference, and chi-square modes.</summary>
     public static void Usage()
     {
         Console.WriteLine("""

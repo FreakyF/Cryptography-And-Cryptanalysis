@@ -6,6 +6,9 @@ namespace Task02.Application.Validation;
 
 public sealed class AppOptionsValidator : IOptionsValidator
 {
+    /// <summary>Evaluates the command line options to ensure required values and mode combinations are valid.</summary>
+    /// <param name="options">The parsed application options describing inputs, outputs, and requested operations.</param>
+    /// <returns>A read-only list containing messages for each detected validation error.</returns>
     public IReadOnlyList<string> Validate(AppOptions options)
     {
         var errors = new List<string>();

@@ -6,6 +6,9 @@ namespace Task03.Application.Validation;
 
 public sealed class AppOptionsValidator : IOptionsValidator
 {
+    /// <summary>Evaluates command line options ensuring exactly one mode is selected and required arguments are present.</summary>
+    /// <param name="options">The parsed application options describing inputs, outputs, and requested operations.</param>
+    /// <returns>A read-only list containing messages for each detected validation error.</returns>
     public IReadOnlyList<string> Validate(AppOptions options)
     {
         if (options.ShowHelp) return [];
@@ -28,6 +31,12 @@ public sealed class AppOptionsValidator : IOptionsValidator
         return errors;
     }
 
+    /// <summary>Verifies that exactly one high-level mode (cipher, n-gram, chi-square, build) was chosen.</summary>
+    /// <param name="hasCipher">Indicates whether cipher mode was requested.</param>
+    /// <param name="hasNgrams">Indicates whether n-gram generation was requested.</param>
+    /// <param name="hasChi2">Indicates whether chi-square analysis was requested.</param>
+    /// <param name="hasBuild">Indicates whether reference building was requested.</param>
+    /// <param name="errors">The collection receiving validation error messages.</param>
     private static void ValidateModeSelection(bool hasCipher, bool hasNgrams, bool hasChi2, bool hasBuild,
         List<string> errors)
     {
@@ -43,6 +52,9 @@ public sealed class AppOptionsValidator : IOptionsValidator
         }
     }
 
+    /// <summary>Ensures cipher mode supplies the required input, output, and key paths.</summary>
+    /// <param name="o">The options under validation.</param>
+    /// <param name="errors">The collection receiving error messages.</param>
     private static void ValidateCipher(AppOptions o, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(o.InputPath))
@@ -53,18 +65,27 @@ public sealed class AppOptionsValidator : IOptionsValidator
             errors.Add("Missing key path. Use -k <file>.");
     }
 
+    /// <summary>Requires that operations needing only input text provide an input path.</summary>
+    /// <param name="o">The options under validation.</param>
+    /// <param name="errors">The collection receiving error messages.</param>
     private static void ValidateRequiresInput(AppOptions o, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(o.InputPath))
             errors.Add("Missing input path. Use -i <file>.");
     }
 
+    /// <summary>Ensures reference building operations specify the corpus input path.</summary>
+    /// <param name="o">The options under validation.</param>
+    /// <param name="errors">The collection receiving error messages.</param>
     private static void ValidateRequiresCorpus(AppOptions o, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(o.InputPath))
             errors.Add("Missing input path. Use -i <corpus_file>.");
     }
 
+    /// <summary>Validates chi-square mode flags, input path, and reference selection.</summary>
+    /// <param name="o">The options under validation.</param>
+    /// <param name="errors">The collection receiving error messages.</param>
     private static void ValidateChiSquare(AppOptions o, List<string> errors)
     {
         if (!o.ComputeChiSquare)
@@ -85,6 +106,9 @@ public sealed class AppOptionsValidator : IOptionsValidator
         }
     }
 
+    /// <summary>Counts how many reference paths were supplied.</summary>
+    /// <param name="paths">The reference paths to evaluate.</param>
+    /// <returns>The number of non-empty reference paths.</returns>
     private static int CountProvided(params string?[] paths) =>
         paths.Count(p => !string.IsNullOrWhiteSpace(p));
 }

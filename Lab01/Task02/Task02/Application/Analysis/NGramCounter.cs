@@ -4,6 +4,10 @@ namespace Task02.Application.Analysis;
 
 public sealed class NGramCounter : INGramCounter
 {
+    /// <summary>Computes frequency counts for each n-gram within the supplied normalized text.</summary>
+    /// <param name="normalized">The uppercase text to scan for n-gram occurrences.</param>
+    /// <param name="n">The length of the n-grams that should be evaluated.</param>
+    /// <returns>A dictionary mapping each observed n-gram to the number of times it appears.</returns>
     public IReadOnlyDictionary<string, int> Count(string normalized, int n)
     {
         ArgumentNullException.ThrowIfNull(normalized);

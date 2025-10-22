@@ -21,6 +21,9 @@ public sealed class Runner(
     private readonly ISubstitutionCipher _cipher = cipher ?? throw new ArgumentNullException(nameof(cipher));
     private readonly INGramCounter _ngrams = ngramCounter ?? throw new ArgumentNullException(nameof(ngramCounter));
 
+    /// <summary>Coordinates loading inputs, performing cipher or n-gram operations, and writing the resulting outputs.</summary>
+    /// <param name="options">The application options containing file paths, mode selection, and report destinations.</param>
+    /// <returns>Zero if all requested operations complete successfully; otherwise one when an error is encountered.</returns>
     public int Run(AppOptions options)
     {
         try
@@ -56,6 +59,10 @@ public sealed class Runner(
         }
     }
 
+    /// <summary>Generates and writes an n-gram frequency report when an output path is provided.</summary>
+    /// <param name="normalized">The normalized text that should be analyzed.</param>
+    /// <param name="n">The n-gram size requested for the analysis.</param>
+    /// <param name="outPath">The destination file path for the generated report.</param>
     private void GenerateIfRequested(string normalized, int n, string? outPath)
     {
         if (string.IsNullOrWhiteSpace(outPath)) return;
