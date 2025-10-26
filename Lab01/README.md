@@ -274,7 +274,7 @@ flowchart TD
 
 #### Implementacja
 
-- IAppOptionsProvider.cs
+- IAppOptionsProvider.cs - Interfejs określa kontrakt dostawcy opcji aplikacji. Udostępnia metodę TryGetOptions, która próbuje sparsować argumenty CLI do AppOptions i zgłasza błędy walidacji. Dzięki temu warstwa infrastruktury może jednolicie przekazywać konfigurację dalej.
 
   ```csharp
   using Task04.Application.Models;
@@ -287,7 +287,7 @@ flowchart TD
   }
   ```
 
-- IChiSquareCalculator.cs
+- IChiSquareCalculator.cs - Interfejs opisuje usługę obliczającą statystykę chi-kwadrat dla zadanego tekstu. Zapewnia metodę Compute przyjmującą znormalizowane dane, rząd n-gramów oraz bazę referencyjną. Dzięki temu logika analityczna jest odseparowana od reszty aplikacji.
 
     ```csharp
     using Task04.Application.Models;
@@ -300,7 +300,7 @@ flowchart TD
     }
     ```
 
-- IFileReader.cs
+- IFileReader.cs - Minimalistyczny interfejs abstrakcji odczytu plików. Udostępnia metodę ReadAll zwracającą całą zawartość wskazanego pliku tekstowego. Pozwala to testować pozostałe komponenty bez bezpośredniej zależności od systemu plików.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -311,7 +311,7 @@ flowchart TD
     }
     ```
 
-- IFileWriter.cs
+- IFileWriter.cs - Interfejs odpowiadający za zapis danych na dysk. Wystawia metodę WriteAll przyjmującą ścieżkę i zawartość tekstową do utrwalenia. Abstrakcja umożliwia łatwą podmianę implementacji w testach lub innych środowiskach.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -322,7 +322,7 @@ flowchart TD
     }
     ```
 
-- IKeyLoader.cs
+- IKeyLoader.cs - Kontrakt opisuje komponent odpowiedzialny za wczytywanie klucza podstawieniowego z pliku. Definiuje metodę Load zwracającą obiekt SubstitutionKey po przeprowadzeniu walidacji i parsowania danych. Pozwala to ukryć szczegóły formatu klucza przed pozostałymi warstwami.
 
     ```csharp
     using Task04.Domain;
@@ -335,7 +335,7 @@ flowchart TD
     }
     ```
 
-- INGramLoader.cs
+- INGramLoader.cs - Interfejs opisuje licznik n-gramów wykorzystywany przy analizie tekstu. Udostępnia metodę Count, która przyjmuje znormalizowany tekst i długość n-gramu, zwracając histogram wystąpień. Dzięki temu implementacja zliczania może być wymieniana niezależnie od reszty systemu.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -346,7 +346,7 @@ flowchart TD
     }
     ```
 
-- IOptionsValidator.cs
+- IOptionsValidator.cs - Interfejs agreguje reguły walidacji konfiguracji aplikacji. Metoda Validate przyjmuje AppOptions i zwraca listę komunikatów błędów, jeśli wykryto niespójności. Dzięki temu można składać wiele niezależnych walidatorów.
 
     ```csharp
     using Task04.Application.Models;
@@ -359,7 +359,7 @@ flowchart TD
     }
     ```
 
-- IReferenceLoader.cs
+- IReferenceLoader.cs - Interfejs określa sposób wczytywania referencyjnych baz n-gramów. Metoda Load zwraca obiekt NGramReference z prawdopodobieństwami wymaganymi do testów statystycznych. Umożliwia to separację formatu pliku od warstwy obliczeniowej.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -370,7 +370,7 @@ flowchart TD
     }
     ```
 
-- IRunner.cs
+- IRunner.cs - Interfejs reprezentuje główny przebieg programu w zależności od wybranych opcji. Udostępnia metodę Run przyjmującą AppOptions i zwracającą kod zakończenia procesu. Koncentracja logiki uruchomieniowej w jednym komponencie ułatwia testowanie scenariuszy.
 
     ```csharp
     using Task04.Application.Models;
@@ -383,7 +383,7 @@ flowchart TD
     }
     ```
 
-- ISubstitutionCipher.cs
+- ISubstitutionCipher.cs - Interfejs definiuje operacje szyfrujące i deszyfrujące na znormalizowanych ciągach znaków. Wymaga implementacji metod Encrypt oraz Decrypt pracujących na obiekcie SubstitutionKey. Zapewnia to polimorficzną obsługę różnych wariantów szyfrów podstawieniowych.
 
     ```csharp
     using Task04.Domain;
@@ -397,7 +397,7 @@ flowchart TD
     }
     ```
 
-- ITextNormalizer.cs
+- ITextNormalizer.cs - Interfejs izoluje logikę normalizacji tekstu przed dalszymi obliczeniami. Metoda Normalize otrzymuje dowolny ciąg wejściowy i zwraca wersję oczyszczoną do formatu A–Z. Dzięki temu reszta aplikacji pracuje na przewidywalnym zbiorze znaków.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -408,7 +408,7 @@ flowchart TD
     }
     ```
 
-- NGramReference.cs
+- NGramReference.cs - Klasa przechowuje bazę prawdopodobieństw n-gramów określonego rzędu. W konstruktorze weryfikuje poprawność argumentów i zapewnia niezmienność kolekcji. Obiekt ten stanowi wejście do obliczeń testu chi-kwadrat.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -427,7 +427,7 @@ flowchart TD
     }
     ```
 
-- AnalysisService.cs
+- AnalysisService.cs - Klasa agreguje zależności analityczne (licznik n-gramów, loader referencji i kalkulator chi-kwadrat). Udostępnia właściwości pozwalające innym komponentom korzystać z tych usług jako spójnego zestawu. Dzięki temu Runner otrzymuje jedną fasadę dla zadań analitycznych.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -448,7 +448,7 @@ flowchart TD
     }
     ```
 
-- ChiSquareCalculator.cs
+- ChiSquareCalculator.cs - Implementacja oblicza wartość statystyki chi-kwadrat dla obserwowanych n-gramów. Korzysta z licznika n-gramów do wyznaczenia częstości oraz stosuje wybrane opcje filtrowania. Dzięki temu można badać zgodność tekstu z bazą referencyjną.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -495,7 +495,7 @@ flowchart TD
     }
     ```
 
-- NGramCounter.cs
+- NGramCounter.cs - Klasa odpowiedzialna za zliczanie wystąpień n-gramów w znormalizowanym tekście. Przechodzi po ciągu znaków, budując słownik częstotliwości i obsługując komentarze oraz walidację wejścia. Wyniki służą zarówno do raportów częstości, jak i do statystyk chi-kwadrat.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -523,7 +523,7 @@ flowchart TD
     }
     ```
 
-- NGramReportBuilder.cs
+- NGramReportBuilder.cs - Statyczna klasa buduje raport zliczeń n-gramów w formacie tekstowym. Sortuje dane według liczności i leksykalnie, a następnie zapisuje każdą parę "n-gram liczność" w osobnej linii. Ułatwia to generowanie wyników dla użytkownika.
 
     ```csharp
     using System.Globalization;
@@ -548,7 +548,7 @@ flowchart TD
     }
     ```
 
-- ReferenceReportBuilder.cs
+- ReferenceReportBuilder.cs - Narzędzie generuje raport prawdopodobieństw na podstawie zliczeń n-gramów. Oblicza udział każdego n-gramu w sumie i wypisuje wynik w stabilnej kolejności. Pozwala to tworzyć pliki referencyjne wykorzystywane w dalszych analizach.
 
     ```csharp
     using System.Globalization;
@@ -577,7 +577,7 @@ flowchart TD
     }
     ```
 
-- SubstitutionCipher.cs
+- SubstitutionCipher.cs - Implementacja szyfru podstawieniowego wykonuje transformację znak po znaku zgodnie z mapą klucza. Wspólna metoda Transform obsługuje zarówno szyfrowanie, jak i deszyfrowanie oraz waliduje kompletność mapowania. Dzięki temu operacje na tekście są deterministyczne i bezpieczne.
 
     ```csharp
     using System.Text;
@@ -610,7 +610,7 @@ flowchart TD
     }
     ```
 
-- AppOptions.cs
+- AppOptions.cs - Klasa modeluje wszystkie możliwe opcje konfiguracyjne programu. Zawiera właściwości reprezentujące ścieżki plików, tryby pracy, opcje eksperymentów oraz pomocnicze właściwości logiczne. Umożliwia to spójne przekazywanie ustawień między warstwami aplikacji.
 
     ```csharp
     using Task04.Domain.Enums;
@@ -684,7 +684,7 @@ flowchart TD
     }
     ```
 
-- ChiSquareOptions.cs
+- ChiSquareOptions.cs - Rekord przechowuje dodatkowe ustawienia dla kalkulatora chi-kwadrat. Obejmuje zestaw n-gramów do wykluczenia oraz opcjonalny próg oczekiwanej liczności. Pozwala to konfigurować analizy eksperymentalne bez modyfikacji głównej logiki.
 
     ```csharp
     namespace Task04.Application.Models;
@@ -696,7 +696,7 @@ flowchart TD
     }
     ```
 
-- ReferenceLoader.cs
+- ReferenceLoader.cs - Klasa parsuje pliki referencyjne z prawdopodobieństwami n-gramów, dbając o walidację formatu. Odczytuje linie, filtruje komentarze, sprawdza spójność rzędu oraz sumę prawdopodobieństw. W efekcie zwraca gotowy obiekt NGramReference do dalszych obliczeń.
 
     ```csharp
     using System.Globalization;
@@ -802,7 +802,7 @@ flowchart TD
     }
     ```
 
-- TextNormalizer.cs
+- TextNormalizer.cs - Implementacja normalizatora konwertuje tekst do wielkich liter A–Z i usuwa znaki niealfabetyczne. Utrzymuje spójny format wejścia dla operacji kryptograficznych i statystycznych. Dzięki temu wszystkie moduły zakładają identyczny alfabet roboczy.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -822,7 +822,7 @@ flowchart TD
     }
     ```
 
-- AppOptionsValidator.cs
+- AppOptionsValidator.cs - Walidator sprawdza spójność logiczną opcji aplikacji, weryfikując wymagane ścieżki i kombinacje flag. Grupuje reguły dla poszczególnych trybów działania i generuje komunikaty błędów. Chroni to użytkownika przed uruchomieniem programu w niepoprawnej konfiguracji.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -911,7 +911,7 @@ flowchart TD
     }
     ```
 
-- KeyLoader.cs
+- KeyLoader.cs - Klasa odpowiedzialna za odczyt i walidację plików z kluczem podstawieniowym. Parsuje mapowania liter, usuwa komentarze, sprawdza bijekcję i składa SubstitutionKey. Zapewnia to poprawność klucza przed użyciem w szyfrze.
 
     ```csharp
     using System.Globalization;
@@ -1003,7 +1003,7 @@ flowchart TD
     }
     ```
 
-- Runner.cs
+- Runner.cs - Główna klasa wykonawcza orchestruje przepływ danych w zależności od wybranego trybu. Normalizuje tekst, ładuje klucz lub bazę referencyjną, deleguje do szyfru, analiz i generatorów raportów, a następnie zapisuje wyniki. Obsługuje również błędy, zwracając odpowiednie kody wyjścia.
 
     ```csharp
     using System.Globalization;
@@ -1139,7 +1139,7 @@ flowchart TD
     }
     ```
 
-- OperationMode.cs
+- OperationMode.cs - Wyliczenie definiuje tryby pracy aplikacji: brak wyboru, szyfrowanie lub deszyfrowanie. Używane jest przy interpretacji flag CLI i sterowaniu logiką w Runnerze. Dzięki niemu kod pozostaje czytelny zamiast operować na surowych wartościach bool.
 
     ```csharp
     namespace Task04.Domain.Enums;
@@ -1152,7 +1152,7 @@ flowchart TD
     }
     ```
 
-- Alphabet.cs
+- Alphabet.cs - Pomocnicza klasa domenowa przechowuje stałą z alfabetem łacińskim oraz metodę sprawdzającą wielkie litery. Ujednolica to użycie alfabetu w całej aplikacji. Dzięki temu walidacja znaków jest scentralizowana.
 
     ```csharp
     namespace Task04.Domain;
@@ -1165,7 +1165,7 @@ flowchart TD
     }
     ```
 
-- SubstitutionKey.cs
+- SubstitutionKey.cs - Klasa enkapsuluje dwie mapy znaków reprezentujące klucz podstawieniowy. Zapewnia dostęp do kierunku przód/tył oraz metodę tworzącą klucz na podstawie mapowania bezpośredniego. Chroni to przed niespójnymi danymi i upraszcza operacje szyfrowania.
 
     ```csharp
     namespace Task04.Domain;
@@ -1189,7 +1189,7 @@ flowchart TD
     }
     ```
 
-- CommandLineOptionsProvider.cs
+- CommandLineOptionsProvider.cs - Klasa parsuje argumenty linii poleceń przy użyciu Microsoft.Extensions.Configuration. Mapuje aliasy przełączników na klucze konfiguracyjne i buduje obiekt AppOptions wraz z listą błędów. Dzięki temu wspiera wszystkie tryby pracy programu z jednego miejsca.
 
     ```csharp
     using System.Globalization;
@@ -1325,7 +1325,7 @@ flowchart TD
     }
     ```
 
-- Printer.cs
+- Printer.cs - Pomocnicza klasa infrastruktury odpowiada za wypisywanie komunikatów błędów oraz instrukcji użycia. Zawiera metody wypisujące listy komunikatów na stderr oraz szczegółowy help na stdout. Centralizuje to formatowanie komunikatów CLI.
 
     ```csharp
     namespace Task04.Infrastructure.Common;
@@ -1401,7 +1401,7 @@ flowchart TD
     }
     ```
 
-- FileReader.cs
+- FileReader.cs - Implementacja IFileReader korzysta z File.ReadAllText do pobrania zawartości pliku. Zapewnia prostą warstwę abstrakcji nad systemem plików. W przypadku błędów IO propaguje standardowe wyjątki .NET.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -1419,7 +1419,7 @@ flowchart TD
     }
     ```
 
-- FileWriter.cs
+- FileWriter.cs - Klasa realizuje zapis tekstu do pliku przy użyciu File.WriteAllText. W ten sposób zapewnia konkretną implementację IFileWriter. Pozwala to Runnerowi utrwalać wyniki bez zależności od szczegółów IO.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -1444,7 +1444,7 @@ flowchart TD
     }
     ```
 
-- FileSystemOptionsValidator.cs
+- FileSystemOptionsValidator.cs - Walidator sprawdza, czy ścieżki wprowadzone przez użytkownika istnieją oraz nie kolidują ze sobą. Weryfikuje dostępność pliku wejściowego i poprawność docelowych lokalizacji wyjściowych. Wspiera również rozpoznawanie konfliktów między plikami i katalogami.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -1541,7 +1541,7 @@ flowchart TD
     }
     ```
 
-- Program.cs
+- Program.cs - Punkt wejścia konfiguruje zależności i uruchamia Runnera. Parsuje argumenty, wykonuje walidacje, buduje usługi (normalizator, loader, analizę) i przekazuje je do głównego przebiegu. Odpowiada również za wyświetlanie pomocy oraz kody wyjścia aplikacji.
 
     ```csharp
     using Task04.Application;
