@@ -24,7 +24,7 @@ public sealed class CipherOrchestrator(
 
             var key = await keyProvider.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
 
-            var outputText = args.Mode == Mode.Encrypt
+            var outputText = args.Operation == Operation.Encrypt
                 ? cipher.Encrypt(normalized, alphabet, key)
                 : cipher.Decrypt(normalized, alphabet, key);
 

@@ -1,7 +1,8 @@
 namespace Task02.Application.Models;
 
-public enum Mode
+public enum Operation
 {
     Encrypt,
-    Decrypt
+    Decrypt,
+    BruteForce
 }
