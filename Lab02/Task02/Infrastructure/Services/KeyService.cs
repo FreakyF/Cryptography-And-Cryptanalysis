@@ -2,7 +2,7 @@ using Task02.Application.Abstractions;
 
 namespace Task02.Infrastructure.Services;
 
-public sealed class KeyService(IFileService fileService) : IKeyProvider
+public sealed class KeyService(IFileService fileService) : IKeyService
 {
     public async Task<int> GetKeyAsync(string keyFilePath)
     {

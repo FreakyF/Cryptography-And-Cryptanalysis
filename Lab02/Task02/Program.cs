@@ -11,17 +11,19 @@ CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 
 IFileService fileService = new FileService();
-IKeyProvider keyProvider = new KeyService(fileService);
-ITextNormalizer textNormalizer = new TextNormalizer();
-IAlphabetBuilder alphabetBuilder = new AlphabetBuilder();
+IKeyService keyService = new KeyService(fileService);
+
+ITextNormalizer normalizer = new TextNormalizer();
 ICaesarCipher cipher = new CaesarCipher();
+IChiSquareScorer scorer = new ChiSquareScorer();
+IBruteForceAttack brute = new BruteForceAttack(cipher, scorer);
 
 ICipherOrchestrator orchestrator = new CipherOrchestrator(
     fileService,
-    keyProvider,
-    textNormalizer,
-    alphabetBuilder,
-    cipher
+    keyService,
+    normalizer,
+    cipher,
+    brute
 );
 
 IArgumentParser parser = new ArgumentParser();
@@ -31,6 +33,7 @@ ProcessingResult result;
 try
 {
     var parsed = parser.Parse(args);
+
     result = await orchestrator.RunAsync(parsed);
 }
 catch (ArgumentException ex)
@@ -42,7 +45,7 @@ catch (Exception)
     result = new ProcessingResult(99, "Unexpected error");
 }
 
-if (!result.IsSuccess && !string.IsNullOrEmpty(result.Message))
+if (!string.IsNullOrEmpty(result.Message))
 {
     try
     {

@@ -1,8 +1,7 @@
+using MathNet.Numerics.Distributions;
 using Task02.Domain.Models;
 
 namespace Task02.Domain.Abstractions;
-
-using MathNet.Numerics.Distributions;
 
 public sealed class BruteForceAttack(ICaesarCipher cipher, IChiSquareScorer scorer) : IBruteForceAttack
 {
@@ -11,7 +10,9 @@ public sealed class BruteForceAttack(ICaesarCipher cipher, IChiSquareScorer scor
     public BruteForceResult BreakCipher(string cipherText)
     {
         if (string.IsNullOrEmpty(cipherText))
+        {
             return new BruteForceResult(string.Empty, 0, double.PositiveInfinity, false);
+        }
 
         var bestPlain = string.Empty;
         var bestScore = double.PositiveInfinity;

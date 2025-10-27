@@ -1,6 +1,6 @@
 namespace Task02.Application.Abstractions;
 
-public interface IKeyProvider
+public interface IKeyService
 {
     Task<int> GetKeyAsync(string keyFilePath);
 }

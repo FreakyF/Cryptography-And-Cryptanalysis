@@ -2,8 +2,8 @@ namespace Task02.Domain.Abstractions;
 
 public sealed class ChiSquareScorer : IChiSquareScorer
 {
-    static readonly double[] ExpectedFrequencies =
-    {
+    private static readonly double[] ExpectedFrequencies =
+    [
         0.08167, // A
         0.01492, // B
         0.02782, // C
@@ -30,12 +30,14 @@ public sealed class ChiSquareScorer : IChiSquareScorer
         0.00150, // X
         0.01974, // Y
         0.00074 // Z
-    };
+    ];
 
     public double Score(string text)
     {
         if (string.IsNullOrEmpty(text))
+        {
             return double.PositiveInfinity;
+        }
 
         var counts = new int[26];
         var span = text.AsSpan();
@@ -54,6 +56,7 @@ public sealed class ChiSquareScorer : IChiSquareScorer
         {
             return double.PositiveInfinity;
         }
+
         var chi2 = 0d;
 
         for (var i = 0; i < 26; i++)
@@ -61,7 +64,7 @@ public sealed class ChiSquareScorer : IChiSquareScorer
             var expected = ExpectedFrequencies[i] * n;
             var observed = counts[i];
             var diff = observed - expected;
-            chi2 += (diff * diff) / expected;
+            chi2 += diff * diff / expected;
         }
 
         return chi2;

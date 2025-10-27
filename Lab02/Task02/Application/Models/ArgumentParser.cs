@@ -12,55 +12,71 @@ public sealed class ArgumentParser : IArgumentParser
             throw new ArgumentException("Missing arguments");
         }
 
-        Operation? mode = null;
+        Operation? op = null;
         string? keyPath = null;
         string? inputPath = null;
         string? outputPath = null;
 
-        for (var i = 0; i < args.Length; i++)
+        var i = 0;
+        while (i < args.Length)
         {
             var token = args[i];
 
             switch (token)
             {
                 case "-e":
+                    op = ResolveExclusive(op, Operation.Encrypt);
+                    break;
+
                 case "-d":
-                    mode = ResolveMode(token, mode);
+                    op = ResolveExclusive(op, Operation.Decrypt);
+                    break;
+
+                case "-a":
+                    var attackMode = ReadNext(args, ref i, "-a");
+                    if (attackMode != "bf")
+                    {
+                        throw new ArgumentException("Unsupported attack mode " + attackMode);
+                    }
+
+                    op = ResolveExclusive(op, Operation.BruteForce);
                     break;
 
                 case "-k":
-                    keyPath = ReadValue(args, ref i, "-k");
+                    keyPath = ReadNext(args, ref i, "-k");
                     break;
 
                 case "-i":
-                    inputPath = ReadValue(args, ref i, "-i");
+                    inputPath = ReadNext(args, ref i, "-i");
                     break;
 
                 case "-o":
-                    outputPath = ReadValue(args, ref i, "-o");
+                    outputPath = ReadNext(args, ref i, "-o");
                     break;
 
                 default:
                     throw new ArgumentException("Unknown argument " + token);
             }
+
+            i++;
         }
 
-        return BuildArguments(mode, keyPath, inputPath, outputPath);
+        return BuildArguments(op, keyPath, inputPath, outputPath);
     }
 
-    private static Operation ResolveMode(string flag, Operation? current)
+    private static Operation ResolveExclusive(Operation? current, Operation next)
     {
-        var next = flag == "-e" ? Operation.Encrypt : Operation.Decrypt;
-
         if (current is null)
         {
             return next;
         }
 
-        return current == next ? current.Value : throw new ArgumentException("Flags -e and -d cannot be used together");
+        return current == next
+            ? current.Value
+            : throw new ArgumentException("Conflicting operation flags");
     }
 
-    private static string ReadValue(string[] args, ref int index, string flag)
+    private static string ReadNext(string[] args, ref int index, string flag)
     {
         index++;
         if (index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
@@ -71,16 +87,11 @@ public sealed class ArgumentParser : IArgumentParser
         return args[index];
     }
 
-    private static Arguments BuildArguments(Operation? mode, string? keyPath, string? inputPath, string? outputPath)
+    private static Arguments BuildArguments(Operation? op, string? keyPath, string? inputPath, string? outputPath)
     {
-        if (mode is null)
+        if (op is null)
         {
-            throw new ArgumentException("Missing -e or -d");
-        }
-
-        if (string.IsNullOrWhiteSpace(keyPath))
-        {
-            throw new ArgumentException("Missing -k <keyfile>");
+            throw new ArgumentException("Missing -e or -d or -a bf");
         }
 
         if (string.IsNullOrWhiteSpace(inputPath))
@@ -93,8 +104,13 @@ public sealed class ArgumentParser : IArgumentParser
             throw new ArgumentException("Missing -o <outputfile>");
         }
 
+        if (op != Operation.BruteForce && string.IsNullOrWhiteSpace(keyPath))
+        {
+            throw new ArgumentException("Missing -k <keyfile>");
+        }
+
         return new Arguments(
-            mode.Value,
+            op.Value,
             keyPath,
             inputPath,
             outputPath
