@@ -12,7 +12,7 @@ public sealed class ArgumentParser : IArgumentParser
             throw new ArgumentException("Missing arguments");
         }
 
-        Mode? mode = null;
+        Operation? mode = null;
         string? keyPath = null;
         string? inputPath = null;
         string? outputPath = null;
@@ -48,9 +48,9 @@ public sealed class ArgumentParser : IArgumentParser
         return BuildArguments(mode, keyPath, inputPath, outputPath);
     }
 
-    private static Mode ResolveMode(string flag, Mode? current)
+    private static Operation ResolveMode(string flag, Operation? current)
     {
-        var next = flag == "-e" ? Mode.Encrypt : Mode.Decrypt;
+        var next = flag == "-e" ? Operation.Encrypt : Operation.Decrypt;
 
         if (current is null)
         {
@@ -71,7 +71,7 @@ public sealed class ArgumentParser : IArgumentParser
         return args[index];
     }
 
-    private static Arguments BuildArguments(Mode? mode, string? keyPath, string? inputPath, string? outputPath)
+    private static Arguments BuildArguments(Operation? mode, string? keyPath, string? inputPath, string? outputPath)
     {
         if (mode is null)
         {

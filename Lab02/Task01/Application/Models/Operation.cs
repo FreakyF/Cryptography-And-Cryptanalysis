@@ -1,6 +1,6 @@
 namespace Task01.Application.Models;
 
-public enum Mode
+public enum Operation
 {
     Encrypt,
     Decrypt
