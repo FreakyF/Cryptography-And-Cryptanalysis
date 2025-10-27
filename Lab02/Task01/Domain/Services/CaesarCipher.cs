@@ -6,12 +6,12 @@ public class CaesarCipher : ICaesarCipher
 {
     public string Encrypt(string normalizedText, string alphabet, int key)
     {
-        return Transform(normalizedText, alphabet, key, encrypt: true);
+        return Transform(normalizedText, alphabet, key, true);
     }
 
     public string Decrypt(string normalizedText, string alphabet, int key)
     {
-        return Transform(normalizedText, alphabet, key, encrypt: false);
+        return Transform(normalizedText, alphabet, key, false);
     }
 
     private static string Transform(string text, string alphabet, int key, bool encrypt)
@@ -66,7 +66,6 @@ public class CaesarCipher : ICaesarCipher
 
     private static int Mod(int value, int m)
     {
-        var r = value % m;
-        return r < 0 ? r + m : r;
+        return value % m is var r && r < 0 ? r + m : r;
     }
 }

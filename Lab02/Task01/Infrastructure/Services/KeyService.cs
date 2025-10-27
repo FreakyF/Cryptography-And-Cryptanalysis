@@ -53,11 +53,6 @@ public sealed class KeyService(IFileService fileService) : IKeyProvider
 
     private static bool TryParseInvariantInt(ReadOnlySpan<char> span, out int result)
     {
-        return int.TryParse(
-            span,
-            NumberStyles.Integer,
-            CultureInfo.InvariantCulture,
-            out result
-        );
+        return int.TryParse(span, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
     }
 }

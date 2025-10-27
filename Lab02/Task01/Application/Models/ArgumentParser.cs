@@ -67,6 +67,7 @@ public sealed class ArgumentParser : IArgumentParser
         {
             throw new ArgumentException("Missing value for " + flag);
         }
+
         return args[index];
     }
 
@@ -88,7 +89,9 @@ public sealed class ArgumentParser : IArgumentParser
         }
 
         if (string.IsNullOrWhiteSpace(outputPath))
+        {
             throw new ArgumentException("Missing -o <outputfile>");
+        }
 
         return new Arguments(
             mode.Value,

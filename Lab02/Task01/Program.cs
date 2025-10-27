@@ -42,7 +42,7 @@ catch (Exception)
     result = new ProcessingResult(99, "Unexpected error");
 }
 
-if (!string.IsNullOrEmpty(result.Message))
+if (!result.IsSuccess && !string.IsNullOrEmpty(result.Message))
 {
     try
     {

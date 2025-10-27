@@ -4,7 +4,7 @@ namespace Task01.Infrastructure.Services;
 
 public sealed class FileService : IFileService
 {
-    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
 
     public async Task<string> ReadAllTextAsync(string path)
     {
@@ -15,11 +15,11 @@ public sealed class FileService : IFileService
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
-            bufferSize: 4096,
-            options: fileOptions
+            4096,
+            fileOptions
         );
 
-        using var reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        using var reader = new StreamReader(fs, Encoding.UTF8, true);
 
         return await reader.ReadToEndAsync().ConfigureAwait(false);
     }
@@ -33,8 +33,8 @@ public sealed class FileService : IFileService
             FileMode.Create,
             FileAccess.Write,
             FileShare.None,
-            bufferSize: 4096,
-            options: fileOptions
+            4096,
+            fileOptions
         );
 
         await using var writer = new StreamWriter(fs, Utf8NoBom);
