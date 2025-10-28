@@ -4,6 +4,9 @@ namespace Task03.Domain.Services;
 
 public sealed class TextNormalizer : ITextNormalizer
 {
+    /// <summary>Converts the input text to uppercase letters while stripping non-alphabetic characters.</summary>
+    /// <param name="input">The raw text to normalize before cipher operations.</param>
+    /// <returns>The uppercase alphabetic string produced from the input.</returns>
     public string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input))

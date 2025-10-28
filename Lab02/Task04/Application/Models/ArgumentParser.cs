@@ -5,6 +5,9 @@ namespace Task04.Application.Models;
 
 public sealed class ArgumentParser : IArgumentParser
 {
+    /// <summary>Validates and converts the provided command-line tokens into structured cipher arguments.</summary>
+    /// <param name="args">The command-line tokens describing the desired operation, key, and file paths.</param>
+    /// <returns>The arguments object containing the parsed settings.</returns>
     public Arguments Parse(string[] args)
     {
         if (args is null || args.Length == 0)
@@ -64,6 +67,10 @@ public sealed class ArgumentParser : IArgumentParser
         return BuildArguments(op, keyPath, inputPath, outputPath);
     }
 
+    /// <summary>Resolves the mutually exclusive operation flags to a single operation choice.</summary>
+    /// <param name="current">The operation that has already been selected, if any.</param>
+    /// <param name="next">The next operation implied by the processed flag.</param>
+    /// <returns>The confirmed operation when no conflict is detected.</returns>
     private static Operation ResolveExclusive(Operation? current, Operation next)
     {
         if (current is null)
@@ -74,6 +81,11 @@ public sealed class ArgumentParser : IArgumentParser
         return current == next ? current.Value : throw new ArgumentException("Conflicting operation flags");
     }
 
+    /// <summary>Reads the argument that follows a flag and advances the enumeration index.</summary>
+    /// <param name="args">The full array of command-line tokens.</param>
+    /// <param name="index">The current index within the token array, which will be incremented.</param>
+    /// <param name="flag">The flag whose accompanying value is required.</param>
+    /// <returns>The value associated with the specified flag.</returns>
     private static string ReadNext(string[] args, ref int index, string flag)
     {
         index++;
@@ -85,6 +97,12 @@ public sealed class ArgumentParser : IArgumentParser
         return args[index];
     }
 
+    /// <summary>Builds the final arguments record after verifying that all required values are present.</summary>
+    /// <param name="op">The resolved operation to execute, if any.</param>
+    /// <param name="keyPath">The path to the key file when encryption or decryption is requested.</param>
+    /// <param name="inputPath">The path to the input text file.</param>
+    /// <param name="outputPath">The path to the output text file.</param>
+    /// <returns>A fully populated arguments record ready for processing.</returns>
     private static Arguments BuildArguments(Operation? op, string? keyPath, string? inputPath, string? outputPath)
     {
         if (op is null)

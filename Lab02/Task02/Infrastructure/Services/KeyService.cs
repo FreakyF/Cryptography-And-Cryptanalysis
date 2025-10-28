@@ -4,6 +4,9 @@ namespace Task02.Infrastructure.Services;
 
 public sealed class KeyService(IFileService fileService) : IKeyService
 {
+    /// <summary>Reads and parses an integer key from the supplied key file.</summary>
+    /// <param name="keyFilePath">The path to the file containing the key representation.</param>
+    /// <returns>A task that resolves to the parsed key value.</returns>
     public async Task<int> GetKeyAsync(string keyFilePath)
     {
         var raw = await fileService.ReadAllTextAsync(keyFilePath).ConfigureAwait(false);
@@ -33,6 +36,9 @@ public sealed class KeyService(IFileService fileService) : IKeyService
             : throw new FormatException("Key is not a valid integer");
     }
 
+    /// <summary>Removes leading and trailing whitespace characters from the provided span.</summary>
+    /// <param name="value">The span to trim.</param>
+    /// <returns>The span slice without surrounding whitespace.</returns>
     private static ReadOnlySpan<char> TrimWhite(ReadOnlySpan<char> value)
     {
         var start = 0;
@@ -51,6 +57,10 @@ public sealed class KeyService(IFileService fileService) : IKeyService
         return start > end ? ReadOnlySpan<char>.Empty : value.Slice(start, end - start + 1);
     }
 
+    /// <summary>Parses an integer using invariant culture rules without allocating intermediary strings.</summary>
+    /// <param name="span">The character span representing the integer value.</param>
+    /// <param name="result">When this method returns, contains the parsed integer on success.</param>
+    /// <returns><see langword="true"/> if parsing succeeded; otherwise, <see langword="false"/>.</returns>
     private static bool TryParseInvariantInt(ReadOnlySpan<char> span, out int result)
     {
         return int.TryParse(span, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);

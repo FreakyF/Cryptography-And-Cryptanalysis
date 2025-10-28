@@ -14,6 +14,9 @@ public sealed class CipherOrchestrator(
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    /// <summary>Runs the requested operation and handles expected application-level failures.</summary>
+    /// <param name="args">The parsed command-line arguments describing the operation.</param>
+    /// <returns>The result detailing the exit code and optional message.</returns>
     public async Task<ProcessingResult> RunAsync(Arguments args)
     {
         try
@@ -56,6 +59,9 @@ public sealed class CipherOrchestrator(
         }
     }
 
+    /// <summary>Encrypts the normalized input text and persists the ciphertext to the output file.</summary>
+    /// <param name="args">The arguments containing the paths and affine key.</param>
+    /// <returns>A successful processing result when encryption completes.</returns>
     private async Task<ProcessingResult> RunEncryptAsync(Arguments args)
     {
         var raw = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
@@ -66,6 +72,9 @@ public sealed class CipherOrchestrator(
         return new ProcessingResult(0, null);
     }
 
+    /// <summary>Decrypts the normalized input text and writes the plaintext to the output file.</summary>
+    /// <param name="args">The arguments containing the paths and affine key.</param>
+    /// <returns>A successful processing result when decryption completes.</returns>
     private async Task<ProcessingResult> RunDecryptAsync(Arguments args)
     {
         var raw = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
@@ -76,6 +85,9 @@ public sealed class CipherOrchestrator(
         return new ProcessingResult(0, null);
     }
 
+    /// <summary>Attempts every valid key combination to recover plaintext and stores the best candidate.</summary>
+    /// <param name="args">The arguments containing the input and output paths.</param>
+    /// <returns>A successful processing result whose message summarizes the discovered key.</returns>
     private async Task<ProcessingResult> RunBruteForceAsync(Arguments args)
     {
         var raw = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
