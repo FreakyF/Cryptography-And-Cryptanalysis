@@ -10,6 +10,9 @@ public sealed class ChiSquareScorer : IChiSquareScorer
         0.00978, 0.02360, 0.00150, 0.01974, 0.00074
     };
 
+    /// <summary>Computes the chi-square statistic for the supplied text against English letter frequencies.</summary>
+    /// <param name="text">The uppercase text whose distribution should be evaluated.</param>
+    /// <returns>The chi-square score, where smaller values indicate a closer match to English.</returns>
     public double Score(string text)
     {
         if (string.IsNullOrEmpty(text))

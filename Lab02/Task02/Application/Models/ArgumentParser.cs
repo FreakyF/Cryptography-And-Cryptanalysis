@@ -5,6 +5,9 @@ namespace Task02.Application.Models;
 
 public sealed class ArgumentParser : IArgumentParser
 {
+    /// <summary>Validates and converts the provided command-line tokens into structured arguments for encryption, decryption, or brute force.</summary>
+    /// <param name="args">The command-line tokens describing the desired operation and file paths.</param>
+    /// <returns>The arguments object containing the parsed settings.</returns>
     public Arguments Parse(string[] args)
     {
         if (args is null || args.Length == 0)
@@ -64,6 +67,10 @@ public sealed class ArgumentParser : IArgumentParser
         return BuildArguments(op, keyPath, inputPath, outputPath);
     }
 
+    /// <summary>Determines the operation while preventing conflicting choices between mutually exclusive flags.</summary>
+    /// <param name="current">The operation previously selected, if any.</param>
+    /// <param name="next">The operation represented by the flag currently being processed.</param>
+    /// <returns>The resolved operation once exclusivity is confirmed.</returns>
     private static Operation ResolveExclusive(Operation? current, Operation next)
     {
         if (current is null)
@@ -76,6 +83,11 @@ public sealed class ArgumentParser : IArgumentParser
             : throw new ArgumentException("Conflicting operation flags");
     }
 
+    /// <summary>Reads the value that follows a flag and advances the iteration index accordingly.</summary>
+    /// <param name="args">The full command-line argument array being parsed.</param>
+    /// <param name="index">The current position in the argument list, which will be incremented.</param>
+    /// <param name="flag">The flag whose value is expected next.</param>
+    /// <returns>The string value extracted for the specified flag.</returns>
     private static string ReadNext(string[] args, ref int index, string flag)
     {
         index++;
@@ -87,6 +99,12 @@ public sealed class ArgumentParser : IArgumentParser
         return args[index];
     }
 
+    /// <summary>Builds the final arguments record after verifying that all required values are present.</summary>
+    /// <param name="op">The parsed operation, if any was selected.</param>
+    /// <param name="keyPath">The path to the key file specified by the user.</param>
+    /// <param name="inputPath">The path to the input text file.</param>
+    /// <param name="outputPath">The path to the output text file.</param>
+    /// <returns>A fully populated arguments record ready for processing.</returns>
     private static Arguments BuildArguments(Operation? op, string? keyPath, string? inputPath, string? outputPath)
     {
         if (op is null)

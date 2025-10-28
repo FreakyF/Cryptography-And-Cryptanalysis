@@ -13,6 +13,9 @@ public sealed class CipherOrchestrator(
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    /// <summary>Coordinates reading input, applying the affine cipher, and persisting the result based on the arguments.</summary>
+    /// <param name="args">The parsed arguments describing the operation mode and file locations.</param>
+    /// <returns>The outcome of the processing pipeline, including exit code and optional message.</returns>
     public async Task<ProcessingResult> RunAsync(Arguments args)
     {
         try

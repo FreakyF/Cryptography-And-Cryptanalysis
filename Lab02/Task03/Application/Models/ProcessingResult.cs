@@ -5,5 +5,6 @@ public readonly record struct ProcessingResult(
     string? Message
 )
 {
+    /// <summary>Indicates whether the processing ended successfully based on the exit code.</summary>
     public bool IsSuccess => ExitCode == 0;
 }

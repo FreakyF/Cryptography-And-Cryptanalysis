@@ -13,6 +13,9 @@ public sealed class CipherOrchestrator(
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    /// <summary>Executes the Caesar cipher workflow by handling I/O, normalization, key retrieval, and encryption or decryption.</summary>
+    /// <param name="args">The prepared arguments describing input, output, key locations, and the desired operation.</param>
+    /// <returns>A processing result indicating success or the encountered error.</returns>
     public async Task<ProcessingResult> RunAsync(Arguments args)
     {
         try
