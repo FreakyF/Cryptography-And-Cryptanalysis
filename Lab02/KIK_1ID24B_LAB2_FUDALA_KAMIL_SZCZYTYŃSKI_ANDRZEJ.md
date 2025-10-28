@@ -2380,6 +2380,857 @@ flowchart TD
 
 #### Implementacja
 
+- IArgumentParser.cs
+
+    ```csharp
+    using Task04.Application.Services;
+
+    namespace Task04.Application.Abstractions;
+
+    public interface IArgumentParser
+    {
+        Arguments Parse(string[] args);
+    }
+    ```
+
+- ICipherOrchestrator.cs
+
+    ```csharp
+    using Task04.Application.Models;
+    using Task04.Application.Services;
+
+    namespace Task04.Application.Abstractions;
+
+    public interface ICipherOrchestrator
+    {
+        Task<ProcessingResult> RunAsync(Arguments args);
+    }
+    ```
+
+- IFileService.cs
+
+    ```csharp
+    namespace Task04.Application.Abstractions;
+
+    public interface IFileService
+    {
+        Task<string> ReadAllTextAsync(string path);
+        Task WriteAllTextAsync(string path, string content);
+    }
+    ```
+
+- IKeyService.cs
+
+    ```csharp
+    namespace Task04.Application.Abstractions;
+
+    public interface IKeyService
+    {
+        Task<(int A, int B)> GetKeyAsync(string keyFilePath);
+    }
+    ```
+
+- ArgumentParser.cs
+
+    ```csharp
+    using Task04.Application.Abstractions;
+    using Task04.Application.Services;
+
+    namespace Task04.Application.Models;
+
+    public sealed class ArgumentParser : IArgumentParser
+    {
+        public Arguments Parse(string[] args)
+        {
+            if (args is null || args.Length == 0)
+            {
+                throw new ArgumentException("Missing arguments");
+            }
+
+            Operation? op = null;
+            string? keyPath = null;
+            string? inputPath = null;
+            string? outputPath = null;
+
+            var i = 0;
+            while (i < args.Length)
+            {
+                var token = args[i];
+
+                switch (token)
+                {
+                    case "-e":
+                        op = ResolveExclusive(op, Operation.Encrypt);
+                        break;
+
+                    case "-d":
+                        op = ResolveExclusive(op, Operation.Decrypt);
+                        break;
+
+                    case "-a":
+                        var attackMode = ReadNext(args, ref i, "-a");
+                        if (attackMode != "bf")
+                        {
+                            throw new ArgumentException("Unsupported attack mode " + attackMode);
+                        }
+
+                        op = ResolveExclusive(op, Operation.BruteForce);
+                        break;
+
+                    case "-k":
+                        keyPath = ReadNext(args, ref i, "-k");
+                        break;
+
+                    case "-i":
+                        inputPath = ReadNext(args, ref i, "-i");
+                        break;
+
+                    case "-o":
+                        outputPath = ReadNext(args, ref i, "-o");
+                        break;
+
+                    default:
+                        throw new ArgumentException("Unknown argument " + token);
+                }
+
+                i++;
+            }
+
+            return BuildArguments(op, keyPath, inputPath, outputPath);
+        }
+
+        private static Operation ResolveExclusive(Operation? current, Operation next)
+        {
+            if (current is null)
+            {
+                return next;
+            }
+
+            return current == next ? current.Value : throw new ArgumentException("Conflicting operation flags");
+        }
+
+        private static string ReadNext(string[] args, ref int index, string flag)
+        {
+            index++;
+            if (index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
+            {
+                throw new ArgumentException("Missing value for " + flag);
+            }
+
+            return args[index];
+        }
+
+        private static Arguments BuildArguments(Operation? op, string? keyPath, string? inputPath, string? outputPath)
+        {
+            if (op is null)
+            {
+                throw new ArgumentException("Missing -e or -d or -a bf");
+            }
+
+            if (string.IsNullOrWhiteSpace(inputPath))
+            {
+                throw new ArgumentException("Missing -i <inputfile>");
+            }
+
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                throw new ArgumentException("Missing -o <outputfile>");
+            }
+
+            if (op != Operation.BruteForce && string.IsNullOrWhiteSpace(keyPath))
+            {
+                throw new ArgumentException("Missing -k <keyfile>");
+            }
+
+            return new Arguments(op.Value, keyPath, inputPath, outputPath);
+        }
+    }
+    ```
+
+- Operation.cs
+
+    ```csharp
+    namespace Task04.Application.Models;
+
+    public enum Operation
+    {
+        Encrypt,
+        Decrypt,
+        BruteForce
+    }
+    ```
+
+- ProcessingResult.cs
+
+    ```csharp
+    namespace Task04.Application.Models;
+
+    public readonly record struct ProcessingResult(
+        int ExitCode,
+        string? Message
+    );
+    ```
+
+- Arguments.cs
+
+    ```csharp
+    using Task04.Application.Models;
+
+    namespace Task04.Application.Services;
+
+    public sealed record Arguments(
+        Operation Operation,
+        string? KeyFilePath,
+        string InputFilePath,
+        string OutputFilePath
+    );
+    ```
+
+- CipherOrchestrator.cs
+
+    ```csharp
+    using Task04.Application.Abstractions;
+    using Task04.Application.Models;
+    using Task04.Domain.Abstractions;
+
+    namespace Task04.Application.Services;
+
+    public sealed class CipherOrchestrator(
+        IFileService fileService,
+        IKeyService keyProvider,
+        ITextNormalizer textNormalizer,
+        IAffineCipher cipher,
+        IBruteForceAttack brute)
+        : ICipherOrchestrator
+    {
+        private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        public async Task<ProcessingResult> RunAsync(Arguments args)
+        {
+            try
+            {
+                return args.Operation switch
+                {
+                    Operation.Encrypt => await RunEncryptAsync(args).ConfigureAwait(false),
+                    Operation.Decrypt => await RunDecryptAsync(args).ConfigureAwait(false),
+                    Operation.BruteForce => await RunBruteForceAsync(args).ConfigureAwait(false),
+                    _ => new ProcessingResult(1, "Unsupported operation")
+                };
+            }
+            catch (FormatException)
+            {
+                return new ProcessingResult(3, "Invalid key");
+            }
+            catch (InvalidOperationException)
+            {
+                return new ProcessingResult(3, "Invalid key");
+            }
+            catch (FileNotFoundException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (IOException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (Exception)
+            {
+                return new ProcessingResult(99, "Unexpected error");
+            }
+        }
+
+        private async Task<ProcessingResult> RunEncryptAsync(Arguments args)
+        {
+            var raw = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
+            var norm = textNormalizer.Normalize(raw);
+            var (a, b) = await keyProvider.GetKeyAsync(args.KeyFilePath!).ConfigureAwait(false);
+            var output = cipher.Encrypt(norm, Alphabet, a, b);
+            await fileService.WriteAllTextAsync(args.OutputFilePath, output).ConfigureAwait(false);
+            return new ProcessingResult(0, null);
+        }
+
+        private async Task<ProcessingResult> RunDecryptAsync(Arguments args)
+        {
+            var raw = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
+            var norm = textNormalizer.Normalize(raw);
+            var (a, b) = await keyProvider.GetKeyAsync(args.KeyFilePath!).ConfigureAwait(false);
+            var output = cipher.Decrypt(norm, Alphabet, a, b);
+            await fileService.WriteAllTextAsync(args.OutputFilePath, output).ConfigureAwait(false);
+            return new ProcessingResult(0, null);
+        }
+
+        private async Task<ProcessingResult> RunBruteForceAsync(Arguments args)
+        {
+            var raw = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
+            var norm = textNormalizer.Normalize(raw);
+            var r = brute.BreakCipher(norm);
+            await fileService.WriteAllTextAsync(args.OutputFilePath, r.Plaintext).ConfigureAwait(false);
+            var msg = $"a={r.A} b={r.B} chi2={r.ChiSquare:F4} english={r.LooksEnglish}";
+            return new ProcessingResult(0, msg);
+        }
+    }
+    ```
+
+- BruteForceAttack.cs
+
+    ```csharp
+    using MathNet.Numerics.Distributions;
+    using Task04.Domain.Models;
+
+    namespace Task04.Domain.Abstractions;
+
+    public sealed class BruteForceAttack(IAffineCipher cipher, IChiSquareScorer scorer) : IBruteForceAttack
+    {
+        private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        private static readonly int[] InvertibleA = [1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25];
+
+        public BruteForceResult BreakCipher(string cipherText)
+        {
+            if (string.IsNullOrEmpty(cipherText))
+            {
+                return new BruteForceResult(string.Empty, 0, 0, double.PositiveInfinity, false);
+            }
+
+            var bestPlain = string.Empty;
+            var bestScore = double.PositiveInfinity;
+            int bestA = 0, bestB = 0;
+
+            foreach (var a in InvertibleA)
+            {
+                for (var b = 0; b < 26; b++)
+                {
+                    var cand = cipher.Decrypt(cipherText, Alphabet, a, b);
+                    var score = scorer.Score(cand);
+
+                    if (!(score < bestScore))
+                    {
+                        continue;
+                    }
+
+                    bestScore = score;
+                    bestPlain = cand;
+                    bestA = a;
+                    bestB = b;
+                }
+            }
+
+            var critical = ChiSquared.InvCDF(25.0, 0.95);
+            var looksEnglish = bestScore <= critical;
+
+            return new BruteForceResult(bestPlain, bestA, bestB, bestScore, looksEnglish);
+        }
+    }
+    ```
+
+- ChiSquareScorer.cs
+
+    ```csharp
+    namespace Task04.Domain.Abstractions;
+
+    public sealed class ChiSquareScorer : IChiSquareScorer
+    {
+        private static readonly double[] Expected =
+        {
+            0.08167, 0.01492, 0.02782, 0.04253, 0.12702, 0.02228, 0.02015,
+            0.06094, 0.06966, 0.00153, 0.00772, 0.04025, 0.02406, 0.06749,
+            0.07507, 0.01929, 0.00095, 0.05987, 0.06327, 0.09056, 0.02758,
+            0.00978, 0.02360, 0.00150, 0.01974, 0.00074
+        };
+
+        public double Score(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return double.PositiveInfinity;
+            }
+
+            var counts = new int[26];
+            var s = text.AsSpan();
+            foreach (var t in s)
+            {
+                var idx = t - 'A';
+                if ((uint)idx < 26u)
+                {
+                    counts[idx]++;
+                }
+            }
+
+            var n = s.Length;
+            if (n == 0)
+            {
+                return double.PositiveInfinity;
+            }
+
+            double chi2 = 0;
+            for (var i = 0; i < 26; i++)
+            {
+                var exp = Expected[i] * n;
+                var diff = counts[i] - exp;
+                chi2 += diff * diff / exp;
+            }
+
+            return chi2;
+        }
+    }
+    ```
+
+- IAffineCipher.cs
+
+    ```csharp
+    namespace Task04.Domain.Abstractions;
+
+    public interface IAffineCipher
+    {
+        string Encrypt(string normalizedText, string alphabet, int a, int b);
+        string Decrypt(string normalizedText, string alphabet, int a, int b);
+    }
+    ```
+
+- IBruteForceAttack.cs
+
+    ```csharp
+    using Task04.Domain.Models;
+
+    namespace Task04.Domain.Abstractions;
+
+    public interface IBruteForceAttack
+    {
+        BruteForceResult BreakCipher(string cipherText);
+    }
+    ```
+
+- IChiSquareCalculator.cs
+
+    ```csharp
+    namespace Task04.Domain.Abstractions;
+
+    public interface IChiSquareScorer
+    {
+        double Score(string text);
+    }
+    ```
+
+- ITextNormalizer.cs
+
+    ```csharp
+    namespace Task04.Domain.Abstractions;
+
+    public interface ITextNormalizer
+    {
+        string Normalize(string input);
+    }
+    ```
+
+- BruteForceResult.cs
+
+    ```csharp
+    namespace Task04.Domain.Models;
+
+    public readonly record struct BruteForceResult(
+        string Plaintext,
+        int A,
+        int B,
+        double ChiSquare,
+        bool LooksEnglish
+    );
+    ```
+
+- AffineCipher.cs
+
+    ```csharp
+    using Task04.Domain.Abstractions;
+
+    namespace Task04.Domain.Services;
+
+    public sealed class AffineCipher : IAffineCipher
+    {
+        public string Encrypt(string normalizedText, string alphabet, int a, int b)
+        {
+            return TransformEncrypt(normalizedText, alphabet, a, b);
+        }
+
+        public string Decrypt(string normalizedText, string alphabet, int a, int b)
+        {
+            return TransformDecrypt(normalizedText, alphabet, a, b);
+        }
+
+        private static string TransformEncrypt(string text, string alphabet, int a, int b)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var m = alphabet.Length;
+            if (m == 0)
+            {
+                return string.Empty;
+            }
+
+            var map = BuildIndexMap(alphabet);
+
+            var src = text.AsSpan();
+            var dst = new char[src.Length];
+
+            for (var i = 0; i < src.Length; i++)
+            {
+                var c = src[i];
+                if (!map.TryGetValue(c, out var x))
+                {
+                    throw new InvalidOperationException("Character not found in alphabet");
+                }
+
+                var encIndex = Mod(a * x + b, m);
+                dst[i] = alphabet[encIndex];
+            }
+
+            return new string(dst);
+        }
+
+        private static string TransformDecrypt(string text, string alphabet, int a, int b)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var m = alphabet.Length;
+            if (m == 0)
+            {
+                return string.Empty;
+            }
+
+            var map = BuildIndexMap(alphabet);
+
+            var aInv = ModInverse(a, m);
+
+            var src = text.AsSpan();
+            var dst = new char[src.Length];
+
+            for (var i = 0; i < src.Length; i++)
+            {
+                var c = src[i];
+                if (!map.TryGetValue(c, out var y))
+                {
+                    throw new InvalidOperationException("Character not found in alphabet");
+                }
+
+                var decIndex = Mod(aInv * (y - b), m);
+                dst[i] = alphabet[decIndex];
+            }
+
+            return new string(dst);
+        }
+
+        private static Dictionary<char, int> BuildIndexMap(string alphabet)
+        {
+            var dict = new Dictionary<char, int>(alphabet.Length);
+            for (var i = 0; i < alphabet.Length; i++)
+            {
+                dict[alphabet[i]] = i;
+            }
+
+            return dict;
+        }
+
+        private static int Mod(int value, int m)
+        {
+            return value % m is var r && r < 0 ? r + m : r;
+        }
+
+        private static int ModInverse(int a, int m)
+        {
+            a = Mod(a, m);
+            for (var x = 1; x < m; x++)
+            {
+                if (Mod(a * x, m) == 1)
+                {
+                    return x;
+                }
+            }
+
+            throw new InvalidOperationException("Key 'a' is not invertible modulo alphabet length");
+        }
+    }
+    ```
+
+- TextNormalizer.cs
+
+    ```csharp
+    using Task04.Domain.Abstractions;
+
+    namespace Task04.Domain.Services;
+
+    public sealed class TextNormalizer : ITextNormalizer
+    {
+        public string Normalize(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var span = input.AsSpan();
+            var sb = new StringBuilder(span.Length);
+
+            foreach (var c in span)
+            {
+                if (c is (< 'A' or > 'Z') and (< 'a' or > 'z'))
+                {
+                    continue;
+                }
+
+                var upper = char.ToUpperInvariant(c);
+                sb.Append(upper);
+            }
+
+            return sb.ToString();
+        }
+    }
+    ```
+
+- FileService.cs
+
+    ```csharp
+    using Task04.Application.Abstractions;
+
+    namespace Task04.Infrastructure.Services;
+
+    public sealed class FileService : IFileService
+    {
+        private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
+        public async Task<string> ReadAllTextAsync(string path)
+        {
+            const FileOptions fileOptions = FileOptions.Asynchronous | FileOptions.SequentialScan;
+
+            await using var fs = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                4096,
+                fileOptions
+            );
+
+            using var reader = new StreamReader(fs, Encoding.UTF8, true);
+
+            return await reader.ReadToEndAsync().ConfigureAwait(false);
+        }
+
+        public async Task WriteAllTextAsync(string path, string content)
+        {
+            const FileOptions fileOptions = FileOptions.Asynchronous | FileOptions.SequentialScan;
+
+            await using var fs = new FileStream(
+                path,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                4096,
+                fileOptions
+            );
+
+            await using var writer = new StreamWriter(fs, Utf8NoBom);
+
+            await writer.WriteAsync(content.AsMemory()).ConfigureAwait(false);
+            await writer.FlushAsync().ConfigureAwait(false);
+        }
+    }
+    ```
+
+- KeyService.cs
+
+    ```csharp
+    using Task04.Application.Abstractions;
+
+    namespace Task04.Infrastructure.Services;
+
+    public sealed class KeyService(IFileService fileService) : IKeyService
+    {
+        public async Task<(int A, int B)> GetKeyAsync(string keyFilePath)
+        {
+            var raw = await fileService.ReadAllTextAsync(keyFilePath).ConfigureAwait(false);
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                throw new FormatException("Key file is empty");
+            }
+
+            var span = raw.AsSpan();
+
+            var firstLineEnd = span.IndexOfAny('\r', '\n');
+            if (firstLineEnd >= 0)
+            {
+                span = span[..firstLineEnd];
+            }
+
+            span = TrimWhite(span);
+
+            if (span.IsEmpty)
+            {
+                throw new FormatException("Key not found");
+            }
+
+            SplitTwo(span, out var firstPart, out var secondPart);
+
+            if (!TryParseInvariantInt(firstPart, out var a) ||
+                !TryParseInvariantInt(secondPart, out var b))
+            {
+                throw new FormatException("Key is not valid");
+            }
+
+            return !IsInvertibleMod26(a) ? throw new FormatException("Key 'a' is not invertible modulo 26") : (a, b);
+        }
+
+        private static ReadOnlySpan<char> TrimWhite(ReadOnlySpan<char> value)
+        {
+            var start = 0;
+            var end = value.Length - 1;
+
+            while (start <= end && char.IsWhiteSpace(value[start]))
+            {
+                start++;
+            }
+
+            while (end >= start && char.IsWhiteSpace(value[end]))
+            {
+                end--;
+            }
+
+            return start > end
+                ? ReadOnlySpan<char>.Empty
+                : value.Slice(start, end - start + 1);
+        }
+
+        private static void SplitTwo(ReadOnlySpan<char> span, out ReadOnlySpan<char> first, out ReadOnlySpan<char> second)
+        {
+            var sep = span.IndexOfAny(' ', '\t');
+            if (sep < 0)
+            {
+                throw new FormatException("Key must contain two integers");
+            }
+
+            first = span[..sep];
+
+            var restStart = sep + 1;
+            while (restStart < span.Length && char.IsWhiteSpace(span[restStart]))
+            {
+                restStart++;
+            }
+
+            if (restStart >= span.Length)
+            {
+                throw new FormatException("Key must contain two integers");
+            }
+
+            second = span[restStart..];
+
+            first = TrimWhite(first);
+            second = TrimWhite(second);
+        }
+
+        private static bool TryParseInvariantInt(ReadOnlySpan<char> s, out int value)
+        {
+            return int.TryParse(
+                s,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out value
+            );
+        }
+
+        private static bool IsInvertibleMod26(int a)
+        {
+            a = Mod(a, 26);
+            return Gcd(a, 26) == 1;
+        }
+
+        private static int Gcd(int x, int y)
+        {
+            while (y != 0)
+            {
+                var t = x % y;
+                x = y;
+                y = t;
+            }
+
+            return x < 0 ? -x : x;
+        }
+
+        private static int Mod(int v, int m)
+        {
+            var r = v % m;
+            return r < 0 ? r + m : r;
+        }
+    }
+    ```
+
+- Program.cs
+
+    ```csharp
+    #pragma warning disable CA1859
+
+    using Task04.Application.Abstractions;
+    using Task04.Application.Models;
+    using Task04.Application.Services;
+    using Task04.Domain.Abstractions;
+    using Task04.Domain.Services;
+    using Task04.Infrastructure.Services;
+
+    CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+    CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
+
+    IFileService fileService = new FileService();
+    IKeyService keyProvider = new KeyService(fileService);
+
+    ITextNormalizer textNormalizer = new TextNormalizer();
+    IAffineCipher cipher = new AffineCipher();
+    IChiSquareScorer scorer = new ChiSquareScorer();
+    IBruteForceAttack brute = new BruteForceAttack(cipher, scorer);
+
+    ICipherOrchestrator orchestrator = new CipherOrchestrator(
+        fileService,
+        keyProvider,
+        textNormalizer,
+        cipher,
+        brute
+    );
+
+    IArgumentParser parser = new ArgumentParser();
+
+    ProcessingResult result;
+
+    try
+    {
+        var parsed = parser.Parse(args);
+        result = await orchestrator.RunAsync(parsed);
+    }
+    catch (ArgumentException ex)
+    {
+        result = new ProcessingResult(1, ex.Message);
+    }
+    catch (Exception)
+    {
+        result = new ProcessingResult(99, "Unexpected error");
+    }
+
+    if (!string.IsNullOrEmpty(result.Message))
+    {
+        await Console.Error.WriteLineAsync(result.Message);
+    }
+
+    Environment.ExitCode = result.ExitCode;
+    ```
+
 #### Wyniki
 
 - Atak Brute-force
