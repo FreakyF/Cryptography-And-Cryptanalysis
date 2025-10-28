@@ -44,14 +44,7 @@ catch (Exception)
 
 if (!result.IsSuccess && !string.IsNullOrEmpty(result.Message))
 {
-    try
-    {
-        await Console.Error.WriteLineAsync(result.Message);
-    }
-    catch
-    {
-        // ignore write error to stderr
-    }
+    await Console.Error.WriteLineAsync(result.Message);
 }
 
 Environment.ExitCode = result.ExitCode;
