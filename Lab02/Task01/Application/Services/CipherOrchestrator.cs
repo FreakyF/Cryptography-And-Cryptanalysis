@@ -6,7 +6,7 @@ namespace Task01.Application.Services;
 
 public sealed class CipherOrchestrator(
     IFileService fileService,
-    IKeyProvider keyProvider,
+    IKeyService keyService,
     ITextNormalizer textNormalizer,
     ICaesarCipher cipher)
     : ICipherOrchestrator
@@ -21,7 +21,7 @@ public sealed class CipherOrchestrator(
 
             var normalized = textNormalizer.Normalize(rawInput);
 
-            var key = await keyProvider.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
+            var key = await keyService.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
 
             var outputText = args.Operation == Operation.Encrypt
                 ? cipher.Encrypt(normalized, Alphabet, key)
