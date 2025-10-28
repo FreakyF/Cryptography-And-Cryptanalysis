@@ -11,14 +11,14 @@ CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 
 IFileService fileService = new FileService();
-IKeyProvider keyProvider = new KeyService(fileService);
+IKeyService keyService = new KeyService(fileService);
 
 ITextNormalizer textNormalizer = new TextNormalizer();
-ICaesarCipher cipher = new CaesarCipher();
+IAffineCipher cipher = new AffineCipher();
 
 ICipherOrchestrator orchestrator = new CipherOrchestrator(
     fileService,
-    keyProvider,
+    keyService,
     textNormalizer,
     cipher
 );

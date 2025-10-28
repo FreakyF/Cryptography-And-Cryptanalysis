@@ -6,9 +6,9 @@ namespace Task03.Application.Services;
 
 public sealed class CipherOrchestrator(
     IFileService fileService,
-    IKeyProvider keyProvider,
+    IKeyService keyService,
     ITextNormalizer textNormalizer,
-    ICaesarCipher cipher)
+    IAffineCipher cipher)
     : ICipherOrchestrator
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -21,17 +21,21 @@ public sealed class CipherOrchestrator(
 
             var normalized = textNormalizer.Normalize(rawInput);
 
-            var key = await keyProvider.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
+            var (a, b) = await keyService.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
 
             var outputText = args.Operation == Operation.Encrypt
-                ? cipher.Encrypt(normalized, Alphabet, key)
-                : cipher.Decrypt(normalized, Alphabet, key);
+                ? cipher.Encrypt(normalized, Alphabet, a, b)
+                : cipher.Decrypt(normalized, Alphabet, a, b);
 
             await fileService.WriteAllTextAsync(args.OutputFilePath, outputText).ConfigureAwait(false);
 
             return new ProcessingResult(0, null);
         }
         catch (FormatException)
+        {
+            return new ProcessingResult(3, "Invalid key");
+        }
+        catch (InvalidOperationException)
         {
             return new ProcessingResult(3, "Invalid key");
         }

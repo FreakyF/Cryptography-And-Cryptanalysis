@@ -7,7 +7,9 @@ public sealed class TextNormalizer : ITextNormalizer
     public string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input))
+        {
             return string.Empty;
+        }
 
         var span = input.AsSpan();
         var sb = new StringBuilder(span.Length);
