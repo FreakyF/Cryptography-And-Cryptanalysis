@@ -22,45 +22,35 @@ Napisz program implementujący algorytm szyfru przesuwnego (Szyfr Cezara).
   "flowchart": { "curve":"step", "nodeSpacing": 120, "rankSpacing": 100 }
 }}%%
 flowchart TD
-    user[["CLI User"]]
-    provider["CommandLineOptionsProvider\n(TryGetOptions)"]
-    validators["Options Validators\nAppOptionsValidator + FileSystemOptionsValidator"]
-    printer["Printer\n(Usage / Errors)"]
-    runner["Runner"]
-    reader["FileReader"]
-    normalizer["TextNormalizer"]
-    keyLoader["KeyLoader"]
-    cipher["SubstitutionCipher"]
-    ngrams["NGramCounter"]
-    report["NGramReportBuilder"]
-    writer["FileWriter"]
-    inputFile[("Input file")]
-    keyFile[("Key file")]
-    outputFile[("Output file")]
-    reports[("N-gram reports")]
+    subgraph External Actors
+        User[CLI User]
+    end
 
-    user --> provider --> validators
-    validators -- errors --> printer
-    validators -- valid options --> runner
+    subgraph Data Stores
+        Input[(Input Text File)]
+        Key[(Key File)]
+        Output[(Output Text File)]
+    end
 
-    runner --> reader
-    reader --> inputFile
-    inputFile --> reader
-    reader --> normalizer --> runner
+    subgraph Process["Task01 Application"]
+        Args[Parse Arguments]
+        Load[Read Plaintext]
+        Normalize[Normalize Text]
+        Encrypt[Apply Caesar Cipher]
+        Save[Write Ciphertext]
+        Report[Emit Errors]
+    end
 
-    runner --> keyLoader
-    keyLoader --> keyFile
-    keyFile --> keyLoader
-    keyLoader --> cipher
-
-    normalizer --> cipher
-    cipher --> writer
-
-    normalizer --> ngrams --> report --> writer
-
-    writer --> outputFile
-    writer --> reports
-    runner -. status .-> printer
+    User -->|CLI arguments| Args
+    Args --> Load
+    Load --> Normalize
+    Key -->|key lookup| Encrypt
+    Normalize --> Encrypt
+    Encrypt --> Save
+    Save --> Output
+    Load --> Input
+    Args --> Report
+    Report --> User
 ```
 
 #### Implementacja
@@ -697,44 +687,38 @@ Rozbuduj program z poprzedniego zadania poprzez implementację ataku typu brute-
   "flowchart": { "curve":"step", "nodeSpacing": 120, "rankSpacing": 100 }
 }}%%
 flowchart TD
-    user[["CLI User"]]
-    parser["ArgumentParser"]
-    orchestrator["CipherOrchestrator"]
-    fileService["FileService"]
-    keyService["KeyService"]
-    normalizer["TextNormalizer"]
-    cipher["CaesarCipher"]
-    brute["BruteForceAttack\n+ ChiSquareScorer"]
-    inputFile[("Input file")]
-    keyFile[("Key file")]
-    outputFile[("Output file")]
-    console["Console.Error"]
+     subgraph External Actors
+        User[CLI User]
+    end
 
-    user --> parser --> orchestrator
+    subgraph Data Stores
+        Input[(Input Text File)]
+        Key[(Optional Key File)]
+        Output[(Output Text File)]
+    end
 
-    orchestrator --> fileService
-    fileService --> inputFile
-    inputFile --> fileService
-    fileService --> orchestrator
+    subgraph Process["Task02 Application"]
+        Args[Parse Arguments]
+        Load[Read Ciphertext]
+        Normalize[Normalize Text]
+        Encrypt[Apply Caesar Cipher]
+        Attack[Brute-Force Search]
+        Score[Chi-Square Scoring]
+        Save[Write Result]
+        Report[Emit Progress & Errors]
+    end
 
-    orchestrator --> normalizer
-    normalizer --> orchestrator
-
-    orchestrator --> keyService
-    keyService --> keyFile
-    keyFile --> keyService
-    keyService --> orchestrator
-
-    orchestrator --> cipher
-    cipher --> orchestrator
-
-    orchestrator --> brute
-    brute --> cipher
-    brute --> orchestrator
-
-    orchestrator --> fileService
-    fileService --> outputFile
-    orchestrator --> console
+    User -->|CLI arguments| Args
+    Args --> Load
+    Load --> Normalize
+    Normalize --> Attack
+    Normalize --> Encrypt
+    Key -->|known key| Encrypt
+    Attack --> Encrypt
+    Attack --> Score --> Attack
+    Encrypt --> Save --> Output
+    Load --> Input
+    Args --> Report --> User
 ```
 
 #### Implementacja
@@ -1568,36 +1552,30 @@ Napisz program analogiczny do programu z zadania 1, który tym razem implementuj
   "flowchart": { "curve":"step", "nodeSpacing": 120, "rankSpacing": 100 }
 }}%%
 flowchart TD
-    user[["CLI User"]]
-    parser["ArgumentParser"]
-    orchestrator["AffineCipherOrchestrator"]
-    fileService["FileService"]
-    keyService["KeyService"]
-    normalizer["TextNormalizer"]
-    cipher["AffineCipher"]
-    inputFile[("Input file")]
-    keyFile[("Key file")]
-    outputFile[("Output file")]
+  subgraph External Actors
+        User[CLI User]
+    end
 
-    user --> parser --> orchestrator
+    subgraph Data Stores
+        Input[(Input Text File)]
+        Key[(Affine Key a,b)]
+        Output[(Output Text File)]
+    end
 
-    orchestrator --> fileService
-    fileService --> inputFile
-    inputFile --> fileService
-    fileService --> orchestrator
+    subgraph Process["Task03 Application"]
+        Args[Parse Arguments]
+        Load[Read Plaintext]
+        Normalize[Normalize Text]
+        Encrypt[Apply Affine Cipher]
+        Save[Write Ciphertext]
+        Report[Emit Errors]
+    end
 
-    orchestrator --> normalizer --> orchestrator
-
-    orchestrator --> keyService
-    keyService --> keyFile
-    keyFile --> keyService
-    keyService --> orchestrator
-
-    orchestrator --> cipher
-    cipher --> orchestrator
-
-    orchestrator --> fileService
-    fileService --> outputFile
+    User -->|CLI arguments| Args
+    Args --> Load --> Normalize --> Encrypt --> Save --> Output
+    Key -->|key lookup| Encrypt
+    Load --> Input
+    Args --> Report --> User
 ```
 
 #### Implementacja
@@ -2339,43 +2317,36 @@ Rozbuduj program z poprzedniego zadania poprzez implementację ataku typu brute-
   "flowchart": { "curve":"step", "nodeSpacing": 120, "rankSpacing": 100 }
 }}%%
 flowchart TD
-    user[["CLI User"]]
-    parser["ArgumentParser"]
-    orchestrator["AffineCipherOrchestrator"]
-    fileService["FileService"]
-    keyService["KeyService"]
-    normalizer["TextNormalizer"]
-    cipher["AffineCipher"]
-    brute["BruteForceAttack\n+ ChiSquareScorer"]
-    inputFile[("Input file")]
-    keyFile[("Key file")]
-    outputFile[("Output file")]
-    console["Console.Error"]
+       subgraph External Actors
+        User[CLI User]
+    end
 
-    user --> parser --> orchestrator
+    subgraph Data Stores
+        Input[(Input Text File)]
+        Key[(Affine Key a,b)]
+        Output[(Output Text File)]
+    end
 
-    orchestrator --> fileService
-    fileService --> inputFile
-    inputFile --> fileService
-    fileService --> orchestrator
+    subgraph Process["Task04 Application"]
+        Args[Parse Arguments]
+        Load[Read Ciphertext]
+        Normalize[Normalize Text]
+        Encrypt[Apply Affine Cipher]
+        Attack[Brute-Force Search]
+        Score[Chi-Square Scoring]
+        Save[Write Result]
+        Report[Emit Progress & Errors]
+    end
 
-    orchestrator --> normalizer --> orchestrator
-
-    orchestrator --> keyService
-    keyService --> keyFile
-    keyFile --> keyService
-    keyService --> orchestrator
-
-    orchestrator --> cipher
-    cipher --> orchestrator
-
-    orchestrator --> brute
-    brute --> cipher
-    brute --> orchestrator
-
-    orchestrator --> fileService
-    fileService --> outputFile
-    orchestrator --> console
+    User -->|CLI arguments| Args
+    Args --> Load --> Normalize
+    Normalize --> Encrypt
+    Normalize --> Attack --> Encrypt
+    Key -->|known key| Encrypt
+    Attack --> Score --> Attack
+    Encrypt --> Save --> Output
+    Load --> Input
+    Args --> Report --> User
 ```
 
 #### Implementacja
