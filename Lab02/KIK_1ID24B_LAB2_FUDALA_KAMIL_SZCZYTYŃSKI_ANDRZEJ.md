@@ -633,6 +633,8 @@ flowchart TD
 
 #### Wyniki
 
+Przeprowadzono proces szyfrowania z użyciem klucza oraz alfabetu A–Z, w wyniku czego uzyskano szyfrogram wyraźnie różny od tekstu jawnego zarówno pod względem treści, jak i struktury znaków. Następnie wykonano deszyfrowanie szyfrogramu, które odtworzyło tekst wejściowy w postaci znormalizowanej do wielkich liter bez spacji i znaków nieliterowych, co potwierdza poprawność odwzorowania. Uzyskane wyniki wynikają z faktu, że implementacja stosuje deterministyczne przekształcenie Cezara na stałym alfabecie angielskim oraz jednolity etap normalizacji wejścia i wyjścia, więc szyfrowanie jest odwracalne, ale format tekstu po deszyfrowaniu jest już kanoniczny, a nie oryginalny.
+
 - Szyfrowanie
 
     ```
@@ -1523,6 +1525,8 @@ flowchart TD
 
 #### Wyniki
 
+Przeprowadzono atak brute-force na szyfrogram, w wyniku którego odzyskano tekst odpowiadający treści oryginalnej (po normalizacji do wielkich liter A–Z) oraz poprawnie wyznaczono klucz przesunięcia równy 3. Oceniono także dopasowanie odzyskanego tekstu do języka angielskiego przy użyciu testu chi-kwadrat, uzyskując wartość statystyki $\chi^2$ = 29.1437 oraz klasyfikację english=True. Wynik ten jest zgodny z założeniem, że spośród wszystkich możliwych przesunięć tylko jedno prowadzi do rozkładu częstości liter zbliżonego do rozkładu teoretycznego języka angielskiego, a próg istotności $(df = 25,\ p = 0.95)$ pozwala ten przypadek jednoznacznie wskazać jako najbardziej prawdopodobny tekst jawny.
+
 - Atak Brute-force
 
     ```
@@ -2268,6 +2272,8 @@ flowchart TD
     ```
 
 #### Wyniki
+
+Przeprowadzono szyfrowanie tekstu jawnego szyfrem afinicznym, co doprowadziło do uzyskania szyfrogramu o silnie zmienionej postaci, bez bezpośredniego podobieństwa wizualnego do wejścia. Następnie wykonano deszyfrowanie z użyciem tego samego klucza (a, b), w wyniku czego odzyskano tekst równoważny semantycznie oryginałowi, podany w postaci znormalizowanej do wielkich liter A–Z oraz pozbawionej spacji i znaków nieliterowych. Zauważone zachowanie wynika z własności szyfru afinicznego, w którym przekształcenie $E(x) = (a \cdot x + b) \bmod 26$ jest odwracalne przy gcd(a, 26) = 1, więc po stronie deszyfracji zastosowanie odwrotności modularnej do (a) pozwala jednoznacznie odtworzyć dane źródłowe niezależnie od struktury szyfrogramu.
 
 - Szyfrowanie
 
@@ -3203,6 +3209,8 @@ flowchart TD
     ```
 
 #### Wyniki
+
+Przeprowadzono atak brute-force na szyfrogram otrzymany z szyfru afinicznego, przeszukując wszystkie dopuszczalne pary klucza (a, b), co pozwoliło odzyskać tekst jawny i wyznaczyć klucz a=5, b=8. Dla najlepszego kandydata obliczono statystykę $\chi^2$ = 29.1437 oraz uzyskano klasyfikację english=True, co oznacza że rozkład częstości liter w odzyskanym tekście jest zgodny z rozkładem języka angielskiego przy poziomie istotności 0.05. Takie zachowanie wynika z faktu, że mimo większej przestrzeni kluczy (312 zamiast 26), jedynie prawidłowy klucz prowadzi do odszyfrowania, którego częstości monogramów spełniają kryterium dopasowania do języka naturalnego, a test chi-kwadrat używa stopni swobody zależnych od alfabetu $(df = 25)$, a nie od liczby możliwych kluczy.
 
 - Atak Brute-force
 
