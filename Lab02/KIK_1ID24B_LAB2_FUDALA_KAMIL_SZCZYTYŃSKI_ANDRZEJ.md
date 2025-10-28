@@ -56,6 +56,9 @@ flowchart TD
 #### Implementacja
 
 - IArgumentParser.cs
+    Plik udostępnia interfejs z jedną metodą Parse przyjmującą tablicę argumentów z linii poleceń.
+    Implementacje muszą zbudować obiekt Arguments obejmujący ścieżki wejścia, wyjścia, pliku klucza oraz tryb Operation.
+    Kontrakt zakłada zgłaszanie ArgumentException, gdy brakuje wymaganej flagi lub pojawia się konflikt trybów pracy.
 
     ```csharp
     using Task01.Application.Services;
@@ -69,6 +72,9 @@ flowchart TD
     ```
 
 - ICipherOrchestrator.cs
+    Interfejs definiuje asynchroniczną metodę RunAsync, która przyjmuje obiekt Arguments i zwraca ProcessingResult.
+    Zwracany Task pozwala implementacji wykonać czytanie i zapis plików bez blokowania wątku.
+    W strukturze wyniku zawarty jest kod zakończenia oraz komunikat błędu przeznaczony dla warstwy CLI.
   
     ```csharp
     using Task01.Application.Models;
@@ -83,6 +89,9 @@ flowchart TD
     ```
 
 - IFileService.cs
+    Interfejs zawiera deklaracje metod ReadAllTextAsync i WriteAllTextAsync odpowiedzialnych za pracę na plikach tekstowych.
+    Obie operacje przyjmują ścieżkę pliku i działają w oparciu o asynchroniczne strumienie .NET.
+    Kontrakt przenosi szczegóły sposobu otwierania plików i używanego kodowania poza logikę aplikacji.
 
     ```csharp
     namespace Task01.Application.Abstractions;
@@ -95,6 +104,9 @@ flowchart TD
     ```
 
 - IKeyService.cs
+    Interfejs określa metodę GetKeyAsync zwracającą liczbę całkowitą wczytaną z pliku klucza.
+    Implementacja powinna odciąć puste linie oraz białe znaki zanim spróbuje sparsować wartość.
+    Obsługa FormatException sygnalizuje błędny format klucza już na etapie odczytu.
 
     ```csharp
     namespace Task01.Application.Abstractions;
@@ -106,6 +118,9 @@ flowchart TD
     ```
 
 - ArgumentParser.cs
+    Klasa iteruje po tablicy tokenów CLI i rozpoznaje kombinację flag -e/-d/-k/-i/-o dla szyfratora.
+    Metoda ResolveMode blokuje równoczesny wybór szyfrowania i deszyfrowania, a ReadValue pilnuje obecności parametrów po każdej fladze.
+    Przy brakujących danych lub nieznanej fladze parser zgłasza ArgumentException z precyzyjnym komunikatem.
 
     ```csharp
     using Task01.Application.Abstractions;
@@ -214,6 +229,9 @@ flowchart TD
     ```
 
 - Operation.cs
+    Enumeracja Operation przechowuje dwie wartości: Encrypt i Decrypt odpowiadające trybom algorytmu.
+    Parser zapisuje wybraną wartość w rekordzie Arguments, a orkiestrator według niej wywołuje Encrypt lub Decrypt.
+    Rozdzielenie trybów w typie wyliczeniowym eliminuje potrzebę porównywania surowych napisów flag.
 
     ```csharp
     namespace Task01.Application.Models;
@@ -226,6 +244,9 @@ flowchart TD
     ```
 
 - ProcessingResult.cs
+    Rekord ProcessingResult przechowuje kod wyjścia oraz opcjonalny komunikat błędu zwracany przez orkiestrator.
+    Właściwość IsSuccess sprawdza, czy ExitCode jest równy zero i steruje wypisywaniem komunikatów w Program.cs.
+    Warstwa CLI rozpoznaje powodzenie operacji na podstawie tej struktury, bez obsługi wyjątków po swojej stronie.
 
     ```csharp
     namespace Task01.Application.Models;
@@ -240,6 +261,9 @@ flowchart TD
     ```
 
 - Arguments.cs
+    Rekord Arguments zawiera Operation, ścieżkę do pliku klucza, pliku wejściowego oraz pliku wyjściowego.
+    Obiekt tworzony przez parser trafia do CipherOrchestrator i kieruje procesem odczytu oraz zapisu danych.
+    Zgromadzenie parametrów w jednym typie upraszcza przekazywanie konfiguracji między warstwami aplikacji.
 
     ```csharp
     using Task01.Application.Models;
@@ -255,6 +279,9 @@ flowchart TD
     ```
 
 - CipherOrchestrator.cs
+    Klasa orkiestratora pobiera tekst z pliku, normalizuje go i wywołuje Encrypt lub Decrypt na ICaesarCipher zależnie od Operation.
+    Po uzyskaniu wyniku zapisuje go na dysku i zwraca ProcessingResult z kodem powodzenia.
+    Bloki catch mapują wyjątki IO oraz FormatException na konkretne kody błędów przekazywane użytkownikowi.
 
     ```csharp
     using Task01.Application.Abstractions;
@@ -319,6 +346,9 @@ flowchart TD
     ```
 
 - ICaesarCipher.cs
+    Interfejs ICaesarCipher udostępnia metody Encrypt i Decrypt działające na znormalizowanym tekście.
+    Parametry obejmują alfabet oraz przesunięcie klucza liczone modulo długość alfabetu.
+    Tak zdefiniowany kontrakt umożliwia wymianę implementacji szyfru bez zmian w pozostałej logice.
   
     ```csharp
     namespace Task01.Domain.Abstractions;
@@ -331,6 +361,9 @@ flowchart TD
     ```
 
 - ITextNormalizer.cs
+    Interfejs ITextNormalizer definiuje metodę Normalize odpowiedzialną za przygotowanie tekstu przed szyfrowaniem.
+    Zwracany łańcuch powinien zawierać wyłącznie dopuszczone znaki alfabetu w jednolitej wielkości liter.
+    Moduły szyfrujące zakładają po tej operacji wejście złożone wyłącznie z wielkich liter.
 
     ```csharp
     namespace Task01.Domain.Abstractions;
@@ -342,6 +375,9 @@ flowchart TD
     ```
 
 - CaesarCipher.cs
+    Ta klasa implementuje logikę szyfru Cezara, wykonując przesunięcia znaków w alfabecie.
+    Metody Encrypt i Decrypt korzystają ze wspólnej funkcji transformującej, która obsługuje mapowanie indeksów.
+    Kod dba również o poprawne traktowanie ujemnych przesunięć poprzez funkcję Mod.
 
     ```csharp
     using Task01.Domain.Abstractions;
@@ -420,6 +456,9 @@ flowchart TD
     ```
 
 - TextNormalizer.cs
+    Implementacja TextNormalizer przechodzi po każdym znaku wejściowego łańcucha i odrzuca wszystkie znaki spoza zakresu liter A-Z.
+    Zachowane znaki są konwertowane do wielkich liter z użyciem char.ToUpperInvariant i dołączane do StringBuildera.
+    Wynikiem jest ciąg wielkich liter pozbawiony spacji, cyfr oraz znaków interpunkcyjnych.
 
     ```csharp
     using Task01.Domain.Abstractions;
@@ -453,6 +492,9 @@ flowchart TD
     ```
 
 - FileService.cs
+    FileService otwiera pliki poprzez FileStream skonfigurowany w trybie asynchronicznym z buforem 4096 bajtów.
+    Metoda ReadAllTextAsync korzysta ze StreamReadera w kodowaniu UTF-8, a WriteAllTextAsync zapisuje tekst bez znacznika BOM.
+    Skupienie operacji wejścia-wyjścia w tej klasie upraszcza obsługę błędów związanych z dyskiem.
 
     ```csharp
     using Task01.Application.Abstractions;
@@ -503,6 +545,9 @@ flowchart TD
     ```
 
 - KeyService.cs
+    KeyService korzysta z IFileService, aby pobrać treść pliku klucza jako tekst.
+    Metoda wydziela pierwszą linię, usuwa otaczające białe znaki i próbuje sparsować liczbę całkowitą w kulturze InvariantCulture.
+    Jeżeli plik jest pusty lub wartość nie jest liczbą, serwis zgłasza FormatException z opisem problemu.
 
     ```csharp
     using Task01.Application.Abstractions;
@@ -566,6 +611,9 @@ flowchart TD
     ```
 
 - GlobalUsings.cs
+    Plik gromadzi globalne dyrektywy using dla przestrzeni System, System.IO, System.Text i System.Globalization.
+    W efekcie pozostałe pliki nie muszą powtarzać tych deklaracji u góry.
+    Lista obejmuje również System.Collections.Generic oraz System.Threading.Tasks używane w implementacjach szyfrów.
 
     ```csharp
     global using System;
@@ -577,6 +625,9 @@ flowchart TD
     ```
 
 - Program.cs
+    Program.cs ustawia kulturę na InvariantCulture, tworzy obiekty usług i przechowuje je w lokalnych zmiennych.
+    Parser analizuje tablicę args, a wynik trafia do RunAsync w CipherOrchestrator.
+    Blok try/catch przechwytuje ArgumentException i inne błędy, wypisuje komunikat na STDERR i ustawia Environment.ExitCode.
 
     ```csharp
     #pragma warning disable CA1859
@@ -724,6 +775,9 @@ flowchart TD
 #### Implementacja
 
 - IArgumentParser.cs
+    Plik udostępnia interfejs z jedną metodą Parse przyjmującą tablicę argumentów z linii poleceń.
+    Implementacje muszą zbudować obiekt Arguments obejmujący ścieżki wejścia, wyjścia, pliku klucza oraz tryb Operation.
+    Kontrakt zakłada zgłaszanie ArgumentException, gdy brakuje wymaganej flagi lub pojawia się konflikt trybów pracy.
 
     ```csharp
     using Task02.Application.Services;
@@ -737,6 +791,9 @@ flowchart TD
     ```
 
 - ICipherOrchestrator.cs
+    Interfejs definiuje asynchroniczną metodę RunAsync, która przyjmuje obiekt Arguments i zwraca ProcessingResult.
+    Zwracany Task pozwala implementacji wykonać czytanie i zapis plików bez blokowania wątku.
+    W strukturze wyniku zawarty jest kod zakończenia oraz komunikat błędu przeznaczony dla warstwy CLI.
 
     ```csharp
     using Task02.Application.Models;
@@ -751,6 +808,9 @@ flowchart TD
     ```
 
 - IFileService.cs
+    Interfejs zawiera deklaracje metod ReadAllTextAsync i WriteAllTextAsync odpowiedzialnych za pracę na plikach tekstowych.
+    Obie operacje przyjmują ścieżkę pliku i działają w oparciu o asynchroniczne strumienie .NET.
+    Kontrakt przenosi szczegóły sposobu otwierania plików i używanego kodowania poza logikę aplikacji.
 
     ```csharp
     namespace Task02.Application.Abstractions;
@@ -763,6 +823,9 @@ flowchart TD
     ```
 
 - IKeyService.cs
+    Interfejs określa metodę GetKeyAsync zwracającą liczbę całkowitą wczytaną z pliku klucza.
+    Implementacja powinna odciąć puste linie oraz białe znaki zanim spróbuje sparsować wartość.
+    Obsługa FormatException sygnalizuje błędny format klucza już na etapie odczytu.
 
     ```csharp
     namespace Task02.Application.Abstractions;
@@ -774,6 +837,9 @@ flowchart TD
     ```
 
 - ArgumentParser.cs
+    Klasa iteruje po tablicy tokenów CLI i rozpoznaje kombinację flag -e/-d/-k/-i/-o dla szyfratora.
+    Metoda ResolveMode blokuje równoczesny wybór szyfrowania i deszyfrowania, a ReadValue pilnuje obecności parametrów po każdej fladze.
+    Przy brakujących danych lub nieznanej fladze parser zgłasza ArgumentException z precyzyjnym komunikatem.
 
     ```csharp
     using Task02.Application.Abstractions;
@@ -898,6 +964,9 @@ flowchart TD
     ```
 
 - Operation.cs
+    Enumeracja Operation przechowuje dwie wartości: Encrypt i Decrypt odpowiadające trybom algorytmu.
+    Parser zapisuje wybraną wartość w rekordzie Arguments, a orkiestrator według niej wywołuje Encrypt lub Decrypt.
+    Rozdzielenie trybów w typie wyliczeniowym eliminuje potrzebę porównywania surowych napisów flag.
 
     ```csharp
     namespace Task02.Application.Models;
@@ -911,6 +980,9 @@ flowchart TD
     ```
 
 - ProcessingResult.cs
+    Rekord ProcessingResult przechowuje kod wyjścia oraz opcjonalny komunikat błędu zwracany przez orkiestrator.
+    Właściwość IsSuccess sprawdza, czy ExitCode jest równy zero i steruje wypisywaniem komunikatów w Program.cs.
+    Warstwa CLI rozpoznaje powodzenie operacji na podstawie tej struktury, bez obsługi wyjątków po swojej stronie.
 
     ```csharp
     namespace Task02.Application.Models;
@@ -922,6 +994,9 @@ flowchart TD
     ```
 
 - Arguments.cs
+    Rekord Arguments zawiera Operation, ścieżkę do pliku klucza, pliku wejściowego oraz pliku wyjściowego.
+    Obiekt tworzony przez parser trafia do CipherOrchestrator i kieruje procesem odczytu oraz zapisu danych.
+    Zgromadzenie parametrów w jednym typie upraszcza przekazywanie konfiguracji między warstwami aplikacji.
 
     ```csharp
     using Task02.Application.Models;
@@ -937,6 +1012,9 @@ flowchart TD
     ```
 
 - CipherOrchestrator.cs
+    Klasa orkiestratora pobiera tekst z pliku, normalizuje go i wywołuje Encrypt lub Decrypt na ICaesarCipher zależnie od Operation.
+    Po uzyskaniu wyniku zapisuje go na dysku i zwraca ProcessingResult z kodem powodzenia.
+    Bloki catch mapują wyjątki IO oraz FormatException na konkretne kody błędów przekazywane użytkownikowi.
 
     ```csharp
     using Task02.Application.Abstractions;
@@ -1038,6 +1116,9 @@ flowchart TD
     ```
 
 - BruteForceAttack.cs
+    Klasa BruteForceAttack sprawdza wszystkie 26 przesunięć szyfru Cezara i zapamiętuje wariant o najniższej wartości chi-kwadrat.
+    Każdy kandydat powstaje poprzez wywołanie ICaesarCipher.Decrypt, a wynik jest oceniany metodą IChiSquareScorer.Score.
+    Po zakończeniu pętli metoda porównuje najlepszy wynik z progiem ChiSquared.InvCDF, aby ustalić, czy tekst przypomina język angielski.
 
     ```csharp
     using MathNet.Numerics.Distributions;
@@ -1092,6 +1173,9 @@ flowchart TD
     ```
 
 - ChiSquareCalculator.cs
+    Zaprezentowany kod ChiSquareScorer przechowuje tablicę oczekiwanych częstotliwości liter języka angielskiego.
+    Metoda Score zlicza wystąpienia liter w tekście, oblicza wartość statystyki chi-kwadrat i zwraca ją jako miarę dopasowania.
+    Wysokie wyniki oznaczają małe podobieństwo, dlatego atak brute-force wybiera wariant z najmniejszą wartością.
 
     ```csharp
     namespace Task02.Domain.Abstractions;
@@ -1169,6 +1253,9 @@ flowchart TD
     ```
 
 - IBruteForceAttack.cs
+    Interfejs IBruteForceAttack deklaruje metodę BreakCipher zwracającą strukturę BruteForceResult.
+    Parametr wejściowy to znormalizowany szyfrogram, który ma zostać złamany.
+    Zwrot tej struktury gwarantuje dostęp do klucza, odszyfrowanego tekstu i oceny jakości rozwiązania.
 
     ```csharp
     using Task02.Domain.Models;
@@ -1182,6 +1269,9 @@ flowchart TD
     ```
 
 - ICaesarCipher.cs
+    Interfejs ICaesarCipher udostępnia metody Encrypt i Decrypt działające na znormalizowanym tekście.
+    Parametry obejmują alfabet oraz przesunięcie klucza liczone modulo długość alfabetu.
+    Tak zdefiniowany kontrakt umożliwia wymianę implementacji szyfru bez zmian w pozostałej logice.
 
     ```csharp
     namespace Task02.Domain.Abstractions;
@@ -1194,6 +1284,9 @@ flowchart TD
     ```
 
 - IChiSquareScorer.cs
+    Interfejs IChiSquareScorer udostępnia pojedynczą metodę Score przyjmującą tekst do oceny.
+    Implementacje zwracają wartość statystyki chi-kwadrat, którą wykorzystuje BruteForceAttack.
+    Oddzielenie kontraktu pozwala podstawić inną metrykę bez modyfikowania kodu ataku.
 
     ```csharp
     namespace Task02.Domain.Abstractions;
@@ -1205,6 +1298,9 @@ flowchart TD
     ```
 
 - ITextNormalizer.cs
+    Interfejs ITextNormalizer definiuje metodę Normalize odpowiedzialną za przygotowanie tekstu przed szyfrowaniem.
+    Zwracany łańcuch powinien zawierać wyłącznie dopuszczone znaki alfabetu w jednolitej wielkości liter.
+    Moduły szyfrujące zakładają po tej operacji wejście złożone wyłącznie z wielkich liter.
 
     ```csharp
     namespace Task02.Domain.Abstractions;
@@ -1216,6 +1312,9 @@ flowchart TD
     ```
 
 - BruteForceResult.cs
+    Rekord BruteForceResult przechowuje odszyfrowany tekst, użyty klucz, wartość chi-kwadrat i flagę looksEnglish.
+    Zgromadzone pola pozwalają orkiestratorowi zapisać plaintext i przygotować komunikat podsumowujący atak.
+    Niemutowalna struktura record struct chroni dane przed przypadkową modyfikacją po zwróceniu wyniku.
 
     ```csharp
     namespace Task02.Domain.Models;
@@ -1229,6 +1328,9 @@ flowchart TD
     ```
 
 - CaesarCipher.cs
+    Ta klasa implementuje logikę szyfru Cezara, wykonując przesunięcia znaków w alfabecie.
+    Metody Encrypt i Decrypt korzystają ze wspólnej funkcji transformującej, która obsługuje mapowanie indeksów.
+    Kod dba również o poprawne traktowanie ujemnych przesunięć poprzez funkcję Mod.
 
     ```csharp
     using Task02.Domain.Abstractions;
@@ -1305,6 +1407,9 @@ flowchart TD
     ```
 
 - TextNormalizer.cs
+    Implementacja TextNormalizer przechodzi po każdym znaku wejściowego łańcucha i odrzuca wszystkie znaki spoza zakresu liter A-Z.
+    Zachowane znaki są konwertowane do wielkich liter z użyciem char.ToUpperInvariant i dołączane do StringBuildera.
+    Wynikiem jest ciąg wielkich liter pozbawiony spacji, cyfr oraz znaków interpunkcyjnych.
 
     ```csharp
     using Task02.Domain.Abstractions;
@@ -1340,6 +1445,9 @@ flowchart TD
     ```
 
 - FileService.cs
+    FileService otwiera pliki poprzez FileStream skonfigurowany w trybie asynchronicznym z buforem 4096 bajtów.
+    Metoda ReadAllTextAsync korzysta ze StreamReadera w kodowaniu UTF-8, a WriteAllTextAsync zapisuje tekst bez znacznika BOM.
+    Skupienie operacji wejścia-wyjścia w tej klasie upraszcza obsługę błędów związanych z dyskiem.
 
     ```csharp
     using Task02.Application.Abstractions;
@@ -1390,6 +1498,9 @@ flowchart TD
     ```
 
 - KeyService.cs
+    KeyService korzysta z IFileService, aby pobrać treść pliku klucza jako tekst.
+    Metoda wydziela pierwszą linię, usuwa otaczające białe znaki i próbuje sparsować liczbę całkowitą w kulturze InvariantCulture.
+    Jeżeli plik jest pusty lub wartość nie jest liczbą, serwis zgłasza FormatException z opisem problemu.
 
     ```csharp
     using Task02.Application.Abstractions;
@@ -1453,6 +1564,9 @@ flowchart TD
     ```
 
 - GlobalUsings.cs
+    Plik gromadzi globalne dyrektywy using dla przestrzeni System, System.IO, System.Text i System.Globalization.
+    W efekcie pozostałe pliki nie muszą powtarzać tych deklaracji u góry.
+    Lista obejmuje również System.Collections.Generic oraz System.Threading.Tasks używane w implementacjach szyfrów.
 
     ```csharp
     global using System;
@@ -1464,6 +1578,9 @@ flowchart TD
     ```
 
 - Program.cs
+    Program.cs ustawia kulturę na InvariantCulture, tworzy obiekty usług i przechowuje je w lokalnych zmiennych.
+    Parser analizuje tablicę args, a wynik trafia do RunAsync w CipherOrchestrator.
+    Blok try/catch przechwytuje ArgumentException i inne błędy, wypisuje komunikat na STDERR i ustawia Environment.ExitCode.
 
     ```csharp
     #pragma warning disable CA1859
@@ -1581,6 +1698,9 @@ flowchart TD
 #### Implementacja
 
 - IArgumentParser.cs
+    Plik udostępnia interfejs z jedną metodą Parse przyjmującą tablicę argumentów z linii poleceń.
+    Implementacje muszą zbudować obiekt Arguments obejmujący ścieżki wejścia, wyjścia, pliku klucza oraz tryb Operation.
+    Kontrakt zakłada zgłaszanie ArgumentException, gdy brakuje wymaganej flagi lub pojawia się konflikt trybów pracy.
 
     ```csharp
     using Task03.Application.Services;
@@ -1594,6 +1714,9 @@ flowchart TD
     ```
 
 - ICipherOrchestrator.cs
+    Interfejs definiuje asynchroniczną metodę RunAsync, która przyjmuje obiekt Arguments i zwraca ProcessingResult.
+    Zwracany Task pozwala implementacji wykonać czytanie i zapis plików bez blokowania wątku.
+    W strukturze wyniku zawarty jest kod zakończenia oraz komunikat błędu przeznaczony dla warstwy CLI.
 
     ```csharp
     using Task03.Application.Models;
@@ -1608,6 +1731,9 @@ flowchart TD
     ```
 
 - IFileService.cs
+    Interfejs zawiera deklaracje metod ReadAllTextAsync i WriteAllTextAsync odpowiedzialnych za pracę na plikach tekstowych.
+    Obie operacje przyjmują ścieżkę pliku i działają w oparciu o asynchroniczne strumienie .NET.
+    Kontrakt przenosi szczegóły sposobu otwierania plików i używanego kodowania poza logikę aplikacji.
 
     ```csharp
     namespace Task03.Application.Abstractions;
@@ -1620,6 +1746,9 @@ flowchart TD
     ```
 
 - KeyService.cs
+    KeyService korzysta z IFileService, aby pobrać treść pliku klucza jako tekst.
+    Metoda wydziela pierwszą linię, usuwa otaczające białe znaki i próbuje sparsować liczbę całkowitą w kulturze InvariantCulture.
+    Jeżeli plik jest pusty lub wartość nie jest liczbą, serwis zgłasza FormatException z opisem problemu.
 
     ```csharp
     namespace Task03.Application.Abstractions;
@@ -1631,6 +1760,9 @@ flowchart TD
     ```
 
 - ArgumentParser.cs
+    Klasa iteruje po tablicy tokenów CLI i rozpoznaje kombinację flag -e/-d/-k/-i/-o dla szyfratora.
+    Metoda ResolveMode blokuje równoczesny wybór szyfrowania i deszyfrowania, a ReadValue pilnuje obecności parametrów po każdej fladze.
+    Przy brakujących danych lub nieznanej fladze parser zgłasza ArgumentException z precyzyjnym komunikatem.
 
     ```csharp
     using Task03.Application.Abstractions;
@@ -1739,6 +1871,9 @@ flowchart TD
     ```
 
 - Operation.cs
+    Enumeracja Operation przechowuje dwie wartości: Encrypt i Decrypt odpowiadające trybom algorytmu.
+    Parser zapisuje wybraną wartość w rekordzie Arguments, a orkiestrator według niej wywołuje Encrypt lub Decrypt.
+    Rozdzielenie trybów w typie wyliczeniowym eliminuje potrzebę porównywania surowych napisów flag.
 
     ```csharp
     namespace Task03.Application.Models;
@@ -1751,6 +1886,9 @@ flowchart TD
     ```
 
 - ProcessingResult.cs
+    Rekord ProcessingResult przechowuje kod wyjścia oraz opcjonalny komunikat błędu zwracany przez orkiestrator.
+    Właściwość IsSuccess sprawdza, czy ExitCode jest równy zero i steruje wypisywaniem komunikatów w Program.cs.
+    Warstwa CLI rozpoznaje powodzenie operacji na podstawie tej struktury, bez obsługi wyjątków po swojej stronie.
 
     ```csharp
     namespace Task03.Application.Models;
@@ -1765,6 +1903,9 @@ flowchart TD
     ```
 
 - Arguments.cs
+    Rekord Arguments zawiera Operation, ścieżkę do pliku klucza, pliku wejściowego oraz pliku wyjściowego.
+    Obiekt tworzony przez parser trafia do CipherOrchestrator i kieruje procesem odczytu oraz zapisu danych.
+    Zgromadzenie parametrów w jednym typie upraszcza przekazywanie konfiguracji między warstwami aplikacji.
 
     ```csharp
     using Task03.Application.Models;
@@ -1780,6 +1921,9 @@ flowchart TD
     ```
 
 - CipherOrchestrator.cs
+    Klasa orkiestratora pobiera tekst z pliku, normalizuje go i wywołuje Encrypt lub Decrypt na ICaesarCipher zależnie od Operation.
+    Po uzyskaniu wyniku zapisuje go na dysku i zwraca ProcessingResult z kodem powodzenia.
+    Bloki catch mapują wyjątki IO oraz FormatException na konkretne kody błędów przekazywane użytkownikowi.
 
     ```csharp
     using Task03.Application.Abstractions;
@@ -1848,6 +1992,9 @@ flowchart TD
     ```
 
 - IAffineCipher.cs
+    Interfejs IAffineCipher określa metody Encrypt i Decrypt przyjmujące parametry klucza (a, b) oraz alfabet.
+    Parametr `a` musi być odwracalny modulo długość alfabetu, co implementacje powinny weryfikować.
+    Zwracany tekst stanowi efekt funkcji afinicznej zastosowanej do każdego znaku.
 
     ```csharp
     namespace Task03.Domain.Abstractions;
@@ -1860,6 +2007,9 @@ flowchart TD
     ```
 
 - ITextNormalizer.cs
+    Interfejs ITextNormalizer definiuje metodę Normalize odpowiedzialną za przygotowanie tekstu przed szyfrowaniem.
+    Zwracany łańcuch powinien zawierać wyłącznie dopuszczone znaki alfabetu w jednolitej wielkości liter.
+    Moduły szyfrujące zakładają po tej operacji wejście złożone wyłącznie z wielkich liter.
 
     ```csharp
     namespace Task03.Domain.Abstractions;
@@ -1871,6 +2021,9 @@ flowchart TD
     ```
 
 - AffineCipher.cs
+    AffineCipher implementuje funkcję `E(x) = (a * x + b) mod 26` oraz jej odwrotność dla deszyfrowania.
+    Kod sprawdza odwracalność współczynnika `a`, oblicza modularną odwrotność i korzysta z mapy indeksów alfabetu.
+    Oddzielne metody Gcd i Mod pomagają utrzymać poprawność obliczeń w przypadku ujemnych wartości.
 
     ```csharp
     using Task03.Domain.Abstractions;
@@ -1990,6 +2143,9 @@ flowchart TD
     ```
 
 - TextNormalizer.cs
+    Implementacja TextNormalizer przechodzi po każdym znaku wejściowego łańcucha i odrzuca wszystkie znaki spoza zakresu liter A-Z.
+    Zachowane znaki są konwertowane do wielkich liter z użyciem char.ToUpperInvariant i dołączane do StringBuildera.
+    Wynikiem jest ciąg wielkich liter pozbawiony spacji, cyfr oraz znaków interpunkcyjnych.
 
     ```csharp
     using Task03.Domain.Abstractions;
@@ -2025,6 +2181,9 @@ flowchart TD
     ```
 
 - FileService.cs
+    FileService otwiera pliki poprzez FileStream skonfigurowany w trybie asynchronicznym z buforem 4096 bajtów.
+    Metoda ReadAllTextAsync korzysta ze StreamReadera w kodowaniu UTF-8, a WriteAllTextAsync zapisuje tekst bez znacznika BOM.
+    Skupienie operacji wejścia-wyjścia w tej klasie upraszcza obsługę błędów związanych z dyskiem.
 
     ```csharp
     using Task03.Application.Abstractions;
@@ -2075,6 +2234,9 @@ flowchart TD
     ```
 
 - KeyService.cs
+    KeyService korzysta z IFileService, aby pobrać treść pliku klucza jako tekst.
+    Metoda wydziela pierwszą linię, usuwa otaczające białe znaki i próbuje sparsować liczbę całkowitą w kulturze InvariantCulture.
+    Jeżeli plik jest pusty lub wartość nie jest liczbą, serwis zgłasza FormatException z opisem problemu.
 
     ```csharp
     using Task03.Application.Abstractions;
@@ -2202,6 +2364,9 @@ flowchart TD
     ```
 
 - GlobalUsings.cs
+    Plik gromadzi globalne dyrektywy using dla przestrzeni System, System.IO, System.Text i System.Globalization.
+    W efekcie pozostałe pliki nie muszą powtarzać tych deklaracji u góry.
+    Lista obejmuje również System.Collections.Generic oraz System.Threading.Tasks używane w implementacjach szyfrów.
 
     ```csharp
     global using System;
@@ -2213,6 +2378,9 @@ flowchart TD
     ```
 
 - Program.cs
+    Program.cs ustawia kulturę na InvariantCulture, tworzy obiekty usług i przechowuje je w lokalnych zmiennych.
+    Parser analizuje tablicę args, a wynik trafia do RunAsync w CipherOrchestrator.
+    Blok try/catch przechwytuje ArgumentException i inne błędy, wypisuje komunikat na STDERR i ustawia Environment.ExitCode.
 
     ```csharp
     #pragma warning disable CA1859
@@ -2352,6 +2520,9 @@ flowchart TD
 #### Implementacja
 
 - IArgumentParser.cs
+    Plik udostępnia interfejs z jedną metodą Parse przyjmującą tablicę argumentów z linii poleceń.
+    Implementacje muszą zbudować obiekt Arguments obejmujący ścieżki wejścia, wyjścia, pliku klucza oraz tryb Operation.
+    Kontrakt zakłada zgłaszanie ArgumentException, gdy brakuje wymaganej flagi lub pojawia się konflikt trybów pracy.
 
     ```csharp
     using Task04.Application.Services;
@@ -2365,6 +2536,9 @@ flowchart TD
     ```
 
 - ICipherOrchestrator.cs
+    Interfejs definiuje asynchroniczną metodę RunAsync, która przyjmuje obiekt Arguments i zwraca ProcessingResult.
+    Zwracany Task pozwala implementacji wykonać czytanie i zapis plików bez blokowania wątku.
+    W strukturze wyniku zawarty jest kod zakończenia oraz komunikat błędu przeznaczony dla warstwy CLI.
 
     ```csharp
     using Task04.Application.Models;
@@ -2379,6 +2553,9 @@ flowchart TD
     ```
 
 - IFileService.cs
+    Interfejs zawiera deklaracje metod ReadAllTextAsync i WriteAllTextAsync odpowiedzialnych za pracę na plikach tekstowych.
+    Obie operacje przyjmują ścieżkę pliku i działają w oparciu o asynchroniczne strumienie .NET.
+    Kontrakt przenosi szczegóły sposobu otwierania plików i używanego kodowania poza logikę aplikacji.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -2391,6 +2568,9 @@ flowchart TD
     ```
 
 - IKeyService.cs
+    Interfejs określa metodę GetKeyAsync zwracającą liczbę całkowitą wczytaną z pliku klucza.
+    Implementacja powinna odciąć puste linie oraz białe znaki zanim spróbuje sparsować wartość.
+    Obsługa FormatException sygnalizuje błędny format klucza już na etapie odczytu.
 
     ```csharp
     namespace Task04.Application.Abstractions;
@@ -2402,6 +2582,9 @@ flowchart TD
     ```
 
 - ArgumentParser.cs
+    Klasa iteruje po tablicy tokenów CLI i rozpoznaje kombinację flag -e/-d/-k/-i/-o dla szyfratora.
+    Metoda ResolveMode blokuje równoczesny wybór szyfrowania i deszyfrowania, a ReadValue pilnuje obecności parametrów po każdej fladze.
+    Przy brakujących danych lub nieznanej fladze parser zgłasza ArgumentException z precyzyjnym komunikatem.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -2519,6 +2702,9 @@ flowchart TD
     ```
 
 - Operation.cs
+    Enumeracja Operation przechowuje dwie wartości: Encrypt i Decrypt odpowiadające trybom algorytmu.
+    Parser zapisuje wybraną wartość w rekordzie Arguments, a orkiestrator według niej wywołuje Encrypt lub Decrypt.
+    Rozdzielenie trybów w typie wyliczeniowym eliminuje potrzebę porównywania surowych napisów flag.
 
     ```csharp
     namespace Task04.Application.Models;
@@ -2532,6 +2718,9 @@ flowchart TD
     ```
 
 - ProcessingResult.cs
+    Rekord ProcessingResult przechowuje kod wyjścia oraz opcjonalny komunikat błędu zwracany przez orkiestrator.
+    Właściwość IsSuccess sprawdza, czy ExitCode jest równy zero i steruje wypisywaniem komunikatów w Program.cs.
+    Warstwa CLI rozpoznaje powodzenie operacji na podstawie tej struktury, bez obsługi wyjątków po swojej stronie.
 
     ```csharp
     namespace Task04.Application.Models;
@@ -2543,6 +2732,9 @@ flowchart TD
     ```
 
 - Arguments.cs
+    Rekord Arguments zawiera Operation, ścieżkę do pliku klucza, pliku wejściowego oraz pliku wyjściowego.
+    Obiekt tworzony przez parser trafia do CipherOrchestrator i kieruje procesem odczytu oraz zapisu danych.
+    Zgromadzenie parametrów w jednym typie upraszcza przekazywanie konfiguracji między warstwami aplikacji.
 
     ```csharp
     using Task04.Application.Models;
@@ -2558,6 +2750,9 @@ flowchart TD
     ```
 
 - CipherOrchestrator.cs
+    Klasa orkiestratora pobiera tekst z pliku, normalizuje go i wywołuje Encrypt lub Decrypt na ICaesarCipher zależnie od Operation.
+    Po uzyskaniu wyniku zapisuje go na dysku i zwraca ProcessingResult z kodem powodzenia.
+    Bloki catch mapują wyjątki IO oraz FormatException na konkretne kody błędów przekazywane użytkownikowi.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -2651,6 +2846,9 @@ flowchart TD
     ```
 
 - BruteForceAttack.cs
+    Klasa BruteForceAttack sprawdza wszystkie 26 przesunięć szyfru Cezara i zapamiętuje wariant o najniższej wartości chi-kwadrat.
+    Każdy kandydat powstaje poprzez wywołanie ICaesarCipher.Decrypt, a wynik jest oceniany metodą IChiSquareScorer.Score.
+    Po zakończeniu pętli metoda porównuje najlepszy wynik z progiem ChiSquared.InvCDF, aby ustalić, czy tekst przypomina język angielski.
 
     ```csharp
     using MathNet.Numerics.Distributions;
@@ -2702,6 +2900,9 @@ flowchart TD
     ```
 
 - ChiSquareScorer.cs
+    Implementacja ChiSquareScorer wykorzystuje tablicę ExpectedFrequencies i liczy częstości liter w analizowanym tekście.
+    Na podstawie różnic między obserwacjami a oczekiwaniami oblicza wartość statystyki chi-kwadrat.
+    Najniższa wartość wskazuje wariant plaintextu najbardziej zbliżony do rozkładu języka angielskiego.
 
     ```csharp
     namespace Task04.Domain.Abstractions;
@@ -2754,6 +2955,9 @@ flowchart TD
     ```
 
 - IAffineCipher.cs
+    Interfejs IAffineCipher określa metody Encrypt i Decrypt przyjmujące parametry klucza (a, b) oraz alfabet.
+    Parametr `a` musi być odwracalny modulo długość alfabetu, co implementacje powinny weryfikować.
+    Zwracany tekst stanowi efekt funkcji afinicznej zastosowanej do każdego znaku.
 
     ```csharp
     namespace Task04.Domain.Abstractions;
@@ -2766,6 +2970,9 @@ flowchart TD
     ```
 
 - IBruteForceAttack.cs
+    Interfejs IBruteForceAttack deklaruje metodę BreakCipher zwracającą strukturę BruteForceResult.
+    Parametr wejściowy to znormalizowany szyfrogram, który ma zostać złamany.
+    Zwrot tej struktury gwarantuje dostęp do klucza, odszyfrowanego tekstu i oceny jakości rozwiązania.
 
     ```csharp
     using Task04.Domain.Models;
@@ -2779,6 +2986,9 @@ flowchart TD
     ```
 
 - IChiSquareCalculator.cs
+    Interfejs IChiSquareCalculator określa sposób dostarczania wyników analizy chi-kwadrat na potrzeby modułu ocen.
+    Metoda Calculate przyjmuje tablicę zliczeń liter i zwraca liczbę reprezentującą dopasowanie do rozkładu referencyjnego.
+    Parametr expectedFrequencies pozwala używać różnych rozkładów bez modyfikowania kodu wywołującego.
 
     ```csharp
     namespace Task04.Domain.Abstractions;
@@ -2790,6 +3000,9 @@ flowchart TD
     ```
 
 - ITextNormalizer.cs
+    Interfejs ITextNormalizer definiuje metodę Normalize odpowiedzialną za przygotowanie tekstu przed szyfrowaniem.
+    Zwracany łańcuch powinien zawierać wyłącznie dopuszczone znaki alfabetu w jednolitej wielkości liter.
+    Moduły szyfrujące zakładają po tej operacji wejście złożone wyłącznie z wielkich liter.
 
     ```csharp
     namespace Task04.Domain.Abstractions;
@@ -2801,6 +3014,9 @@ flowchart TD
     ```
 
 - BruteForceResult.cs
+    Rekord BruteForceResult przechowuje odszyfrowany tekst, użyty klucz, wartość chi-kwadrat i flagę looksEnglish.
+    Zgromadzone pola pozwalają orkiestratorowi zapisać plaintext i przygotować komunikat podsumowujący atak.
+    Niemutowalna struktura record struct chroni dane przed przypadkową modyfikacją po zwróceniu wyniku.
 
     ```csharp
     namespace Task04.Domain.Models;
@@ -2815,6 +3031,9 @@ flowchart TD
     ```
 
 - AffineCipher.cs
+    AffineCipher implementuje funkcję `E(x) = (a * x + b) mod 26` oraz jej odwrotność dla deszyfrowania.
+    Kod sprawdza odwracalność współczynnika `a`, oblicza modularną odwrotność i korzysta z mapy indeksów alfabetu.
+    Oddzielne metody Gcd i Mod pomagają utrzymać poprawność obliczeń w przypadku ujemnych wartości.
 
     ```csharp
     using Task04.Domain.Abstractions;
@@ -2934,6 +3153,9 @@ flowchart TD
     ```
 
 - TextNormalizer.cs
+    Implementacja TextNormalizer przechodzi po każdym znaku wejściowego łańcucha i odrzuca wszystkie znaki spoza zakresu liter A-Z.
+    Zachowane znaki są konwertowane do wielkich liter z użyciem char.ToUpperInvariant i dołączane do StringBuildera.
+    Wynikiem jest ciąg wielkich liter pozbawiony spacji, cyfr oraz znaków interpunkcyjnych.
 
     ```csharp
     using Task04.Domain.Abstractions;
@@ -2969,6 +3191,9 @@ flowchart TD
     ```
 
 - FileService.cs
+    FileService otwiera pliki poprzez FileStream skonfigurowany w trybie asynchronicznym z buforem 4096 bajtów.
+    Metoda ReadAllTextAsync korzysta ze StreamReadera w kodowaniu UTF-8, a WriteAllTextAsync zapisuje tekst bez znacznika BOM.
+    Skupienie operacji wejścia-wyjścia w tej klasie upraszcza obsługę błędów związanych z dyskiem.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -3019,6 +3244,9 @@ flowchart TD
     ```
 
 - KeyService.cs
+    KeyService korzysta z IFileService, aby pobrać treść pliku klucza jako tekst.
+    Metoda wydziela pierwszą linię, usuwa otaczające białe znaki i próbuje sparsować liczbę całkowitą w kulturze InvariantCulture.
+    Jeżeli plik jest pusty lub wartość nie jest liczbą, serwis zgłasza FormatException z opisem problemu.
 
     ```csharp
     using Task04.Application.Abstractions;
@@ -3146,6 +3374,9 @@ flowchart TD
     ```
 
 - Program.cs
+    Program.cs ustawia kulturę na InvariantCulture, tworzy obiekty usług i przechowuje je w lokalnych zmiennych.
+    Parser analizuje tablicę args, a wynik trafia do RunAsync w CipherOrchestrator.
+    Blok try/catch przechwytuje ArgumentException i inne błędy, wypisuje komunikat na STDERR i ustawia Environment.ExitCode.
 
     ```csharp
     #pragma warning disable CA1859
