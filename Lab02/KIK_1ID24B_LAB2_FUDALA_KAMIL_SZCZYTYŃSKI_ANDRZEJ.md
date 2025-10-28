@@ -65,6 +65,582 @@ flowchart TD
 
 #### Implementacja
 
+- IArgumentParser.cs
+
+    ```csharp
+    using Task01.Application.Services;
+
+    namespace Task01.Application.Abstractions;
+
+    public interface IArgumentParser
+    {
+        Arguments Parse(string[] args);
+    }
+    ```
+
+- ICipherOrchestrator.cs
+  
+    ```csharp
+    using Task01.Application.Models;
+    using Task01.Application.Services;
+
+    namespace Task01.Application.Abstractions;
+
+    public interface ICipherOrchestrator
+    {
+        Task<ProcessingResult> RunAsync(Arguments args);
+    }
+    ```
+
+- IFileService.cs
+
+    ```csharp
+    namespace Task01.Application.Abstractions;
+
+    public interface IFileService
+    {
+        Task<string> ReadAllTextAsync(string path);
+        Task WriteAllTextAsync(string path, string content);
+    }
+    ```
+
+- IKeyService.cs
+
+    ```csharp
+    namespace Task01.Application.Abstractions;
+
+    public interface IKeyService
+    {
+        Task<int> GetKeyAsync(string keyFilePath);
+    }
+    ```
+
+- ArgumentParser.cs
+
+    ```csharp
+    using Task01.Application.Abstractions;
+    using Task01.Application.Services;
+
+    namespace Task01.Application.Models;
+
+    public sealed class ArgumentParser : IArgumentParser
+    {
+        public Arguments Parse(string[] args)
+        {
+            if (args is null || args.Length == 0)
+            {
+                throw new ArgumentException("Missing arguments");
+            }
+
+            Operation? mode = null;
+            string? keyPath = null;
+            string? inputPath = null;
+            string? outputPath = null;
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                var token = args[i];
+
+                switch (token)
+                {
+                    case "-e":
+                    case "-d":
+                        mode = ResolveMode(token, mode);
+                        break;
+
+                    case "-k":
+                        keyPath = ReadValue(args, ref i, "-k");
+                        break;
+
+                    case "-i":
+                        inputPath = ReadValue(args, ref i, "-i");
+                        break;
+
+                    case "-o":
+                        outputPath = ReadValue(args, ref i, "-o");
+                        break;
+
+                    default:
+                        throw new ArgumentException("Unknown argument " + token);
+                }
+            }
+
+            return BuildArguments(mode, keyPath, inputPath, outputPath);
+        }
+
+        private static Operation ResolveMode(string flag, Operation? current)
+        {
+            var next = flag == "-e" ? Operation.Encrypt : Operation.Decrypt;
+
+            if (current is null)
+            {
+                return next;
+            }
+
+            return current == next ? current.Value : throw new ArgumentException("Flags -e and -d cannot be used together");
+        }
+
+        private static string ReadValue(string[] args, ref int index, string flag)
+        {
+            index++;
+            if (index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
+            {
+                throw new ArgumentException("Missing value for " + flag);
+            }
+
+            return args[index];
+        }
+
+        private static Arguments BuildArguments(Operation? mode, string? keyPath, string? inputPath, string? outputPath)
+        {
+            if (mode is null)
+            {
+                throw new ArgumentException("Missing -e or -d");
+            }
+
+            if (string.IsNullOrWhiteSpace(keyPath))
+            {
+                throw new ArgumentException("Missing -k <keyfile>");
+            }
+
+            if (string.IsNullOrWhiteSpace(inputPath))
+            {
+                throw new ArgumentException("Missing -i <inputfile>");
+            }
+
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                throw new ArgumentException("Missing -o <outputfile>");
+            }
+
+            return new Arguments(
+                mode.Value,
+                keyPath,
+                inputPath,
+                outputPath
+            );
+        }
+    }
+    ```
+
+- Operation.cs
+
+    ```csharp
+    namespace Task01.Application.Models;
+
+    public enum Operation
+    {
+        Encrypt,
+        Decrypt
+    }
+    ```
+
+- ProcessingResult.cs
+
+    ```csharp
+    namespace Task01.Application.Models;
+
+    public readonly record struct ProcessingResult(
+        int ExitCode,
+        string? Message
+    )
+    {
+        public bool IsSuccess => ExitCode == 0;
+    }
+    ```
+
+- Arguments.cs
+
+    ```csharp
+    using Task01.Application.Models;
+
+    namespace Task01.Application.Services;
+
+    public sealed record Arguments(
+        Operation Operation,
+        string KeyFilePath,
+        string InputFilePath,
+        string OutputFilePath
+    );
+    ```
+
+- CipherOrchestrator.cs
+
+    ```csharp
+    using Task01.Application.Abstractions;
+    using Task01.Application.Models;
+    using Task01.Domain.Abstractions;
+
+    namespace Task01.Application.Services;
+
+    public sealed class CipherOrchestrator(
+        IFileService fileService,
+        IKeyService keyService,
+        ITextNormalizer textNormalizer,
+        ICaesarCipher cipher)
+        : ICipherOrchestrator
+    {
+        private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        public async Task<ProcessingResult> RunAsync(Arguments args)
+        {
+            try
+            {
+                var rawInput = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
+
+                var normalized = textNormalizer.Normalize(rawInput);
+
+                var key = await keyService.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
+
+                var outputText = args.Operation == Operation.Encrypt
+                    ? cipher.Encrypt(normalized, Alphabet, key)
+                    : cipher.Decrypt(normalized, Alphabet, key);
+
+                await fileService.WriteAllTextAsync(args.OutputFilePath, outputText).ConfigureAwait(false);
+
+                return new ProcessingResult(0, null);
+            }
+            catch (FormatException)
+            {
+                return new ProcessingResult(3, "Invalid key");
+            }
+            catch (FileNotFoundException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (IOException)
+            {
+                return new ProcessingResult(2, "File error");
+            }
+            catch (Exception)
+            {
+                return new ProcessingResult(99, "Unexpected error");
+            }
+        }
+    }
+    ```
+
+- ICaesarCipher.cs
+  
+    ```csharp
+    namespace Task01.Domain.Abstractions;
+
+    public interface ICaesarCipher
+    {
+        string Encrypt(string normalizedText, string alphabet, int key);
+        string Decrypt(string normalizedText, string alphabet, int key);
+    }
+    ```
+
+- ITextNormalizer.cs
+
+    ```csharp
+    namespace Task01.Domain.Abstractions;
+
+    public interface ITextNormalizer
+    {
+        string Normalize(string input);
+    }
+    ```
+
+- CaesarCipher.cs
+
+    ```csharp
+    using Task01.Domain.Abstractions;
+
+    namespace Task01.Domain.Services;
+
+    public sealed class CaesarCipher : ICaesarCipher
+    {
+        public string Encrypt(string normalizedText, string alphabet, int key)
+        {
+            return Transform(normalizedText, alphabet, key, true);
+        }
+
+        public string Decrypt(string normalizedText, string alphabet, int key)
+        {
+            return Transform(normalizedText, alphabet, key, false);
+        }
+
+        private static string Transform(string text, string alphabet, int key, bool encrypt)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var n = alphabet.Length;
+            if (n == 0)
+            {
+                return string.Empty;
+            }
+
+            var map = BuildIndexMap(alphabet);
+
+            var src = text.AsSpan();
+            var dst = new char[src.Length];
+
+            var kEff = Mod(key, n);
+
+            for (var i = 0; i < src.Length; i++)
+            {
+                var c = src[i];
+
+                if (!map.TryGetValue(c, out var idx))
+                {
+                    throw new InvalidOperationException("Character not found in alphabet");
+                }
+
+                var newIdx = encrypt
+                    ? idx + kEff
+                    : idx - kEff;
+
+                newIdx = Mod(newIdx, n);
+
+                dst[i] = alphabet[newIdx];
+            }
+
+            return new string(dst);
+        }
+
+        private static Dictionary<char, int> BuildIndexMap(string alphabet)
+        {
+            var dict = new Dictionary<char, int>(alphabet.Length);
+            for (var i = 0; i < alphabet.Length; i++)
+            {
+                dict[alphabet[i]] = i;
+            }
+
+            return dict;
+        }
+
+        private static int Mod(int value, int m)
+        {
+            return value % m is var r && r < 0 ? r + m : r;
+        }
+    }
+    ```
+
+- TextNormalizer.cs
+
+    ```csharp
+    using Task01.Domain.Abstractions;
+
+    namespace Task01.Domain.Services;
+
+    public sealed class TextNormalizer : ITextNormalizer
+    {
+        public string Normalize(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return string.Empty;
+
+            var span = input.AsSpan();
+            var sb = new StringBuilder(span.Length);
+
+            foreach (var c in span)
+            {
+                if (c is (< 'A' or > 'Z') and (< 'a' or > 'z'))
+                {
+                    continue;
+                }
+
+                var upper = char.ToUpperInvariant(c);
+                sb.Append(upper);
+            }
+
+            return sb.ToString();
+        }
+    }
+    ```
+
+- FileService.cs
+
+    ```csharp
+    using Task01.Application.Abstractions;
+
+    namespace Task01.Infrastructure.Services;
+
+    public sealed class FileService : IFileService
+    {
+        private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
+        public async Task<string> ReadAllTextAsync(string path)
+        {
+            const FileOptions fileOptions = FileOptions.Asynchronous | FileOptions.SequentialScan;
+
+            await using var fs = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                4096,
+                fileOptions
+            );
+
+            using var reader = new StreamReader(fs, Encoding.UTF8, true);
+
+            return await reader.ReadToEndAsync().ConfigureAwait(false);
+        }
+
+        public async Task WriteAllTextAsync(string path, string content)
+        {
+            const FileOptions fileOptions = FileOptions.Asynchronous | FileOptions.SequentialScan;
+
+            await using var fs = new FileStream(
+                path,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                4096,
+                fileOptions
+            );
+
+            await using var writer = new StreamWriter(fs, Utf8NoBom);
+
+            await writer.WriteAsync(content.AsMemory()).ConfigureAwait(false);
+            await writer.FlushAsync().ConfigureAwait(false);
+        }
+    }
+    ```
+
+- KeyService.cs
+
+    ```csharp
+    using Task01.Application.Abstractions;
+
+    namespace Task01.Infrastructure.Services;
+
+    public sealed class KeyService(IFileService fileService) : IKeyService
+    {
+        public async Task<int> GetKeyAsync(string keyFilePath)
+        {
+            var raw = await fileService.ReadAllTextAsync(keyFilePath).ConfigureAwait(false);
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                throw new FormatException("Key file is empty");
+            }
+
+            var span = raw.AsSpan();
+
+            var firstLineEnd = span.IndexOfAny('\r', '\n');
+            if (firstLineEnd >= 0)
+            {
+                span = span[..firstLineEnd];
+            }
+
+            span = TrimWhite(span);
+
+            if (span.IsEmpty)
+            {
+                throw new FormatException("Key not found");
+            }
+
+            return TryParseInvariantInt(span, out var value)
+                ? value
+                : throw new FormatException("Key is not a valid integer");
+        }
+
+        private static ReadOnlySpan<char> TrimWhite(ReadOnlySpan<char> value)
+        {
+            var start = 0;
+            var end = value.Length - 1;
+
+            while (start <= end && char.IsWhiteSpace(value[start]))
+            {
+                start++;
+            }
+
+            while (end >= start && char.IsWhiteSpace(value[end]))
+            {
+                end--;
+            }
+
+            return start > end ? ReadOnlySpan<char>.Empty : value.Slice(start, end - start + 1);
+        }
+
+        private static bool TryParseInvariantInt(ReadOnlySpan<char> span, out int result)
+        {
+            return int.TryParse(span, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+        }
+    }
+    ```
+
+- GlobalUsings.cs
+
+    ```csharp
+    global using System;
+    global using System.Collections.Generic;
+    global using System.Globalization;
+    global using System.IO;
+    global using System.Text;
+    global using System.Threading.Tasks;
+    ```
+
+- Program.cs
+
+    ```csharp
+    #pragma warning disable CA1859
+
+    using Task01.Application.Abstractions;
+    using Task01.Application.Models;
+    using Task01.Application.Services;
+    using Task01.Domain.Abstractions;
+    using Task01.Domain.Services;
+    using Task01.Infrastructure.Services;
+
+    CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+    CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
+
+    IFileService fileService = new FileService();
+    IKeyService keyService = new KeyService(fileService);
+
+    ITextNormalizer textNormalizer = new TextNormalizer();
+    ICaesarCipher cipher = new CaesarCipher();
+
+    ICipherOrchestrator orchestrator = new CipherOrchestrator(
+        fileService,
+        keyService,
+        textNormalizer,
+        cipher
+    );
+
+    IArgumentParser parser = new ArgumentParser();
+
+    ProcessingResult result;
+
+    try
+    {
+        var parsed = parser.Parse(args);
+
+        result = await orchestrator.RunAsync(parsed);
+    }
+    catch (ArgumentException ex)
+    {
+        result = new ProcessingResult(1, ex.Message);
+    }
+    catch (Exception)
+    {
+        result = new ProcessingResult(99, "Unexpected error");
+    }
+
+    if (!result.IsSuccess && !string.IsNullOrEmpty(result.Message))
+    {
+        await Console.Error.WriteLineAsync(result.Message);
+    }
+
+    Environment.ExitCode = result.ExitCode;
+    ```
+
 #### Wyniki
 
 - Szyfrowanie
