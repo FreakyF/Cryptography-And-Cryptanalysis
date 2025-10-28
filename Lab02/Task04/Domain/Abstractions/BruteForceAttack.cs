@@ -8,6 +8,9 @@ public sealed class BruteForceAttack(IAffineCipher cipher, IChiSquareScorer scor
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static readonly int[] InvertibleA = [1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25];
 
+    /// <summary>Searches all invertible affine keys and returns the best scoring plaintext candidate.</summary>
+    /// <param name="cipherText">The ciphertext to be analyzed.</param>
+    /// <returns>The brute-force result describing the candidate plaintext and metadata.</returns>
     public BruteForceResult BreakCipher(string cipherText)
     {
         if (string.IsNullOrEmpty(cipherText))

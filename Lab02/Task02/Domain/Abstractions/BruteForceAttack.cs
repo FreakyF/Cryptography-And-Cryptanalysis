@@ -7,6 +7,9 @@ public sealed class BruteForceAttack(ICaesarCipher cipher, IChiSquareScorer scor
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    /// <summary>Evaluates every possible key to find the best-matching plaintext and chi-square score.</summary>
+    /// <param name="cipherText">The normalized ciphertext to break.</param>
+    /// <returns>The best brute-force result including plaintext, key, score, and English-likeness.</returns>
     public BruteForceResult BreakCipher(string cipherText)
     {
         if (string.IsNullOrEmpty(cipherText))
