@@ -8,10 +8,11 @@ public sealed class CipherOrchestrator(
     IFileService fileService,
     IKeyProvider keyProvider,
     ITextNormalizer textNormalizer,
-    IAlphabetBuilder alphabetBuilder,
     ICaesarCipher cipher)
     : ICipherOrchestrator
 {
+    private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
     public async Task<ProcessingResult> RunAsync(Arguments args)
     {
         try
@@ -20,13 +21,11 @@ public sealed class CipherOrchestrator(
 
             var normalized = textNormalizer.Normalize(rawInput);
 
-            var alphabet = alphabetBuilder.BuildAlphabet(normalized);
-
             var key = await keyProvider.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
 
             var outputText = args.Operation == Operation.Encrypt
-                ? cipher.Encrypt(normalized, alphabet, key)
-                : cipher.Decrypt(normalized, alphabet, key);
+                ? cipher.Encrypt(normalized, Alphabet, key)
+                : cipher.Decrypt(normalized, Alphabet, key);
 
             await fileService.WriteAllTextAsync(args.OutputFilePath, outputText).ConfigureAwait(false);
 

@@ -2,7 +2,7 @@ using Task01.Domain.Abstractions;
 
 namespace Task01.Domain.Services;
 
-public class CaesarCipher : ICaesarCipher
+public sealed class CaesarCipher : ICaesarCipher
 {
     public string Encrypt(string normalizedText, string alphabet, int key)
     {
@@ -43,7 +43,9 @@ public class CaesarCipher : ICaesarCipher
                 throw new InvalidOperationException("Character not found in alphabet");
             }
 
-            var newIdx = encrypt ? idx + kEff : idx - kEff;
+            var newIdx = encrypt
+                ? idx + kEff
+                : idx - kEff;
 
             newIdx = Mod(newIdx, n);
 

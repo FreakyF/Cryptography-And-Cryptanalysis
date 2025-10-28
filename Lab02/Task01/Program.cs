@@ -12,15 +12,14 @@ CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 
 IFileService fileService = new FileService();
 IKeyProvider keyProvider = new KeyService(fileService);
+
 ITextNormalizer textNormalizer = new TextNormalizer();
-IAlphabetBuilder alphabetBuilder = new AlphabetBuilder();
 ICaesarCipher cipher = new CaesarCipher();
 
 ICipherOrchestrator orchestrator = new CipherOrchestrator(
     fileService,
     keyProvider,
     textNormalizer,
-    alphabetBuilder,
     cipher
 );
 
@@ -31,6 +30,7 @@ ProcessingResult result;
 try
 {
     var parsed = parser.Parse(args);
+
     result = await orchestrator.RunAsync(parsed);
 }
 catch (ArgumentException ex)
