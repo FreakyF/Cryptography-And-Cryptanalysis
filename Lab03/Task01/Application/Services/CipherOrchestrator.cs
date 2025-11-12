@@ -8,13 +8,13 @@ public sealed class CipherOrchestrator(
     IFileService fileService,
     IKeyService keyService,
     ITextNormalizer textNormalizer,
-    ICaesarCipher cipher)
+    ISubstitutionCipher cipher)
     : ICipherOrchestrator
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     /// <summary>
-    ///     Executes the Caesar cipher workflow by handling I/O, normalization, key retrieval, and encryption or
+    ///     Executes the substitution cipher workflow by handling I/O, normalization, key retrieval, and encryption or
     ///     decryption.
     /// </summary>
     /// <param name="args">The prepared arguments describing input, output, key locations, and the desired operation.</param>
@@ -24,16 +24,27 @@ public sealed class CipherOrchestrator(
         try
         {
             var rawInput = await fileService.ReadAllTextAsync(args.InputFilePath).ConfigureAwait(false);
+            if (args.Operation == Operation.Encrypt)
+            {
+                var normalized = textNormalizer.Normalize(rawInput);
+                var permutation = keyService.CreatePermutation(Alphabet);
+                var outputText = cipher.Encrypt(normalized, Alphabet, permutation);
+                var builder = new StringBuilder(permutation.Length + Environment.NewLine.Length + outputText.Length);
+                builder.AppendLine(permutation);
+                builder.Append(outputText);
 
-            var normalized = textNormalizer.Normalize(rawInput);
+                await fileService.WriteAllTextAsync(args.OutputFilePath, builder.ToString()).ConfigureAwait(false);
+            }
+            else
+            {
+                var permutation = keyService.ExtractPermutation(rawInput, Alphabet, out var cipherSection);
 
-            var key = await keyService.GetKeyAsync(args.KeyFilePath).ConfigureAwait(false);
+                var normalized = textNormalizer.Normalize(cipherSection);
 
-            var outputText = args.Operation == Operation.Encrypt
-                ? cipher.Encrypt(normalized, Alphabet, key)
-                : cipher.Decrypt(normalized, Alphabet, key);
+                var plainText = cipher.Decrypt(normalized, Alphabet, permutation);
 
-            await fileService.WriteAllTextAsync(args.OutputFilePath, outputText).ConfigureAwait(false);
+                await fileService.WriteAllTextAsync(args.OutputFilePath, plainText).ConfigureAwait(false);
+            }
 
             return new ProcessingResult(0, null);
         }

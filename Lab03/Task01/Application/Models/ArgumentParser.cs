@@ -16,7 +16,6 @@ public sealed class ArgumentParser : IArgumentParser
         }
 
         Operation? mode = null;
-        string? keyPath = null;
         string? inputPath = null;
         string? outputPath = null;
 
@@ -30,15 +29,9 @@ public sealed class ArgumentParser : IArgumentParser
                 case "-d":
                     mode = ResolveMode(token, mode);
                     break;
-
-                case "-k":
-                    keyPath = ReadValue(args, ref i, "-k");
-                    break;
-
                 case "-i":
                     inputPath = ReadValue(args, ref i, "-i");
                     break;
-
                 case "-o":
                     outputPath = ReadValue(args, ref i, "-o");
                     break;
@@ -48,7 +41,7 @@ public sealed class ArgumentParser : IArgumentParser
             }
         }
 
-        return BuildArguments(mode, keyPath, inputPath, outputPath);
+        return BuildArguments(mode, inputPath, outputPath);
     }
 
     /// <summary>Determines the cipher mode based on a flag while preventing conflicting selections.</summary>
@@ -85,20 +78,14 @@ public sealed class ArgumentParser : IArgumentParser
 
     /// <summary>Builds the final arguments record after verifying that all required values are present.</summary>
     /// <param name="mode">The parsed operation mode, if any was selected.</param>
-    /// <param name="keyPath">The path to the key file specified by the user.</param>
     /// <param name="inputPath">The path to the input text file.</param>
     /// <param name="outputPath">The path to the output text file.</param>
     /// <returns>A fully populated arguments record ready for processing.</returns>
-    private static Arguments BuildArguments(Operation? mode, string? keyPath, string? inputPath, string? outputPath)
+    private static Arguments BuildArguments(Operation? mode, string? inputPath, string? outputPath)
     {
         if (mode is null)
         {
             throw new ArgumentException("Missing -e or -d");
-        }
-
-        if (string.IsNullOrWhiteSpace(keyPath))
-        {
-            throw new ArgumentException("Missing -k <keyfile>");
         }
 
         if (string.IsNullOrWhiteSpace(inputPath))
@@ -113,7 +100,6 @@ public sealed class ArgumentParser : IArgumentParser
 
         return new Arguments(
             mode.Value,
-            keyPath,
             inputPath,
             outputPath
         );

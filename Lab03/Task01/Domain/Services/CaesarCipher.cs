@@ -2,95 +2,87 @@ using Task01.Domain.Abstractions;
 
 namespace Task01.Domain.Services;
 
-public sealed class CaesarCipher : ICaesarCipher
+public sealed class SubstitutionCipher : ISubstitutionCipher
 {
-    /// <summary>Encrypts normalized text using the Caesar cipher with the provided alphabet and key.</summary>
+    /// <summary>Encrypts normalized text using the supplied alphabet and substitution permutation.</summary>
     /// <param name="normalizedText">The uppercase text that only contains characters from the alphabet.</param>
-    /// <param name="alphabet">The ordered set of characters used for lookups.</param>
-    /// <param name="key">The shift amount applied to each character.</param>
-    /// <returns>The encrypted text produced by shifting characters forward.</returns>
-    public string Encrypt(string normalizedText, string alphabet, int key)
+    /// <param name="alphabet">The ordered set of characters representing the plaintext alphabet.</param>
+    /// <param name="permutation">The substitution alphabet obtained by permuting the plaintext alphabet.</param>
+    /// <returns>The encrypted text produced by substituting characters with their permutation counterparts.</returns>
+    public string Encrypt(string normalizedText, string alphabet, string permutation)
     {
-        return Transform(normalizedText, alphabet, key, true);
+        return Transform(normalizedText, alphabet, permutation, true);
     }
 
-    /// <summary>Decrypts normalized text using the Caesar cipher with the provided alphabet and key.</summary>
+    /// <summary>Decrypts normalized text using the supplied alphabet and substitution permutation.</summary>
     /// <param name="normalizedText">The uppercase text that only contains characters from the alphabet.</param>
-    /// <param name="alphabet">The ordered set of characters used for lookups.</param>
-    /// <param name="key">The shift amount applied to each character.</param>
-    /// <returns>The decrypted text produced by shifting characters backward.</returns>
-    public string Decrypt(string normalizedText, string alphabet, int key)
+    /// <param name="alphabet">The ordered set of characters representing the plaintext alphabet.</param>
+    /// <param name="permutation">The substitution alphabet obtained by permuting the plaintext alphabet.</param>
+    /// <returns>The decrypted text produced by reversing the substitution mapping.</returns>
+    public string Decrypt(string normalizedText, string alphabet, string permutation)
     {
-        return Transform(normalizedText, alphabet, key, false);
+        return Transform(normalizedText, alphabet, permutation, false);
     }
 
-    /// <summary>Transforms text by shifting each character within the alphabet according to the key and direction.</summary>
+    /// <summary>Transforms text by substituting each character according to the permutation direction.</summary>
     /// <param name="text">The normalized text to process.</param>
-    /// <param name="alphabet">The ordered set of characters used for substitutions.</param>
-    /// <param name="key">The shift value applied when moving through the alphabet.</param>
+    /// <param name="alphabet">The ordered set of characters representing the plaintext alphabet.</param>
+    /// <param name="permutation">The substitution alphabet obtained by permuting the plaintext alphabet.</param>
     /// <param name="encrypt">Indicates whether the transformation should encrypt or decrypt.</param>
-    /// <returns>The resulting text after the shift has been applied.</returns>
-    private static string Transform(string text, string alphabet, int key, bool encrypt)
+    /// <returns>The resulting text after the substitution has been applied.</returns>
+    private static string Transform(string text, string alphabet, string permutation, bool encrypt)
     {
         if (string.IsNullOrEmpty(text))
         {
             return string.Empty;
         }
 
-        var n = alphabet.Length;
-        if (n == 0)
+        if (string.IsNullOrEmpty(alphabet) || string.IsNullOrEmpty(permutation))
         {
             return string.Empty;
         }
 
-        var map = BuildIndexMap(alphabet);
-
-        var src = text.AsSpan();
-        var dst = new char[src.Length];
-
-        var kEff = Mod(key, n);
-
-        for (var i = 0; i < src.Length; i++)
+        if (alphabet.Length != permutation.Length)
         {
-            var c = src[i];
+            throw new InvalidOperationException("Alphabet and permutation must be the same length");
+        }
 
-            if (!map.TryGetValue(c, out var idx))
+        var source = encrypt ? alphabet : permutation;
+        var target = encrypt ? permutation : alphabet;
+
+        var lookup = BuildLookup(source, target);
+
+        var span = text.AsSpan();
+        var result = new char[span.Length];
+
+        for (var i = 0; i < span.Length; i++)
+        {
+            var c = span[i];
+
+            if (!lookup.TryGetValue(c, out var mapped))
             {
-                throw new InvalidOperationException("Character not found in alphabet");
+                throw new InvalidOperationException("Character not found in substitution alphabet");
             }
 
-            var newIdx = encrypt
-                ? idx + kEff
-                : idx - kEff;
-
-            newIdx = Mod(newIdx, n);
-
-            dst[i] = alphabet[newIdx];
+            result[i] = mapped;
         }
 
-        return new string(dst);
+        return new string(result);
     }
 
-    /// <summary>Builds a lookup dictionary mapping characters in the alphabet to their respective indices.</summary>
-    /// <param name="alphabet">The alphabet whose characters should be indexed.</param>
-    /// <returns>A dictionary that relates alphabet characters to their position.</returns>
-    private static Dictionary<char, int> BuildIndexMap(string alphabet)
+    /// <summary>Builds a lookup dictionary mapping characters from the source alphabet to the target alphabet.</summary>
+    /// <param name="source">The alphabet providing the keys for the lookup.</param>
+    /// <param name="target">The alphabet providing the mapped values.</param>
+    /// <returns>A dictionary relating characters from the source alphabet to the target alphabet.</returns>
+    private static Dictionary<char, char> BuildLookup(string source, string target)
     {
-        var dict = new Dictionary<char, int>(alphabet.Length);
-        for (var i = 0; i < alphabet.Length; i++)
+        var lookup = new Dictionary<char, char>(source.Length);
+
+        for (var i = 0; i < source.Length; i++)
         {
-            dict[alphabet[i]] = i;
+            lookup[source[i]] = target[i];
         }
 
-        return dict;
-    }
-
-    /// <summary>Calculates a positive modulus result for the given value and modulus base.</summary>
-    /// <param name="value">The value to reduce within the modulus range.</param>
-    /// <param name="m">The modulus base defining the range size.</param>
-    /// <returns>The equivalent value constrained to the range [0, m).</returns>
-    private static int Mod(int value, int m)
-    {
-        return value % m is var r && r < 0 ? r + m : r;
+        return lookup;
     }
 }
