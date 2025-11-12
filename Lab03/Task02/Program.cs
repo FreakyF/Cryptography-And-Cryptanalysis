@@ -7,6 +7,7 @@ using Task02.Domain.Abstractions;
 using Task02.Domain.Services;
 using Task02.Infrastructure.Services;
 
+System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
 CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 
@@ -18,34 +19,28 @@ ISubstitutionCipher cipher = new SubstitutionCipher();
 IHeuristicAnalyzer heuristicAnalyzer = new MetropolisHastingsAnalyzer(textNormalizer, cipher);
 
 ICipherOrchestrator orchestrator = new CipherOrchestrator(
-    fileService,
-    keyService,
-    textNormalizer,
-    cipher,
-    heuristicAnalyzer
-);
+    fileService, keyService, textNormalizer, cipher, heuristicAnalyzer);
 
 IArgumentParser parser = new ArgumentParser();
 
 ProcessingResult result;
-
 try
 {
     var parsed = parser.Parse(args);
-    result = await orchestrator.RunAsync(parsed);
+    result = orchestrator.Run(parsed);
 }
 catch (ArgumentException ex)
 {
     result = new ProcessingResult(1, ex.Message);
 }
-catch (Exception)
+catch
 {
     result = new ProcessingResult(99, "Unexpected error");
 }
 
 if (!result.IsSuccess && !string.IsNullOrEmpty(result.Message))
 {
-    await Console.Error.WriteLineAsync(result.Message);
+    Console.Error.WriteLine(result.Message);
 }
 
 Environment.ExitCode = result.ExitCode;

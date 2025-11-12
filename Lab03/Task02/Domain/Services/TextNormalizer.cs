@@ -1,36 +1,73 @@
+using System.Runtime.CompilerServices;
 using Task02.Domain.Abstractions;
 
 namespace Task02.Domain.Services;
 
 public sealed class TextNormalizer : ITextNormalizer
 {
-    /// <summary>
-    ///     Normalizes the supplied text by filtering non-letter characters and converting remaining characters to
-    ///     uppercase.
-    /// </summary>
-    /// <param name="input">The raw text that may include whitespace, punctuation, or lowercase letters.</param>
-    /// <returns>The uppercase string composed only of alphabetic characters from the input.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input))
-        {
             return string.Empty;
-        }
 
-        var span = input.AsSpan();
-        var sb = new StringBuilder(span.Length);
+        var src = input.AsSpan();
 
-        foreach (var c in span)
+        var hasNonLetter = false;
+        var hasLower = false;
+
+        foreach (var c in src)
         {
-            if (c is (< 'A' or > 'Z') and (< 'a' or > 'z'))
+            if (!IsAsciiLetter(c))
             {
-                continue;
+                hasNonLetter = true;
             }
-
-            var upper = char.ToUpperInvariant(c);
-            sb.Append(upper);
+            else if (IsLowerAscii(c))
+            {
+                hasLower = true;
+            }
         }
 
-        return sb.ToString();
+        switch (hasNonLetter)
+        {
+            case false when !hasLower:
+                return input;
+            case false:
+                return string.Create(src.Length, src, static (dst, s) =>
+                {
+                    for (var i = 0; i < s.Length; i++)
+                    {
+                        var c = s[i];
+                        dst[i] = IsLowerAscii(c) ? (char)(c & ~0x20) : c;
+                    }
+                });
+        }
+
+        var count = 0;
+        foreach (var t in src)
+            if (IsAsciiLetter(t)) count++;
+
+        if (count == 0)
+            return string.Empty;
+
+        return string.Create(count, src, static (dst, s) =>
+        {
+            var w = 0;
+            foreach (var c in s)
+            {
+                if (!IsAsciiLetter(c)) continue;
+                dst[w++] = IsLowerAscii(c) ? (char)(c & ~0x20) : c;
+            }
+        });
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAsciiLetter(char c)
+    {
+        var v = (uint)((c | 0x20) - 'a');
+        return v <= 'z' - 'a';
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsLowerAscii(char c) => (uint)(c - 'a') <= 'z' - 'a';
 }
