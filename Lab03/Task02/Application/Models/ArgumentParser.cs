@@ -18,6 +18,7 @@ public sealed class ArgumentParser : IArgumentParser
         Operation? mode = null;
         string? inputPath = null;
         string? outputPath = null;
+        string? referencePath = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -35,13 +36,15 @@ public sealed class ArgumentParser : IArgumentParser
                 case "-o":
                     outputPath = ReadValue(args, ref i, "-o");
                     break;
-
+                case "-r":
+                    referencePath = ReadValue(args, ref i, "-r");
+                    break;
                 default:
                     throw new ArgumentException("Unknown argument " + token);
             }
         }
 
-        return BuildArguments(mode, inputPath, outputPath);
+        return BuildArguments(mode, inputPath, outputPath, referencePath);
     }
 
     /// <summary>Determines the cipher mode based on a flag while preventing conflicting selections.</summary>
@@ -81,7 +84,8 @@ public sealed class ArgumentParser : IArgumentParser
     /// <param name="inputPath">The path to the input text file.</param>
     /// <param name="outputPath">The path to the output text file.</param>
     /// <returns>A fully populated arguments record ready for processing.</returns>
-    private static Arguments BuildArguments(Operation? mode, string? inputPath, string? outputPath)
+    private static Arguments BuildArguments(Operation? mode, string? inputPath, string? outputPath,
+        string? referencePath)
     {
         if (mode is null)
         {
@@ -101,7 +105,8 @@ public sealed class ArgumentParser : IArgumentParser
         return new Arguments(
             mode.Value,
             inputPath,
-            outputPath
+            outputPath,
+            referencePath
         );
     }
 }

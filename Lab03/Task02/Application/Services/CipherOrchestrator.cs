@@ -8,7 +8,8 @@ public sealed class CipherOrchestrator(
     IFileService fileService,
     IKeyService keyService,
     ITextNormalizer textNormalizer,
-    ISubstitutionCipher cipher)
+    ISubstitutionCipher cipher,
+    IHeuristicAnalyzer heuristicAnalyzer)
     : ICipherOrchestrator
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -34,17 +35,28 @@ public sealed class CipherOrchestrator(
                 builder.Append(outputText);
 
                 await fileService.WriteAllTextAsync(args.OutputFilePath, builder.ToString()).ConfigureAwait(false);
+
+                return new ProcessingResult(0, null);
             }
-            else
+
+            var cipherPayload = ExtractCipherPayload(rawInput);
+            var normalizedCipher = textNormalizer.Normalize(cipherPayload);
+            if (normalizedCipher.Length == 0)
             {
-                var permutation = keyService.ExtractPermutation(rawInput, Alphabet, out var cipherSection);
-
-                var normalized = textNormalizer.Normalize(cipherSection);
-
-                var plainText = cipher.Decrypt(normalized, Alphabet, permutation);
-
-                await fileService.WriteAllTextAsync(args.OutputFilePath, plainText).ConfigureAwait(false);
+                await fileService.WriteAllTextAsync(args.OutputFilePath, string.Empty).ConfigureAwait(false);
+                return new ProcessingResult(0, null);
             }
+
+            var referenceText = await ReadReferenceTextAsync(args).ConfigureAwait(false);
+            var normalizedReference = textNormalizer.Normalize(referenceText);
+            var heuristicResult = heuristicAnalyzer.Analyze(normalizedCipher, normalizedReference, Alphabet);
+
+            var outputBuilder = new StringBuilder(
+                heuristicResult.Permutation.Length + Environment.NewLine.Length + heuristicResult.PlainText.Length);
+            outputBuilder.AppendLine(heuristicResult.Permutation);
+            outputBuilder.Append(heuristicResult.PlainText);
+
+            await fileService.WriteAllTextAsync(args.OutputFilePath, outputBuilder.ToString()).ConfigureAwait(false);
 
             return new ProcessingResult(0, null);
         }
@@ -72,5 +84,47 @@ public sealed class CipherOrchestrator(
         {
             return new ProcessingResult(99, "Unexpected error");
         }
+    }
+
+    /// <summary>
+    ///     Extracts the cipher text portion from the input while discarding any persisted permutation header, if present.
+    /// </summary>
+    /// <param name="rawInput">The raw file contents that may begin with a persisted permutation line.</param>
+    /// <returns>The cipher text content without the persisted permutation header.</returns>
+    private string ExtractCipherPayload(string rawInput)
+    {
+        if (string.IsNullOrEmpty(rawInput))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            keyService.ExtractPermutation(rawInput, Alphabet, out var cipherSection);
+            return cipherSection;
+        }
+        catch (FormatException)
+        {
+            return rawInput;
+        }
+    }
+
+    /// <summary>Loads the reference corpus used to build the heuristic language model.</summary>
+    /// <param name="args">The command arguments potentially containing a reference file path.</param>
+    /// <returns>The text that will serve as the basis for the bigram probabilities.</returns>
+    private async Task<string> ReadReferenceTextAsync(Arguments args)
+    {
+        if (!string.IsNullOrWhiteSpace(args.ReferenceFilePath))
+        {
+            return await fileService.ReadAllTextAsync(args.ReferenceFilePath).ConfigureAwait(false);
+        }
+
+        var defaultPath = Path.Combine(AppContext.BaseDirectory, "Samples", "plaintext.txt");
+        if (File.Exists(defaultPath))
+        {
+            return await fileService.ReadAllTextAsync(defaultPath).ConfigureAwait(false);
+        }
+
+        throw new FileNotFoundException("Reference corpus not found", defaultPath);
     }
 }

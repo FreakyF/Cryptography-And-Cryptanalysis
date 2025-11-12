@@ -15,12 +15,14 @@ IKeyService keyService = new KeyService();
 
 ITextNormalizer textNormalizer = new TextNormalizer();
 ISubstitutionCipher cipher = new SubstitutionCipher();
+IHeuristicAnalyzer heuristicAnalyzer = new MetropolisHastingsAnalyzer(textNormalizer, cipher);
 
 ICipherOrchestrator orchestrator = new CipherOrchestrator(
     fileService,
     keyService,
     textNormalizer,
-    cipher
+    cipher,
+    heuristicAnalyzer
 );
 
 IArgumentParser parser = new ArgumentParser();
@@ -30,7 +32,6 @@ ProcessingResult result;
 try
 {
     var parsed = parser.Parse(args);
-
     result = await orchestrator.RunAsync(parsed);
 }
 catch (ArgumentException ex)

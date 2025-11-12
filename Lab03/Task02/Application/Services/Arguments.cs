@@ -5,5 +5,6 @@ namespace Task02.Application.Services;
 public sealed record Arguments(
     Operation Operation,
     string InputFilePath,
-    string OutputFilePath
+    string OutputFilePath,
+    string? ReferenceFilePath
 );
