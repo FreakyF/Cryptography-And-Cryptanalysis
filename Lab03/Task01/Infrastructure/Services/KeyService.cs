@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using Task01.Application.Abstractions;
-using Task01.Application.Models;
 
 namespace Task01.Infrastructure.Services;
 

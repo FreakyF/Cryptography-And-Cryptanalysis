@@ -32,12 +32,7 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
     /// <returns>The resulting text after the substitution has been applied.</returns>
     private static string Transform(string text, string alphabet, string permutation, bool encrypt)
     {
-        if (string.IsNullOrEmpty(text))
-        {
-            return string.Empty;
-        }
-
-        if (string.IsNullOrEmpty(alphabet) || string.IsNullOrEmpty(permutation))
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(alphabet) || string.IsNullOrEmpty(permutation))
         {
             return string.Empty;
         }
