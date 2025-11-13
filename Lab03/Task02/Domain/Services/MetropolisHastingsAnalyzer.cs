@@ -21,12 +21,13 @@ public sealed class MetropolisHastingsAnalyzer(
         if (!alphabet.Equals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", StringComparison.Ordinal))
             throw new ArgumentException("Alphabet must be A–Z for the fast path.", nameof(alphabet));
 
+        // Normalizujemy TYLKO szyfrogram
         var normalizedCipher = textNormalizer.Normalize(cipherText);
         if (normalizedCipher.Length == 0)
             return new HeuristicResult(alphabet, string.Empty, double.NegativeInfinity);
 
-        var normalizedReference = textNormalizer.Normalize(referenceText);
-        var model = BigramLanguageModel.CreateAZ(alphabet, normalizedReference, SmoothingConstant);
+        // referenceText to teraz treść bigrams.txt
+        var model = BigramLanguageModel.CreateFromBigramsText(referenceText, SmoothingConstant);
 
         var c = normalizedCipher.AsSpan();
         var cipherIdx = new byte[c.Length];
@@ -52,6 +53,7 @@ public sealed class MetropolisHastingsAnalyzer(
             int j = rng.Next(i + 1);
             (permArr[i], permArr[j]) = (permArr[j], permArr[i]);
         }
+
         Span<char> perm = permArr.AsSpan();
 
         Span<byte> invPos = stackalloc byte[26];
@@ -98,13 +100,64 @@ public sealed class MetropolisHastingsAnalyzer(
 
     private sealed class BigramLanguageModel
     {
-        private readonly double[] _log;  
-        private readonly int[] _rowOff;  
+        private readonly double[] _log;
+        private readonly int[] _rowOff;
 
         private BigramLanguageModel(double[] log, int[] rowOff)
         {
             _log = log;
             _rowOff = rowOff;
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static BigramLanguageModel CreateFromBigramsText(string bigramsText, double alpha)
+        {
+            const int size = 26;
+            var counts = new double[size * size];
+
+            if (!string.IsNullOrEmpty(bigramsText))
+            {
+                var lines = bigramsText.Split(
+                    new[] { '\r', '\n' },
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                foreach (var line in lines)
+                {
+                    if (line.Length < 4) continue;
+
+                    var span = line.AsSpan().Trim();
+                    if (span.Length < 4) continue;
+
+                    char c0 = char.ToUpperInvariant(span[0]);
+                    char c1 = char.ToUpperInvariant(span[1]);
+                    if (c0 < 'A' || c0 > 'Z' || c1 < 'A' || c1 > 'Z') continue;
+
+                    int spaceIdx = span.IndexOf(' ');
+                    if (spaceIdx < 0 || spaceIdx + 1 >= span.Length) continue;
+
+                    var countSpan = span[(spaceIdx + 1)..].Trim();
+                    if (!long.TryParse(countSpan, NumberStyles.Integer, CultureInfo.InvariantCulture, out var cnt) || cnt <= 0)
+                        continue;
+
+                    int row = c0 - 'A';
+                    int col = c1 - 'A';
+                    if ((uint)row >= 26u || (uint)col >= 26u) continue;
+
+                    counts[row * size + col] += cnt;
+                }
+            }
+
+            double total = 0d;
+            for (int i = 0; i < counts.Length; i++) { counts[i] += alpha; total += counts[i]; }
+
+            var log = new double[counts.Length];
+            double invTotal = 1d / total;
+            for (int i = 0; i < counts.Length; i++) log[i] = Math.Log(counts[i] * invTotal);
+
+            var rowOff = new int[size];
+            for (int k = 0; k < size; k++) rowOff[k] = k * size;
+
+            return new BigramLanguageModel(log, rowOff);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -131,7 +184,11 @@ public sealed class MetropolisHastingsAnalyzer(
             }
 
             double total = 0d;
-            for (int i = 0; i < counts.Length; i++) { counts[i] += alpha; total += counts[i]; }
+            for (int i = 0; i < counts.Length; i++)
+            {
+                counts[i] += alpha;
+                total += counts[i];
+            }
 
             var log = new double[counts.Length];
             double invTotal = 1d / total;
@@ -170,63 +227,20 @@ public sealed class MetropolisHastingsAnalyzer(
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public double ProposedScoreDelta(ReadOnlySpan<byte> invPos, int[] counts, int iPos, int jPos, double currentScore)
         {
-            int x = -1, y = -1;
+            // Zamiast różnicowania: zbudujmy invPos' po zamianie i policzmy pełny score.
+            Span<byte> invPosProposal = stackalloc byte[26];
+            invPos.CopyTo(invPosProposal);
+
+            // Zamiana pozycji iPos <-> jPos w wektorze invPos (który mapuje: CIPHER letter -> PLAIN pos)
             for (int ch = 0; ch < 26; ch++)
             {
-                int pos = invPos[ch];
-                if (pos == iPos) x = ch;
-                else if (pos == jPos) y = ch;
+                byte pos = invPosProposal[ch];
+                if (pos == iPos) invPosProposal[ch] = (byte)jPos;
+                else if (pos == jPos) invPosProposal[ch] = (byte)iPos;
             }
 
-            if ((uint)x >= 26u || (uint)y >= 26u)
-                return currentScore;
-
-            ref double log0 = ref MemoryMarshal.GetArrayDataReference(_log);
-            ref int cnt0 = ref MemoryMarshal.GetArrayDataReference(counts);
-
-            double delta = 0d;
-
-            int cntRowX = x * 26;
-            int cntRowY = y * 26;
-            int rowI = _rowOff[iPos];
-            int rowJ = _rowOff[jPos];
-            for (int q = 0; q < 26; q++)
-            {
-                int cXq = Unsafe.Add(ref cnt0, cntRowX + q);
-                if (cXq != 0)
-                {
-                    int col = invPos[q];
-                    delta += (Unsafe.Add(ref log0, rowJ + col) - Unsafe.Add(ref log0, rowI + col)) * cXq;
-                }
-
-                int cYq = Unsafe.Add(ref cnt0, cntRowY + q);
-                if (cYq != 0)
-                {
-                    int col = invPos[q];
-                    delta += (Unsafe.Add(ref log0, rowI + col) - Unsafe.Add(ref log0, rowJ + col)) * cYq;
-                }
-            }
-
-            for (int p = 0; p < 26; p++)
-            {
-                if (p == x || p == y) continue;
-
-                int cpx = Unsafe.Add(ref cnt0, p * 26 + x);
-                if (cpx != 0)
-                {
-                    int row = _rowOff[invPos[p]];
-                    delta += (Unsafe.Add(ref log0, row + jPos) - Unsafe.Add(ref log0, row + iPos)) * cpx;
-                }
-
-                int cpy = Unsafe.Add(ref cnt0, p * 26 + y);
-                if (cpy != 0)
-                {
-                    int row = _rowOff[invPos[p]];
-                    delta += (Unsafe.Add(ref log0, row + iPos) - Unsafe.Add(ref log0, row + jPos)) * cpy;
-                }
-            }
-
-            return currentScore + delta;
+            // Zwracamy "proposalScore" (pełny), pętla MH używa go już prawidłowo.
+            return ScoreFromCounts(invPosProposal, counts);
         }
     }
 }

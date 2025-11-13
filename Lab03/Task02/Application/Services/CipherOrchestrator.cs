@@ -55,10 +55,11 @@ public sealed class CipherOrchestrator(
                 return new ProcessingResult(0, null);
             }
 
-            var referenceText = ReadReferenceText(args);
-            var normalizedReference = textNormalizer.Normalize(referenceText);
+            // UWAGA: teraz wczytujemy tabelę bigramów (bigrams.txt),
+            // bez normalizacji – surowy tekst trafia do analizatora.
+            var bigramTableText = ReadReferenceText(args);
 
-            var heuristicResult = heuristicAnalyzer.Analyze(normalizedCipher, normalizedReference, Alphabet);
+            var heuristicResult = heuristicAnalyzer.Analyze(normalizedCipher, bigramTableText, Alphabet);
 
             var output = string.Create(
                 heuristicResult.Permutation.Length + NewLineLen + heuristicResult.PlainText.Length,
@@ -123,10 +124,10 @@ public sealed class CipherOrchestrator(
         if (!string.IsNullOrWhiteSpace(args.ReferenceFilePath))
             return fileService.ReadAllText(args.ReferenceFilePath);
 
-        var defaultPath = Path.Combine(AppContext.BaseDirectory, "Samples", "plaintext.txt");
+        var defaultPath = Path.Combine(AppContext.BaseDirectory, "Samples", "bigrams.txt");
         if (File.Exists(defaultPath))
             return fileService.ReadAllText(defaultPath);
 
-        throw new FileNotFoundException("Reference corpus not found", defaultPath);
+        throw new FileNotFoundException("Bigram table not found", defaultPath);
     }
 }
