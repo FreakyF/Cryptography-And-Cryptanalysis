@@ -13,6 +13,8 @@ public sealed class MetropolisHastingsAnalyzer(
     private const double SmoothingConstant = 0.01d;
     private int _iterationCount = 500_000;
 
+    /// <summary>Configures the number of Metropolis-Hastings iterations to execute, reverting to a default when invalid.</summary>
+    /// <param name="iterations">The requested iteration count; non-positive values reset the count to the default.</param>
     public void SetIterations(int iterations)
     {
         _iterationCount = iterations > 0 ? iterations : 500_000;

@@ -17,11 +17,18 @@ public sealed class SimulatedAnnealingAnalyzer(
 
     private int _iterationCount = 500_000;
 
+    /// <summary>Sets the number of iterations the simulated annealing search will execute.</summary>
+    /// <param name="iterations">The total iteration count to use; non-positive values reset to the default.</param>
     public void SetIterations(int iterations)
     {
         _iterationCount = iterations > 0 ? iterations : 500_000;
     }
 
+    /// <summary>Runs simulated annealing with multiple random restarts to infer the best permutation and plaintext.</summary>
+    /// <param name="cipherText">The cipher text to analyze, expected to contain alphabetic characters.</param>
+    /// <param name="referenceText">The reference corpus used to build bigram probabilities.</param>
+    /// <param name="alphabet">The alphabet representing plaintext characters; must currently be A–Z.</param>
+    /// <returns>The heuristic result containing the recovered permutation, plaintext, and score.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public HeuristicResult Analyze(string cipherText, string referenceText, string alphabet)
     {
