@@ -55,7 +55,7 @@ flowchart TB
 
 #### Implementacja
 
-- IArgumentParser.cs
+- IArgumentParser.cs - Declares the contract for parsing CLI arguments into a strongly typed Arguments object, ensuring the application receives validated input options.
 
 ```csharp
 using Task01.Application.Services;
@@ -68,7 +68,7 @@ public interface IArgumentParser
 }
 ```
 
-- ICipherOrchestrator.cs
+- ICipherOrchestrator.cs - Exposes a coordinator interface that orchestrates encryption or decryption workflows based on parsed arguments and underlying services.
 
 ```csharp
 using Task01.Application.Models;
@@ -82,7 +82,7 @@ public interface ICipherOrchestrator
 }
 ```
 
-- IFileService.cs
+- IFileService.cs - Defines abstractions for asynchronous file I/O operations so the application can read plaintexts and persist results without coupling to the filesystem.
 
 ```csharp
 namespace Task01.Application.Abstractions;
@@ -95,7 +95,7 @@ public interface IFileService
 }
 ```
 
-- IKeyService.cs
+- IKeyService.cs - Specifies methods for generating random substitution keys and extracting embedded permutations from cipher payloads.
 
 ```csharp
 namespace Task01.Application.Abstractions;
@@ -108,7 +108,7 @@ public interface IKeyService
 }
 ```
 
-- ArgumentParser.cs
+- ArgumentParser.cs - Implements CLI parsing by validating operation flags and required file paths, producing a ready-to-use Arguments record or throwing descriptive errors.
 
 ```csharp
 using Task01.Application.Abstractions;
@@ -203,7 +203,7 @@ public sealed class ArgumentParser : IArgumentParser
 }
 ```
 
-- Operation.cs
+- Operation.cs - Enumerates supported modes (Encrypt/Decrypt) so orchestration code can branch on the requested operation in a type-safe way.
 
 ```csharp
 namespace Task01.Application.Models;
@@ -215,7 +215,7 @@ public enum Operation
 }
 ```
 
-- ProcessingResult.cs
+- ProcessingResult.cs - Represents the exit code and optional message produced by processing, providing a convenience property to check for success.
 
 ```cshap
 namespace Task01.Application.Models;
@@ -229,7 +229,7 @@ public readonly record struct ProcessingResult(
 }
 ```
 
-- Arguments.cs
+- Arguments.cs - Immutable record carrying the chosen operation and input/output file paths used by the orchestrator.
 
 ```csharp
 using Task01.Application.Models;
@@ -243,7 +243,7 @@ public sealed record Arguments(
 );
 ```
 
-- CipherOrchestrator.cs
+- CipherOrchestrator.cs - Coordinates reading input files, normalizing text, generating or extracting keys, delegating to the cipher, and writing results while mapping errors to exit codes.
 
 ```csharp
 using Task01.Application.Abstractions;
@@ -318,7 +318,7 @@ public sealed class CipherOrchestrator(
 }
 ```
 
-- ISubstitutionCipher.cs
+- ISubstitutionCipher.cs - Describes encrypt/decrypt operations for a substitution cipher implementation.
 
 ```csharp
 namespace Task01.Domain.Abstractions;
@@ -331,7 +331,7 @@ public interface ISubstitutionCipher
 }
 ```
 
-- ITextNormalizer.cs
+- ITextNormalizer.cs - Contract for transforming raw text into normalized uppercase alphabet-only strings.
 
 ```csharp
 namespace Task01.Domain.Abstractions;
@@ -342,7 +342,7 @@ public interface ITextNormalizer
 }
 ```
 
-- SubstitutionCipher.cs
+- SubstitutionCipher.cs - Implements monoalphabetic substitution by mapping characters via lookup dictionaries and validating alphabet consistency.
 
 ```csharp
 using Task01.Domain.Abstractions;
@@ -411,7 +411,7 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
 }
 ```
 
-- TextNormalizer.cs
+- TextNormalizer.cs - Filters input down to alphabetic characters and converts them to uppercase to produce clean cipher-ready text.
 
 ```csharp
 using Task01.Domain.Abstractions;
@@ -446,7 +446,7 @@ public sealed class TextNormalizer : ITextNormalizer
 }
 ```
 
-- FileService.cs
+- FileService.cs - Provides asynchronous UTF-8 file reading and writing with buffered streams for efficient disk access.
 
 ```csharp
 using Task01.Application.Abstractions;
@@ -496,7 +496,7 @@ public sealed class FileService : IFileService
 }
 ```
 
-- KeyService.cs
+- KeyService.cs - Generates random permutations of the alphabet using cryptographically secure RNG and extracts/validates permutation headers from cipher text.
 
 ```csharp
 using System.Security.Cryptography;
@@ -636,7 +636,7 @@ public sealed class KeyService : IKeyService
 }
 ```
 
-- GlobalUsings.cs
+- GlobalUsings.cs - Consolidates common namespace imports for the Task01 project to reduce boilerplate.
 
 ```csharp
 global using System;
@@ -647,7 +647,7 @@ global using System.Text;
 global using System.Threading.Tasks;
 ```
 
-- Program.cs
+- Program.cs - Bootstraps Task01 services, parses CLI input, executes the orchestrator, and reports exit codes.
 
 ```csharp
 #pragma warning disable CA1859
@@ -756,7 +756,7 @@ flowchart TB
 
 #### Implementacja
 
-- IArgumentParser.cs
+- IArgumentParser.cs - Declares the parser interface for translating CLI flags into structured arguments for the heuristic analyzer tool.
 
 ```csharp
 using Task02.Application.Models;
@@ -769,7 +769,7 @@ public interface IArgumentParser
 }
 ```
 
-- ICipherOrchestrator.cs
+- ICipherOrchestrator.cs - Interface defining the entry point that coordinates encryption/decryption and heuristic analysis based on provided arguments.
 
 ```csharp
 using Task02.Application.Models;
@@ -782,7 +782,7 @@ public interface ICipherOrchestrator
 }
 ```
 
-- IFileService.cs
+- IFileService.cs - Abstraction for synchronous text file reading and writing used by the task runner.
 
 ```csharp
 namespace Task02.Application.Abstractions;
@@ -795,7 +795,7 @@ public interface IFileService
 }
 ```
 
-- IKeyService.cs
+- IKeyService.cs - Contract for generating random permutations and extracting stored keys from cipher payloads for reuse.
 
 ```csharp
 namespace Task02.Application.Abstractions;
@@ -808,7 +808,7 @@ public interface IKeyService
 }
 ```
 
-- Arguments.cs
+- Arguments.cs - Record bundling operation mode, file paths, optional reference corpus, and iteration count parameters for execution.
 
 ```csharp
 namespace Task02.Application.Models;
@@ -822,7 +822,7 @@ public sealed record Arguments(
 );
 ```
 
-- Operation.cs
+- Operation.cs - Enum listing encryption and decryption modes to simplify branching logic.
 
 ```csharp
 namespace Task02.Application.Models;
@@ -834,7 +834,7 @@ public enum Operation
 }
 ```
 
-- ProcessingResult.cs
+- ProcessingResult.cs - Lightweight result struct carrying exit codes and messages, including an IsSuccess helper.
 
 ```csharp
 namespace Task02.Application.Models;
@@ -849,7 +849,7 @@ public readonly record struct ProcessingResult(
 }
 ```
 
-- ArgumentParser.cs
+- ArgumentParser.cs - Parses CLI tokens, validates flags/paths, handles optional parameters like reference file and iteration count, and returns a populated Arguments record.
 
 ```csharp
 using Task02.Application.Abstractions;
@@ -968,7 +968,7 @@ public sealed class ArgumentParser : IArgumentParser
 }
 ```
 
-- CipherOrchestrator.cs
+- CipherOrchestrator.cs - Coordinates Task02 encryption/decryption paths, integrates heuristic analysis for decryption, and manages file outputs and error handling.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1102,7 +1102,7 @@ public sealed class CipherOrchestrator(
 }
 ```
 
-- IConfigurableIterations.cs
+- IConfigurableIterations.cs - Interface allowing heuristic analyzers to adjust iteration counts for probabilistic search.
 
 ```csharp
 namespace Task02.Domain.Abstractions;
@@ -1113,7 +1113,7 @@ public interface IConfigurableIterations
 }
 ```
 
-- IHeuresticAnalyzer.cs
+- IHeuresticAnalyzer.cs - Declares the heuristic analysis contract that returns the most likely plaintext and key for a cipher.
 
 ```csharp
 using Task02.Domain.Models;
@@ -1126,7 +1126,7 @@ public interface IHeuristicAnalyzer
 }
 ```
 
-- ISubstitutionCipher.cs
+- ISubstitutionCipher.cs - Interface defining symmetric encrypt/decrypt methods for substitution ciphers used during analysis.
 
 ```csharp
 namespace Task02.Domain.Abstractions;
@@ -1139,7 +1139,7 @@ public interface ISubstitutionCipher
 }
 ```
 
-- ITextNormalizer.cs
+- ITextNormalizer.cs - Specifies normalization behavior to strip non-letters and standardize casing before processing.
 
 ```csharp
 namespace Task02.Domain.Abstractions;
@@ -1150,7 +1150,7 @@ public interface ITextNormalizer
 }
 ```
 
-- BigramLanguageModel.cs
+- BigramLanguageModel.cs - Builds a bigram probability table from reference text and provides scoring/delta methods for evaluating candidate permutations.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1368,7 +1368,7 @@ public sealed class BigramLanguageModel
 }
 ```
 
-- HeuresticResult.cs
+- HeuresticResult.cs - Record containing the permutation, decrypted plaintext, and log-likelihood score produced by the Metropolis-Hastings search.
 
 ```csharp
 namespace Task02.Domain.Models;
@@ -1376,7 +1376,7 @@ namespace Task02.Domain.Models;
 public sealed record HeuristicResult(string Permutation, string PlainText, double LogLikelihood);
 ```
 
-- MetropolisHastingsAnalyzer.cs
+- MetropolisHastingsAnalyzer.cs - Implements a Metropolis-Hastings heuristic to iteratively improve key permutations using bigram statistics.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1510,7 +1510,7 @@ public sealed class MetropolisHastingsAnalyzer(
 }
 ```
 
-- SubstitutionCipher.cs
+- SubstitutionCipher.cs - High-performance substitution cipher using dense lookup tables to transform characters safely during encryption and decryption.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1610,7 +1610,7 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
 }
 ```
 
-- TextNormalizer.cs
+- TextNormalizer.cs - Efficiently normalizes input by filtering ASCII letters and converting to uppercase while avoiding allocations when possible.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1704,7 +1704,7 @@ public sealed class TextNormalizer : ITextNormalizer
 }
 ```
 
-- Xoshiro256.cs
+- Xoshiro256.cs - Implements the Xoshiro256 pseudo-random number generator used for proposing key swaps in heuristic searches.
 
 ```csharp
 using System.Numerics;
@@ -1785,7 +1785,7 @@ public struct Xoshiro256
 }
 ```
 
-- FileService.cs
+- FileService.cs - Provides UTF-8 file reading and writing helpers for Task02 operations.
 
 ```csharp
 using Task02.Application.Abstractions;
@@ -1980,7 +1980,7 @@ public sealed class KeyService : IKeyService
 }
 ```
 
-- GlobalUsings.cs
+- GlobalUsings.cs - Centralizes commonly used namespaces to reduce boilerplate across the project files.
 
 ```csharp
 global using System;
@@ -1991,7 +1991,7 @@ global using System.Text;
 global using System.Threading.Tasks;
 ```
 
-- Program.cs
+- Program.cs - Configures services, parses CLI arguments, executes the orchestrator, and sets process exit codes for the heuristic attack tool.
 
 ```csharp
 #pragma warning disable CA1859
@@ -2094,7 +2094,7 @@ flowchart TB
 
 #### Implementacja
 
-- IArgumentParser.cs
+- IArgumentParser.cs - Defines parsing contract for converting CLI flags into Arguments for the simulated annealing tool.
 
 ```csharp
 using Task03.Application.Models;
@@ -2107,7 +2107,7 @@ public interface IArgumentParser
 }
 ```
 
-- ICipherOrchestrator.cs
+- ICipherOrchestrator.cs - Outlines orchestrator responsibilities for running encryption or simulated annealing-based decryption.
 
 ```csharp
 using Task03.Application.Models;
@@ -2120,7 +2120,7 @@ public interface ICipherOrchestrator
 }
 ```
 
-- IFileService.cs
+- IFileService.cs - Abstraction for reading and writing text files synchronously in Task03.
 
 ```csharp
 namespace Task03.Application.Abstractions;
@@ -2133,7 +2133,7 @@ public interface IFileService
 }
 ```
 
-- IKeyService.cs
+- IKeyService.cs - Contract for creating random permutations and extracting permutation headers for Task03 processing.
 
 ```csharp
 namespace Task03.Application.Abstractions;
@@ -2146,7 +2146,7 @@ public interface IKeyService
 }
 ```
 
-- Arguments.cs
+- Arguments.cs - Record holding Task03 operation mode, file paths, optional reference corpus path, and iteration count.
 
 ```csharp
 namespace Task03.Application.Models;
@@ -2160,7 +2160,7 @@ public sealed record Arguments(
 );
 ```
 
-- Operation.cs
+- Operation.cs - Enum describing encrypt/decrypt modes for Task03 execution.
 
 ```csharp
 namespace Task03.Application.Models;
@@ -2172,7 +2172,7 @@ public enum Operation
 }
 ```
 
-- ProcessingResult.cs
+- ProcessingResult.cs - Struct with exit code and message, plus an IsSuccess helper for Task03 runs.
 
 ```csharp
 namespace Task03.Application.Models;
@@ -2187,7 +2187,7 @@ public readonly record struct ProcessingResult(
 }
 ```
 
-- ArgumentParser.cs
+- ArgumentParser.cs - Parses Task03 command-line arguments, validates required flags, and returns an Arguments instance.
 
 ```csharp
 using Task03.Application.Abstractions;
@@ -2302,7 +2302,7 @@ public sealed class ArgumentParser : IArgumentParser
 }
 ```
 
-- CipherOrchestrator.cs
+- CipherOrchestrator.cs - Drives file I/O, normalization, cipher operations, heuristic analysis, and writes outputs/keys while handling common errors.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -2433,7 +2433,7 @@ public sealed class CipherOrchestrator(
 }
 ```
 
-- IConfigurableIterations.cs
+- IConfigurableIterations.cs - Allows heuristic analyzers to receive a runtime-configured iteration count.
 
 ```csharp
 namespace Task03.Domain.Abstractions;
@@ -2444,7 +2444,7 @@ public interface IConfigurableIterations
 }
 ```
 
-- IHeuresticAnalyzer.cs
+- IHeuresticAnalyzer.cs - Interface for analyzers that derive plaintext and permutation using simulated annealing heuristics.
 
 ```csharp
 using Task03.Domain.Models;
@@ -2457,7 +2457,7 @@ public interface IHeuristicAnalyzer
 }
 ```
 
-- ISubstitutionCipher.cs
+- ISubstitutionCipher.cs - Declares encryption and decryption methods for substitution ciphers reused in the analyzer.
 
 ```csharp
 namespace Task03.Domain.Abstractions;
@@ -2470,7 +2470,7 @@ public interface ISubstitutionCipher
 }
 ```
 
-- ITextNormalizer.cs
+- ITextNormalizer.cs - Specifies normalization of input to uppercase alphabetic text for consistent scoring.
 
 ```csharp
 namespace Task03.Domain.Abstractions;
@@ -2481,7 +2481,7 @@ public interface ITextNormalizer
 }
 ```
 
-- BigramLanguageModel.cs
+- BigramLanguageModel.cs - Creates and stores log-likelihood weights for bigrams and computes score deltas for permutation swaps.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -2716,7 +2716,7 @@ public sealed class BigramLanguageModel
 }
 ```
 
-- HeuresticResult.cs
+- HeuresticResult.cs - Record encapsulating the best-found permutation, recovered plaintext, and associated likelihood score.
 
 ```csharp
 namespace Task03.Domain.Models;
@@ -2724,7 +2724,7 @@ namespace Task03.Domain.Models;
 public sealed record HeuristicResult(string Permutation, string PlainText, double LogLikelihood);
 ```
 
-- SimulatedAnnealingAnalyzer.cs
+- SimulatedAnnealingAnalyzer.cs - Implements simulated annealing search with restarts to explore permutation space and maximize bigram likelihoods.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -2863,7 +2863,7 @@ public sealed class SimulatedAnnealingAnalyzer(
 }
 ```
 
-- SubstitutionCipher.cs
+- SubstitutionCipher.cs - Implements Task03 substitution cipher with dense lookup tables to efficiently map characters during encryption and decryption.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -2963,7 +2963,7 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
 }
 ```
 
-- TextNormalizer.cs
+- TextNormalizer.cs - Normalizes input by filtering to ASCII letters and uppercasing while minimizing allocations.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -3057,7 +3057,7 @@ public sealed class TextNormalizer : ITextNormalizer
 }
 ```
 
-- Xoshiro256.cs
+- Xoshiro256.cs - Provides the Xoshiro256 pseudo-random generator used to drive stochastic search steps.
 
 ```csharp
 using System.Numerics;
@@ -3138,7 +3138,7 @@ public struct Xoshiro256
 }
 ```
 
-- FileService.cs
+- FileService.cs - Handles UTF-8 file reading and writing for Task03 command execution.
 
 ```csharp
 using Task03.Application.Abstractions;
@@ -3161,7 +3161,7 @@ public sealed class FileService : IFileService
 }
 ```
 
-- KeyService.cs
+- KeyService.cs - Creates secure random permutations for Task03 and extracts validated key headers from cipher payloads.
 ```csharp
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -3333,7 +3333,7 @@ public sealed class KeyService : IKeyService
 }
 ```
 
-- GlobalUsings.cs
+- GlobalUsings.cs - Collects frequently used namespaces for Task03 to simplify file headers.
 
 ```csharp
 global using System;
@@ -3344,7 +3344,7 @@ global using System.Text;
 global using System.Threading.Tasks;
 ```
 
-- Program.cs
+- Program.cs - Initializes Task03 services, parses CLI arguments, runs the orchestrator, and sets exit codes.
 ```csharp
 #pragma warning disable CA1859
 
