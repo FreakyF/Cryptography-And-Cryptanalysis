@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <Optimize>true</Optimize>
+        <TieredPGO>true</TieredPGO>
+        <ReadyToRun>true</ReadyToRun>
+        <OptimizationPreference>Speed</OptimizationPreference>
+        <Prefer32Bit>false</Prefer32Bit>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <DebugType>none</DebugType>
+    </PropertyGroup>
+</Project>
