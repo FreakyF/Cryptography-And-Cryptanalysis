@@ -2094,6 +2094,1307 @@ flowchart TB
 
 #### Implementacja
 
+- IArgumentParser.cs
+
+```csharp
+using Task03.Application.Models;
+
+namespace Task03.Application.Abstractions;
+
+public interface IArgumentParser
+{
+    Arguments Parse(string[] args);
+}
+```
+
+- ICipherOrchestrator.cs
+
+```csharp
+using Task03.Application.Models;
+
+namespace Task03.Application.Abstractions;
+
+public interface ICipherOrchestrator
+{
+    ProcessingResult Run(Arguments args);
+}
+```
+
+- IFileService.cs
+
+```csharp
+namespace Task03.Application.Abstractions;
+
+public interface IFileService
+{
+    string ReadAllText(string path);
+
+    void WriteAllText(string path, string content);
+}
+```
+
+- IKeyService.cs
+
+```csharp
+namespace Task03.Application.Abstractions;
+
+public interface IKeyService
+{
+    string CreatePermutation(string alphabet);
+    
+    string ExtractPermutation(string rawInput, string alphabet, out string cipherText);
+}
+```
+
+- Arguments.cs
+
+```csharp
+namespace Task03.Application.Models;
+
+public sealed record Arguments(
+    Operation Operation,
+    string InputFilePath,
+    string OutputFilePath,
+    string? ReferenceFilePath,
+    int Iterations
+);
+```
+
+- Operation.cs
+
+```csharp
+namespace Task03.Application.Models;
+
+public enum Operation
+{
+    Encrypt,
+    Decrypt
+}
+```
+
+- ProcessingResult.cs
+
+```csharp
+namespace Task03.Application.Models;
+
+public readonly record struct ProcessingResult(
+    int ExitCode,
+    string? Message
+)
+{
+    /// <summary>Gets a value indicating whether the operation completed successfully.</summary>
+    public bool IsSuccess => ExitCode == 0;
+}
+```
+
+- ArgumentParser.cs
+
+```csharp
+using Task03.Application.Abstractions;
+using Task03.Application.Models;
+
+namespace Task03.Application.Services;
+
+public sealed class ArgumentParser : IArgumentParser
+{
+    private const int DefaultIterations = 500_000;
+    
+    public Arguments Parse(string[] args)
+    {
+        if (args is null || args.Length == 0)
+        {
+            throw new ArgumentException("Missing arguments");
+        }
+
+        Operation? mode = null;
+        string? inputPath = null;
+        string? outputPath = null;
+        string? referencePath = null;
+        int iterations = DefaultIterations;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            var token = args[i];
+
+            switch (token)
+            {
+                case "-e":
+                case "-d":
+                    mode = ResolveMode(token, mode);
+                    break;
+                case "-i":
+                    inputPath = ReadValue(args, ref i, "-i");
+                    break;
+                case "-o":
+                    outputPath = ReadValue(args, ref i, "-o");
+                    break;
+                case "-r":
+                    referencePath = ReadValue(args, ref i, "-r");
+                    break;
+                case "--iters":
+                {
+                    var val = ReadValue(args, ref i, "--iters");
+                    if (!int.TryParse(val, out iterations) || iterations <= 0)
+                        throw new ArgumentException("Invalid --iters value (must be positive integer)");
+                    break;
+                }
+                default:
+                    throw new ArgumentException("Unknown argument " + token);
+            }
+        }
+
+        return BuildArguments(mode, inputPath, outputPath, referencePath, iterations);
+    }
+    
+    private static Operation ResolveMode(string flag, Operation? current)
+    {
+        var next = flag == "-e" ? Operation.Encrypt : Operation.Decrypt;
+
+        if (current is null)
+        {
+            return next;
+        }
+
+        return current == next ? current.Value : throw new ArgumentException("Flags -e and -d cannot be used together");
+    }
+    
+    private static string ReadValue(string[] args, ref int index, string flag)
+    {
+        index++;
+        if (index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
+        {
+            throw new ArgumentException("Missing value for " + flag);
+        }
+
+        return args[index];
+    }
+    
+    private static Arguments BuildArguments(
+        Operation? mode,
+        string? inputPath,
+        string? outputPath,
+        string? referencePath,
+        int iterations)
+    {
+        if (mode is null)
+        {
+            throw new ArgumentException("Missing -e or -d");
+        }
+
+        if (string.IsNullOrWhiteSpace(inputPath))
+        {
+            throw new ArgumentException("Missing -i <inputfile>");
+        }
+
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            throw new ArgumentException("Missing -o <outputfile>");
+        }
+
+        return new Arguments(
+            mode.Value,
+            inputPath,
+            outputPath,
+            referencePath,
+            iterations
+        );
+    }
+}
+```
+
+- CipherOrchestrator.cs
+
+```csharp
+using System.Runtime.CompilerServices;
+using Task03.Application.Abstractions;
+using Task03.Application.Models;
+using Task03.Domain.Abstractions;
+
+namespace Task03.Application.Services;
+
+public sealed class CipherOrchestrator(
+    IFileService fileService,
+    IKeyService keyService,
+    ITextNormalizer textNormalizer,
+    ISubstitutionCipher cipher,
+    IHeuristicAnalyzer heuristicAnalyzer)
+    : ICipherOrchestrator
+{
+    private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public ProcessingResult Run(Arguments args)
+    {
+        try
+        {
+            var rawInput = fileService.ReadAllText(args.InputFilePath);
+
+            if (args.Operation == Operation.Encrypt)
+            {
+                var normalized = textNormalizer.Normalize(rawInput);
+                var permutation = keyService.CreatePermutation(Alphabet);
+                var outputText = cipher.Encrypt(normalized, Alphabet, permutation);
+
+                fileService.WriteAllText(args.OutputFilePath, outputText);
+
+                var keyPath = BuildSiblingPath(args.OutputFilePath, "cipher_key.txt");
+                fileService.WriteAllText(keyPath, permutation);
+
+                return new ProcessingResult(0, null);
+            }
+
+            var cipherPayload = ExtractCipherPayload(rawInput);
+            var normalizedCipher = textNormalizer.Normalize(cipherPayload);
+
+            if (normalizedCipher.Length == 0)
+            {
+                fileService.WriteAllText(args.OutputFilePath, string.Empty);
+                return new ProcessingResult(0, null);
+            }
+
+            var bigramTableText = ReadReferenceText(args);
+            if (heuristicAnalyzer is IConfigurableIterations cfg)
+                cfg.SetIterations(args.Iterations);
+
+            var heuristicResult = heuristicAnalyzer.Analyze(normalizedCipher, bigramTableText, Alphabet);
+
+            fileService.WriteAllText(args.OutputFilePath, heuristicResult.PlainText);
+
+            var outKeyPath = BuildSiblingPath(args.OutputFilePath, "output_key.txt");
+            fileService.WriteAllText(outKeyPath, heuristicResult.Permutation);
+
+            return new ProcessingResult(0, null);
+        }
+        catch (FormatException)
+        {
+            return new ProcessingResult(3, "Invalid key");
+        }
+        catch (FileNotFoundException)
+        {
+            return new ProcessingResult(2, "File error");
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return new ProcessingResult(2, "File error");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return new ProcessingResult(2, "File error");
+        }
+        catch (IOException)
+        {
+            return new ProcessingResult(2, "File error");
+        }
+        catch (Exception)
+        {
+            return new ProcessingResult(99, "Unexpected error");
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string BuildSiblingPath(string basePath, string fileName)
+    {
+        var dir = Path.GetDirectoryName(basePath);
+        return string.IsNullOrEmpty(dir) ? fileName : Path.Combine(dir, fileName);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private string ExtractCipherPayload(string rawInput)
+    {
+        if (string.IsNullOrEmpty(rawInput))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            keyService.ExtractPermutation(rawInput, Alphabet, out var cipherSection);
+            return cipherSection;
+        }
+        catch (FormatException)
+        {
+            return rawInput;
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private string ReadReferenceText(Arguments args)
+    {
+        if (!string.IsNullOrWhiteSpace(args.ReferenceFilePath))
+        {
+            return fileService.ReadAllText(args.ReferenceFilePath);
+        }
+
+        var defaultPath = Path.Combine(AppContext.BaseDirectory, "Samples", "bigrams.txt");
+        return File.Exists(defaultPath)
+            ? fileService.ReadAllText(defaultPath)
+            : throw new FileNotFoundException("Bigram table not found", defaultPath);
+    }
+}
+```
+
+- IConfigurableIterations.cs
+
+```csharp
+namespace Task03.Domain.Abstractions;
+
+public interface IConfigurableIterations
+{
+    void SetIterations(int iterations);
+}
+```
+
+- IHeuresticAnalyzer.cs
+
+```csharp
+using Task03.Domain.Models;
+
+namespace Task03.Domain.Abstractions;
+
+public interface IHeuristicAnalyzer
+{
+    HeuristicResult Analyze(string cipherText, string referenceText, string alphabet);
+}
+```
+
+- ISubstitutionCipher.cs
+
+```csharp
+namespace Task03.Domain.Abstractions;
+
+public interface ISubstitutionCipher
+{
+    string Encrypt(string normalizedText, string alphabet, string permutation);
+    
+    string Decrypt(string normalizedText, string alphabet, string permutation);
+}
+```
+
+- ITextNormalizer.cs
+
+```csharp
+namespace Task03.Domain.Abstractions;
+
+public interface ITextNormalizer
+{
+    string Normalize(string input);
+}
+```
+
+- BigramLanguageModel.cs
+
+```csharp
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+namespace Task03.Domain.Models;
+
+public sealed class BigramLanguageModel
+{
+    private readonly float[] _w;
+    
+    private BigramLanguageModel(float[] w)
+    {
+        _w = w;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public static BigramLanguageModel CreateFromBigramsText(string bigramsText, double alpha)
+    {
+        const int size = 26;
+        var phi = new double[size * size];
+
+        if (!string.IsNullOrEmpty(bigramsText))
+        {
+            var lines = bigramsText.Split(new[] { '\r', '\n' },
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            foreach (var line in lines)
+            {
+                if (line.Length < 4)
+                {
+                    continue;
+                }
+
+                var span = line.AsSpan().Trim();
+                if (span.Length < 4)
+                {
+                    continue;
+                }
+
+                var r = char.ToUpperInvariant(span[0]) - 'A';
+                var c = char.ToUpperInvariant(span[1]) - 'A';
+                if ((uint)r >= 26u || (uint)c >= 26u)
+                {
+                    continue;
+                }
+
+                var sp = span.IndexOf(' ');
+                if (sp < 0 || sp + 1 >= span.Length)
+                {
+                    continue;
+                }
+
+                var countSpan = span[(sp + 1)..].Trim();
+                if (!long.TryParse(countSpan, NumberStyles.Integer, CultureInfo.InvariantCulture, out var cnt) ||
+                    cnt <= 0)
+                {
+                    continue;
+                }
+
+                phi[r * size + c] += cnt;
+            }
+        }
+
+        var maxPhi = 0d;
+        for (var i = 0; i < phi.Length; i++)
+        {
+            phi[i] += alpha;
+            if (phi[i] > maxPhi)
+            {
+                maxPhi = phi[i];
+            }
+        }
+
+        if (maxPhi == 0d)
+        {
+            maxPhi = 1d;
+        }
+
+        var w = new float[phi.Length];
+        var invMax = (float)(1d / maxPhi);
+        for (var i = 0; i < phi.Length; i++)
+        {
+            w[i] = (float)phi[i] * invMax;
+        }
+
+        return new BigramLanguageModel(w);
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public double ScoreFromCounts(ReadOnlySpan<byte> invPos, int[] counts)
+    {
+        ref var wBase = ref MemoryMarshal.GetArrayDataReference(_w);
+        ref var cntBase = ref MemoryMarshal.GetArrayDataReference(counts);
+
+        var sum = 0d;
+
+        for (var p = 0; p < 26; p++)
+        {
+            var row = invPos[p] * 26;
+            var cntRow = p * 26;
+
+            for (var q = 0; q < 26; q++)
+            {
+                var c = Unsafe.Add(ref cntBase, cntRow + q);
+                if (c == 0)
+                {
+                    continue;
+                }
+
+                int col = invPos[q];
+                sum += (double)Unsafe.Add(ref wBase, row + col) * c;
+            }
+        }
+
+        return sum;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public double ProposedScoreDelta(
+        ReadOnlySpan<byte> invPos,
+        ReadOnlySpan<char> perm,
+        int[] counts,
+        int iPos,
+        int jPos,
+        double currentScore)
+    {
+        var x = perm[iPos] - 'A';
+        var y = perm[jPos] - 'A';
+        if ((uint)x >= 26u || (uint)y >= 26u)
+        {
+            return currentScore;
+        }
+
+        ref var wBase = ref MemoryMarshal.GetArrayDataReference(_w);
+        ref var cntBase = ref MemoryMarshal.GetArrayDataReference(counts);
+
+        var rowPx = iPos * 26;
+        var rowPy = jPos * 26;
+        var cntRowX = x * 26;
+        var cntRowY = y * 26;
+
+        var delta = 0d;
+
+        for (var q = 0; q < 26; q++)
+        {
+            if (q == x || q == y)
+            {
+                continue;
+            }
+
+            int colMq = invPos[q];
+
+            var cXq = Unsafe.Add(ref cntBase, cntRowX + q);
+            if (cXq != 0)
+            {
+                var wPy = Unsafe.Add(ref wBase, rowPy + colMq);
+                var wPx = Unsafe.Add(ref wBase, rowPx + colMq);
+                delta += (double)(wPy - wPx) * cXq;
+            }
+
+            var cYq = Unsafe.Add(ref cntBase, cntRowY + q);
+            if (cYq != 0)
+            {
+                var wPx2 = Unsafe.Add(ref wBase, rowPx + colMq);
+                var wPy2 = Unsafe.Add(ref wBase, rowPy + colMq);
+                delta += (double)(wPx2 - wPy2) * cYq;
+            }
+        }
+
+        for (var p = 0; p < 26; p++)
+        {
+            if (p == x || p == y)
+            {
+                continue;
+            }
+
+            var rowMp = invPos[p] * 26;
+            var cntRowP = p * 26;
+
+            var cpx = Unsafe.Add(ref cntBase, cntRowP + x);
+            if (cpx != 0)
+            {
+                var wMj = Unsafe.Add(ref wBase, rowMp + jPos);
+                var wMi = Unsafe.Add(ref wBase, rowMp + iPos);
+                delta += (double)(wMj - wMi) * cpx;
+            }
+
+            var cpy = Unsafe.Add(ref cntBase, cntRowP + y);
+            if (cpy != 0)
+            {
+                var wMi2 = Unsafe.Add(ref wBase, rowMp + iPos);
+                var wMj2 = Unsafe.Add(ref wBase, rowMp + jPos);
+                delta += (double)(wMi2 - wMj2) * cpy;
+            }
+        }
+
+        var Cxx = Unsafe.Add(ref cntBase, cntRowX + x);
+        if (Cxx != 0)
+        {
+            var wPyj = Unsafe.Add(ref wBase, rowPy + jPos);
+            var wPxi = Unsafe.Add(ref wBase, rowPx + iPos);
+            delta += (double)(wPyj - wPxi) * Cxx;
+        }
+
+        var Cyy = Unsafe.Add(ref cntBase, cntRowY + y);
+        if (Cyy != 0)
+        {
+            var wPxi2 = Unsafe.Add(ref wBase, rowPx + iPos);
+            var wPyj2 = Unsafe.Add(ref wBase, rowPy + jPos);
+            delta += (double)(wPxi2 - wPyj2) * Cyy;
+        }
+
+        var Cxy = Unsafe.Add(ref cntBase, cntRowX + y);
+        if (Cxy != 0)
+        {
+            var wPyi = Unsafe.Add(ref wBase, rowPy + iPos);
+            var wPxj = Unsafe.Add(ref wBase, rowPx + jPos);
+            delta += (double)(wPyi - wPxj) * Cxy;
+        }
+
+        var Cyx = Unsafe.Add(ref cntBase, cntRowY + x);
+        if (Cyx != 0)
+        {
+            var wPxj2 = Unsafe.Add(ref wBase, rowPx + jPos);
+            var wPyi2 = Unsafe.Add(ref wBase, rowPy + iPos);
+            delta += (double)(wPxj2 - wPyi2) * Cyx;
+        }
+
+        return currentScore + delta;
+    }
+}
+```
+
+- HeuresticResult.cs
+
+```csharp
+namespace Task03.Domain.Models;
+
+public sealed record HeuristicResult(string Permutation, string PlainText, double LogLikelihood);
+```
+
+- SimulatedAnnealingAnalyzer.cs
+
+```csharp
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Task03.Domain.Abstractions;
+using Task03.Domain.Models;
+
+namespace Task03.Domain.Services;
+
+public sealed class SimulatedAnnealingAnalyzer(
+    ITextNormalizer textNormalizer,
+    ISubstitutionCipher cipher)
+    : IHeuristicAnalyzer, IConfigurableIterations
+{
+    private const int RestartCount = 8;
+    private const double T0 = 5.0;
+    private const double Alpha = 0.9995;
+    private const double Smoothing = 0.01;
+
+    private int _iterationCount = 500_000;
+
+    public void SetIterations(int iterations)
+    {
+        _iterationCount = iterations > 0 ? iterations : 500_000;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public HeuristicResult Analyze(string cipherText, string referenceText, string alphabet)
+    {
+        if (string.IsNullOrEmpty(alphabet))
+            throw new ArgumentException("Alphabet must be provided", nameof(alphabet));
+        if (!alphabet.Equals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", StringComparison.Ordinal))
+            throw new ArgumentException("Alphabet must be A–Z for the fast path.", nameof(alphabet));
+
+        var normalizedCipher = textNormalizer.Normalize(cipherText);
+        if (normalizedCipher.Length == 0)
+            return new HeuristicResult(alphabet, string.Empty, double.NegativeInfinity);
+
+        var model = BigramLanguageModel.CreateFromBigramsText(referenceText, Smoothing);
+
+        var s = normalizedCipher.AsSpan();
+        var cipherIdx = new byte[s.Length];
+        for (int i = 0; i < s.Length; i++)
+            cipherIdx[i] = (byte)(s[i] - 'A');
+
+        var counts = new int[26 * 26];
+        if (cipherIdx.Length >= 2)
+        {
+            ref int cntBase = ref MemoryMarshal.GetArrayDataReference(counts);
+            for (int i = 1; i < cipherIdx.Length; i++)
+            {
+                int r = cipherIdx[i - 1];
+                int c = cipherIdx[i];
+                Unsafe.Add(ref cntBase, r * 26 + c)++;
+            }
+        }
+
+        var bestGlobalPerm = new char[26];
+        double bestGlobalScore = double.NegativeInfinity;
+
+        var rng = new Xoshiro256(((ulong)s.Length << 32) ^ (ulong)Environment.TickCount64);
+
+        Span<byte> invPos = stackalloc byte[26];
+
+        for (int restart = 0; restart < RestartCount; restart++)
+        {
+            var permArr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
+            for (int i = permArr.Length - 1; i > 0; i--)
+            {
+                int j = rng.NextInt(i + 1);
+                (permArr[i], permArr[j]) = (permArr[j], permArr[i]);
+            }
+            Span<char> perm = permArr.AsSpan();
+
+            for (int i = 0; i < 26; i++)
+                invPos[(byte)(perm[i] - 'A')] = (byte)i;
+
+            double scurr = model.ScoreFromCounts(invPos, counts);
+            double sbest = scurr;
+
+            var bestLocalPerm = new char[26];
+            perm.CopyTo(bestLocalPerm);
+
+            double T = T0;
+
+            for (int it = 0; it < _iterationCount; it++)
+            {
+                int i = rng.NextInt(26);
+                int j = rng.NextInt(25);
+                if (j >= i) j++;
+
+                double snew = model.ProposedScoreDelta(invPos, perm, counts, i, j, scurr);
+                double dS = snew - scurr;
+
+                bool accept;
+                if (dS >= 0d)
+                {
+                    accept = true;
+                }
+                else
+                {
+                    float u = (float)rng.NextDouble();
+                    accept = MathF.Log(u) < (float)(dS / T);
+                }
+
+                if (accept)
+                {
+                    (perm[i], perm[j]) = (perm[j], perm[i]);
+                    invPos[(byte)(perm[i] - 'A')] = (byte)i;
+                    invPos[(byte)(perm[j] - 'A')] = (byte)j;
+                    scurr = snew;
+
+                    if (scurr > sbest)
+                    {
+                        sbest = scurr;
+                        perm.CopyTo(bestLocalPerm);
+                    }
+                }
+
+                T *= Alpha;
+            }
+
+            if (!(sbest > bestGlobalScore))
+            {
+                continue;
+            }
+
+            bestGlobalScore = sbest;
+            bestLocalPerm.CopyTo(bestGlobalPerm, 0);
+        }
+
+        var bestPermutation = new string(bestGlobalPerm);
+        var bestPlainText = cipher.Decrypt(normalizedCipher, alphabet, bestPermutation);
+        return new HeuristicResult(bestPermutation, bestPlainText, bestGlobalScore);
+    }
+}
+```
+
+- SubstitutionCipher.cs
+
+```csharp
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Task03.Domain.Abstractions;
+
+namespace Task03.Domain.Services;
+
+public sealed class SubstitutionCipher : ISubstitutionCipher
+{
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public string Encrypt(string normalizedText, string alphabet, string permutation)
+    {
+        return Transform(normalizedText, alphabet, permutation, true);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public string Decrypt(string normalizedText, string alphabet, string permutation)
+    {
+        return Transform(normalizedText, alphabet, permutation, false);
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private static string Transform(string text, string alphabet, string permutation, bool encrypt)
+    {
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(alphabet) || string.IsNullOrEmpty(permutation))
+        {
+            return string.Empty;
+        }
+
+        if (alphabet.Length != permutation.Length)
+        {
+            throw new InvalidOperationException("Alphabet and permutation must be the same length");
+        }
+
+        var source = encrypt ? alphabet : permutation;
+        var target = encrypt ? permutation : alphabet;
+
+        var lookup = BuildLookup(source, target);
+
+        return string.Create(text.Length, (text, lookup), static (dst, state) =>
+        {
+            var (srcText, map) = state;
+            var src = srcText.AsSpan();
+
+            ref var baseRef = ref MemoryMarshal.GetArrayDataReference(map.Table);
+            var max = map.MaxChar;
+
+            for (var i = 0; i < src.Length; i++)
+            {
+                int ch = src[i];
+                if ((uint)ch > (uint)max)
+                {
+                    throw new InvalidOperationException("Character not found in substitution alphabet");
+                }
+
+                var mapped = Unsafe.Add(ref baseRef, ch);
+                if (mapped < 0)
+                {
+                    throw new InvalidOperationException("Character not found in substitution alphabet");
+                }
+
+                dst[i] = (char)mapped;
+            }
+        });
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private static DenseLookup BuildLookup(string source, string target)
+    {
+        var max = 0;
+        var s = source.AsSpan();
+        foreach (int c in s)
+        {
+            if (c > max)
+            {
+                max = c;
+            }
+        }
+
+        var table = new int[max + 1];
+        Array.Fill(table, -1);
+
+        for (var i = 0; i < s.Length; i++)
+        {
+            table[s[i]] = target[i];
+        }
+
+        return new DenseLookup(table, max);
+    }
+    
+    private readonly struct DenseLookup(int[] table, int maxChar)
+    {
+        public readonly int[] Table = table;
+        public readonly int MaxChar = maxChar;
+    }
+}
+```
+
+- TextNormalizer.cs
+
+```csharp
+using System.Runtime.CompilerServices;
+using Task03.Domain.Abstractions;
+
+namespace Task03.Domain.Services;
+
+public sealed class TextNormalizer : ITextNormalizer
+{
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public string Normalize(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return string.Empty;
+        }
+
+        var src = input.AsSpan();
+
+        var hasNonLetter = false;
+        var hasLower = false;
+
+        foreach (var c in src)
+        {
+            if (!IsAsciiLetter(c))
+            {
+                hasNonLetter = true;
+            }
+            else if (IsLowerAscii(c))
+            {
+                hasLower = true;
+            }
+        }
+
+        switch (hasNonLetter)
+        {
+            case false when !hasLower:
+                return input;
+            case false:
+                return string.Create(src.Length, src, static (dst, s) =>
+                {
+                    for (var i = 0; i < s.Length; i++)
+                    {
+                        var c = s[i];
+                        dst[i] = IsLowerAscii(c) ? (char)(c & ~0x20) : c;
+                    }
+                });
+        }
+
+        var count = 0;
+        foreach (var t in src)
+        {
+            if (IsAsciiLetter(t))
+            {
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Create(count, src, static (dst, s) =>
+        {
+            var w = 0;
+            foreach (var c in s)
+            {
+                if (!IsAsciiLetter(c))
+                {
+                    continue;
+                }
+
+                dst[w++] = IsLowerAscii(c) ? (char)(c & ~0x20) : c;
+            }
+        });
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAsciiLetter(char c)
+    {
+        var v = (uint)((c | 0x20) - 'a');
+        return v <= 'z' - 'a';
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsLowerAscii(char c)
+    {
+        return (uint)(c - 'a') <= 'z' - 'a';
+    }
+}
+```
+
+- Xoshiro256.cs
+
+```csharp
+using System.Numerics;
+using System.Runtime.CompilerServices;
+
+namespace Task03.Domain.Services;
+
+public struct Xoshiro256
+{
+    private ulong _s0, _s1, _s2, _s3;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong RotL(ulong x, int k)
+    {
+        return BitOperations.RotateLeft(x, k);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong SplitMix64(ref ulong x)
+    {
+        x += 0x9E3779B97F4A7C15ul;
+        var z = x;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ul;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBul;
+        return z ^ (z >> 31);
+    }
+
+    public Xoshiro256(ulong seed)
+    {
+        _s0 = _s1 = _s2 = _s3 = 0;
+        var sm = seed;
+        _s0 = SplitMix64(ref sm);
+        _s1 = SplitMix64(ref sm);
+        _s2 = SplitMix64(ref sm);
+        _s3 = SplitMix64(ref sm);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ulong Next64()
+    {
+        var s0 = _s0;
+        var s1 = _s1;
+        var s2 = _s2;
+        var s3 = _s3;
+
+        var result = RotL(s1 * 5, 7) * 9;
+
+        var t = s1 << 17;
+
+        s2 ^= s0;
+        s3 ^= s1;
+        s1 ^= s2;
+        s0 ^= s3;
+
+        s2 ^= t;
+        s3 = RotL(s3, 45);
+
+        _s0 = s0;
+        _s1 = s1;
+        _s2 = s2;
+        _s3 = s3;
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int NextInt(int exclusiveMax)
+    {
+        var r = Next64();
+        var prod = (UInt128)r * (uint)exclusiveMax;
+        return (int)(prod >> 64);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public double NextDouble()
+    {
+        return (Next64() >> 11) * (1.0 / (1ul << 53));
+    }
+}
+```
+
+- FileService.cs
+
+```csharp
+using Task03.Application.Abstractions;
+
+namespace Task03.Infrastructure.Services;
+
+public sealed class FileService : IFileService
+{
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
+    public string ReadAllText(string path)
+    {
+        return File.ReadAllText(path, Utf8NoBom);
+    }
+
+    public void WriteAllText(string path, string content)
+    {
+        File.WriteAllText(path, content, Utf8NoBom);
+    }
+}
+```
+
+- KeyService.cs
+```csharp
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using Task03.Application.Abstractions;
+
+namespace Task03.Infrastructure.Services;
+
+public sealed class KeyService : IKeyService
+{
+    public string CreatePermutation(string alphabet)
+    {
+        if (string.IsNullOrEmpty(alphabet))
+        {
+            throw new FormatException("Alphabet is empty");
+        }
+
+        var chars = alphabet.ToCharArray();
+        for (var i = chars.Length - 1; i > 0; i--)
+        {
+            var j = RandomNumberGenerator.GetInt32(i + 1);
+            (chars[i], chars[j]) = (chars[j], chars[i]);
+        }
+
+        return new string(chars);
+    }
+
+    public string ExtractPermutation(string rawInput, string alphabet, out string cipherText)
+    {
+        if (string.IsNullOrEmpty(alphabet))
+        {
+            throw new FormatException("Alphabet is empty");
+        }
+
+        if (string.IsNullOrEmpty(rawInput))
+        {
+            throw new FormatException("Key not found");
+        }
+
+        var span = rawInput.AsSpan();
+        var keySpan = ReadFirstLine(span, out var remainder);
+        keySpan = TrimWhite(keySpan);
+        if (keySpan.IsEmpty)
+        {
+            throw new FormatException("Key not found");
+        }
+
+        var permutation = string.Create(keySpan.Length, keySpan, static (dst, src) =>
+        {
+            var i = 0;
+            var c = src[i];
+            for (; i < src.Length; i++)
+            {
+                dst[i] = (char)((uint)(c - 'a') <= 25u ? c & ~0x20 : c);
+            }
+        });
+
+        if (!IsValidPermutation(permutation, alphabet))
+        {
+            throw new FormatException("Key is not a valid permutation");
+        }
+
+        cipherText = remainder.Length == 0 ? string.Empty : remainder.ToString();
+        return permutation;
+    }
+    
+    private static ReadOnlySpan<char> ReadFirstLine(ReadOnlySpan<char> value, out ReadOnlySpan<char> remainder)
+    {
+        var index = 0;
+        while (index < value.Length && value[index] is not ('\r' or '\n'))
+        {
+            index++;
+        }
+
+        if (index == value.Length)
+        {
+            throw new FormatException("Cipher text not found");
+        }
+
+        var line = value[..index];
+        var next = index;
+
+        if (next < value.Length && value[next] == '\r')
+        {
+            next++;
+            if (next < value.Length && value[next] == '\n')
+            {
+                next++;
+            }
+        }
+        else if (next < value.Length && value[next] == '\n')
+        {
+            next++;
+        }
+
+        while (next < value.Length && value[next] is '\r' or '\n')
+        {
+            next++;
+        }
+
+        remainder = next < value.Length ? value[next..] : ReadOnlySpan<char>.Empty;
+        return line;
+    }
+    
+    private static ReadOnlySpan<char> TrimWhite(ReadOnlySpan<char> value)
+    {
+        int start = 0, end = value.Length - 1;
+        while (start <= end && char.IsWhiteSpace(value[start]))
+        {
+            start++;
+        }
+
+        while (end >= start && char.IsWhiteSpace(value[end]))
+        {
+            end--;
+        }
+
+        return start > end ? ReadOnlySpan<char>.Empty : value.Slice(start, end - start + 1);
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private static bool IsValidPermutation(string permutation, string alphabet)
+    {
+        if (permutation.Length != alphabet.Length)
+        {
+            return false;
+        }
+
+        var aSpan = alphabet.AsSpan();
+        var max = 0;
+        foreach (int c in aSpan)
+        {
+            if (c > max)
+            {
+                max = c;
+            }
+        }
+
+        var expected = new sbyte[max + 1];
+        var seen = new sbyte[max + 1];
+
+        foreach (var t in aSpan)
+        {
+            expected[t] = 1;
+        }
+
+        var pSpan = permutation.AsSpan();
+        foreach (int c in pSpan)
+        {
+            if ((uint)c > (uint)max)
+            {
+                return false;
+            }
+
+            if (expected[c] == 0)
+            {
+                return false;
+            }
+
+            if (seen[c] != 0)
+            {
+                return false;
+            }
+
+            seen[c] = 1;
+        }
+
+        return true;
+    }
+}
+```
+
+- GlobalUsings.cs
+
+```csharp
+global using System;
+global using System.Collections.Generic;
+global using System.Globalization;
+global using System.IO;
+global using System.Text;
+global using System.Threading.Tasks;
+```
+
+- Program.cs
+```csharp
+#pragma warning disable CA1859
+
+using System.Runtime;
+using Task03.Application.Abstractions;
+using Task03.Application.Models;
+using Task03.Application.Services;
+using Task03.Domain.Abstractions;
+using Task03.Domain.Services;
+using Task03.Infrastructure.Services;
+
+GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
+
+IFileService fileService = new FileService();
+IKeyService keyService = new KeyService();
+
+ITextNormalizer textNormalizer = new TextNormalizer();
+ISubstitutionCipher cipher = new SubstitutionCipher();
+IHeuristicAnalyzer heuristicAnalyzer = new SimulatedAnnealingAnalyzer(textNormalizer, cipher);
+
+ICipherOrchestrator orchestrator = new CipherOrchestrator(
+    fileService, keyService, textNormalizer, cipher, heuristicAnalyzer);
+
+IArgumentParser parser = new ArgumentParser();
+
+ProcessingResult result;
+try
+{
+    var parsed = parser.Parse(args);
+    result = orchestrator.Run(parsed);
+}
+catch (ArgumentException ex)
+{
+    result = new ProcessingResult(1, ex.Message);
+}
+catch
+{
+    result = new ProcessingResult(99, "Unexpected error");
+}
+
+if (!result.IsSuccess && !string.IsNullOrEmpty(result.Message))
+{
+    Console.Error.WriteLine(result.Message);
+}
+
+Environment.ExitCode = result.ExitCode;
+```
+
 #### Wyniki
 
 ### Zadanie 4
