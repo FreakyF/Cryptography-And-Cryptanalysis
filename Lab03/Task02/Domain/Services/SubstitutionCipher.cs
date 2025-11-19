@@ -8,20 +8,28 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
 {
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public string Encrypt(string normalizedText, string alphabet, string permutation)
-        => Transform(normalizedText, alphabet, permutation, encrypt: true);
+    {
+        return Transform(normalizedText, alphabet, permutation, true);
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public string Decrypt(string normalizedText, string alphabet, string permutation)
-        => Transform(normalizedText, alphabet, permutation, encrypt: false);
+    {
+        return Transform(normalizedText, alphabet, permutation, false);
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static string Transform(string text, string alphabet, string permutation, bool encrypt)
     {
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(alphabet) || string.IsNullOrEmpty(permutation))
+        {
             return string.Empty;
+        }
 
         if (alphabet.Length != permutation.Length)
+        {
             throw new InvalidOperationException("Alphabet and permutation must be the same length");
+        }
 
         var source = encrypt ? alphabet : permutation;
         var target = encrypt ? permutation : alphabet;
@@ -40,21 +48,19 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
             {
                 int ch = src[i];
                 if ((uint)ch > (uint)max)
+                {
                     throw new InvalidOperationException("Character not found in substitution alphabet");
+                }
 
                 var mapped = Unsafe.Add(ref baseRef, ch);
                 if (mapped < 0)
+                {
                     throw new InvalidOperationException("Character not found in substitution alphabet");
+                }
 
                 dst[i] = (char)mapped;
             }
         });
-    }
-
-    private readonly struct DenseLookup(int[] table, int maxChar)
-    {
-        public readonly int[] Table = table;
-        public readonly int MaxChar = maxChar;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -64,7 +70,10 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
         var s = source.AsSpan();
         foreach (int c in s)
         {
-            if (c > max) max = c;
+            if (c > max)
+            {
+                max = c;
+            }
         }
 
         var table = new int[max + 1];
@@ -76,5 +85,11 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
         }
 
         return new DenseLookup(table, max);
+    }
+
+    private readonly struct DenseLookup(int[] table, int maxChar)
+    {
+        public readonly int[] Table = table;
+        public readonly int MaxChar = maxChar;
     }
 }

@@ -1,5 +1,6 @@
 ﻿#pragma warning disable CA1859
 
+using System.Runtime;
 using Task02.Application.Abstractions;
 using Task02.Application.Models;
 using Task02.Application.Services;
@@ -7,7 +8,7 @@ using Task02.Domain.Abstractions;
 using Task02.Domain.Services;
 using Task02.Infrastructure.Services;
 
-System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 

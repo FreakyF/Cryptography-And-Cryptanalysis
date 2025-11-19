@@ -9,7 +9,9 @@ public sealed class TextNormalizer : ITextNormalizer
     public string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input))
+        {
             return string.Empty;
+        }
 
         var src = input.AsSpan();
 
@@ -45,17 +47,28 @@ public sealed class TextNormalizer : ITextNormalizer
 
         var count = 0;
         foreach (var t in src)
-            if (IsAsciiLetter(t)) count++;
+        {
+            if (IsAsciiLetter(t))
+            {
+                count++;
+            }
+        }
 
         if (count == 0)
+        {
             return string.Empty;
+        }
 
         return string.Create(count, src, static (dst, s) =>
         {
             var w = 0;
             foreach (var c in s)
             {
-                if (!IsAsciiLetter(c)) continue;
+                if (!IsAsciiLetter(c))
+                {
+                    continue;
+                }
+
                 dst[w++] = IsLowerAscii(c) ? (char)(c & ~0x20) : c;
             }
         });
@@ -69,5 +82,8 @@ public sealed class TextNormalizer : ITextNormalizer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsLowerAscii(char c) => (uint)(c - 'a') <= 'z' - 'a';
+    private static bool IsLowerAscii(char c)
+    {
+        return (uint)(c - 'a') <= 'z' - 'a';
+    }
 }

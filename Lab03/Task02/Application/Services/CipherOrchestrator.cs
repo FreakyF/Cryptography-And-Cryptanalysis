@@ -14,8 +14,6 @@ public sealed class CipherOrchestrator(
     : ICipherOrchestrator
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static readonly string NewLine = Environment.NewLine;
-    private static readonly int NewLineLen = NewLine.Length;
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public ProcessingResult Run(Arguments args)
@@ -30,19 +28,11 @@ public sealed class CipherOrchestrator(
                 var permutation = keyService.CreatePermutation(Alphabet);
                 var outputText = cipher.Encrypt(normalized, Alphabet, permutation);
 
-                var payload = string.Create(
-                    permutation.Length + NewLineLen + outputText.Length,
-                    (permutation, outputText),
-                    static (dst, s) =>
-                    {
-                        s.permutation.AsSpan().CopyTo(dst);
-                        dst = dst[s.permutation.Length..];
-                        NewLine.AsSpan().CopyTo(dst);
-                        dst = dst[NewLineLen..];
-                        s.outputText.AsSpan().CopyTo(dst);
-                    });
+                fileService.WriteAllText(args.OutputFilePath, outputText);
 
-                fileService.WriteAllText(args.OutputFilePath, payload);
+                var keyPath = BuildSiblingPath(args.OutputFilePath, "cipher_key.txt");
+                fileService.WriteAllText(keyPath, permutation);
+
                 return new ProcessingResult(0, null);
             }
 
@@ -55,25 +45,15 @@ public sealed class CipherOrchestrator(
                 return new ProcessingResult(0, null);
             }
 
-            // UWAGA: teraz wczytujemy tabelę bigramów (bigrams.txt),
-            // bez normalizacji – surowy tekst trafia do analizatora.
             var bigramTableText = ReadReferenceText(args);
 
             var heuristicResult = heuristicAnalyzer.Analyze(normalizedCipher, bigramTableText, Alphabet);
 
-            var output = string.Create(
-                heuristicResult.Permutation.Length + NewLineLen + heuristicResult.PlainText.Length,
-                heuristicResult,
-                static (dst, hr) =>
-                {
-                    hr.Permutation.AsSpan().CopyTo(dst);
-                    dst = dst[hr.Permutation.Length..];
-                    NewLine.AsSpan().CopyTo(dst);
-                    dst = dst[NewLineLen..];
-                    hr.PlainText.AsSpan().CopyTo(dst);
-                });
+            fileService.WriteAllText(args.OutputFilePath, heuristicResult.PlainText);
 
-            fileService.WriteAllText(args.OutputFilePath, output);
+            var outKeyPath = BuildSiblingPath(args.OutputFilePath, "output_key.txt");
+            fileService.WriteAllText(outKeyPath, heuristicResult.Permutation);
+
             return new ProcessingResult(0, null);
         }
         catch (FormatException)
@@ -103,9 +83,19 @@ public sealed class CipherOrchestrator(
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string BuildSiblingPath(string basePath, string fileName)
+    {
+        var dir = Path.GetDirectoryName(basePath);
+        return string.IsNullOrEmpty(dir) ? fileName : Path.Combine(dir, fileName);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private string ExtractCipherPayload(string rawInput)
     {
-        if (string.IsNullOrEmpty(rawInput)) return string.Empty;
+        if (string.IsNullOrEmpty(rawInput))
+        {
+            return string.Empty;
+        }
 
         try
         {
@@ -122,12 +112,13 @@ public sealed class CipherOrchestrator(
     private string ReadReferenceText(Arguments args)
     {
         if (!string.IsNullOrWhiteSpace(args.ReferenceFilePath))
+        {
             return fileService.ReadAllText(args.ReferenceFilePath);
+        }
 
         var defaultPath = Path.Combine(AppContext.BaseDirectory, "Samples", "bigrams.txt");
-        if (File.Exists(defaultPath))
-            return fileService.ReadAllText(defaultPath);
-
-        throw new FileNotFoundException("Bigram table not found", defaultPath);
+        return File.Exists(defaultPath)
+            ? fileService.ReadAllText(defaultPath)
+            : throw new FileNotFoundException("Bigram table not found", defaultPath);
     }
 }
