@@ -159,46 +159,6 @@ public sealed class MetropolisHastingsAnalyzer(
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static BigramLanguageModel CreateAZ(string alphabet, string referenceText, double alpha)
-        {
-            const int size = 26;
-
-            var counts = new double[size * size];
-
-            if (!string.IsNullOrEmpty(referenceText))
-            {
-                var s = referenceText.AsSpan();
-                if (s.Length >= 2)
-                {
-                    int prev = s[0] - 'A';
-                    int prevRow = (uint)prev < 26u ? prev * size : -1;
-                    for (int i = 1; i < s.Length; i++)
-                    {
-                        int col = s[i] - 'A';
-                        if (prevRow >= 0 && (uint)col < 26u) counts[prevRow + col] += 1d;
-                        prevRow = (uint)col < 26u ? (col * size) : -1;
-                    }
-                }
-            }
-
-            double total = 0d;
-            for (int i = 0; i < counts.Length; i++)
-            {
-                counts[i] += alpha;
-                total += counts[i];
-            }
-
-            var log = new double[counts.Length];
-            double invTotal = 1d / total;
-            for (int i = 0; i < counts.Length; i++) log[i] = Math.Log(counts[i] * invTotal);
-
-            var rowOff = new int[size];
-            for (int k = 0; k < size; k++) rowOff[k] = k * size;
-
-            return new BigramLanguageModel(log, rowOff);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public double ScoreFromCounts(ReadOnlySpan<byte> invPos, int[] counts)
         {
             ref double log0 = ref MemoryMarshal.GetArrayDataReference(_log);
