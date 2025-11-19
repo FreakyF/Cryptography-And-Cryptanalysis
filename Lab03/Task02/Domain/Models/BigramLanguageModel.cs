@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Task02.Domain.Services;
+namespace Task02.Domain.Models;
 
 public sealed class BigramLanguageModel
 {
