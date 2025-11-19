@@ -38,7 +38,18 @@ public sealed class ProcessRunner : IProcessRunner
         }
         catch (OperationCanceledException)
         {
-            try { if (!p.HasExited) p.Kill(entireProcessTree: true); } catch { /* ignore */ }
+            try
+            {
+                if (!p.HasExited)
+                {
+                    p.Kill(true);
+                }
+            }
+            catch
+            {
+                /* ignore */
+            }
+
             throw;
         }
         finally

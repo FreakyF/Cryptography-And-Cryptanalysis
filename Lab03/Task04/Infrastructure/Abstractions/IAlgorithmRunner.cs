@@ -4,5 +4,10 @@ namespace Task04.Infrastructure.Abstractions;
 
 public interface IAlgorithmRunner
 {
-    Task<AlgorithmResult> RunAsync(string cipherPath, string bigramsPath, string workDir);
+    Task<AlgorithmResult> RunAsync(
+        string cipherPath,
+        string bigramsPath,
+        string workDir,
+        int? iterations = null,
+        CancellationToken ct = default);
 }

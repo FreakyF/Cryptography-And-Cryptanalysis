@@ -8,9 +8,8 @@ public static class ConsoleReport
     public static void PrintQualityTable(IReadOnlyList<QualityMetrics> rows)
     {
         AnsiConsole.WriteLine();
-        var table = new Table();
-        table.Border(TableBorder.Rounded);
-        table.Title = new TableTitle("[bold]Quality comparison[/]");
+
+        var table = new Table().Border(TableBorder.Rounded).Title("[bold]Quality comparison[/]");
         table.AddColumn("Algorithm");
         table.AddColumn("Text accuracy");
         table.AddColumn("Key accuracy");
@@ -18,10 +17,42 @@ public static class ConsoleReport
         foreach (var r in rows)
         {
             table.AddRow(
-                r.Algorithm,
+                Markup.Escape(r.Algorithm),
                 $"{r.TextAccuracyPercent:0.00} %",
                 r.KeyAccuracyPercent.HasValue ? $"{r.KeyAccuracyPercent.Value:0.00} %" : "N/A"
             );
+        }
+
+        AnsiConsole.Write(table);
+    }
+
+    public static void PrintPerformanceTable(IReadOnlyList<PerformanceMetrics> rows)
+    {
+        AnsiConsole.WriteLine();
+
+        var table = new Table().Border(TableBorder.Rounded).Title("[bold]Performance comparison[/]");
+        table.AddColumn("Algorithm");
+        table.AddColumn("Min iters for 85%");
+        table.AddColumn("Mean time (ms) - 10 runs");
+        table.AddColumn("Mean text acc (%)");
+
+        foreach (var r in rows)
+        {
+            var alg = Markup.Escape(r.Algorithm);
+
+            var iters = r.MinIterations.HasValue
+                ? r.MinIterations.Value.ToString()
+                : "[grey]not reached[/]";
+
+            var meanTime = r.MeanTimeMs.HasValue
+                ? $"{r.MeanTimeMs.Value:0.000}"
+                : "[grey]N/A[/]";
+
+            var meanAcc = r.MeanTextAccuracy.HasValue
+                ? $"{r.MeanTextAccuracy.Value:0.00}"
+                : "[grey]N/A[/]";
+
+            table.AddRow(alg, iters, meanTime, meanAcc);
         }
 
         AnsiConsole.Write(table);

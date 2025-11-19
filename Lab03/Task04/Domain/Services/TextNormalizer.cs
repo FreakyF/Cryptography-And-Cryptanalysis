@@ -9,13 +9,17 @@ public sealed class TextNormalizer : ITextNormalizer
     public string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input))
+        {
             return string.Empty;
+        }
 
         var src = input.AsSpan();
         var (hasNonLetter, hasLower) = DetectFlags(src);
 
         if (!hasNonLetter)
+        {
             return hasLower ? ToUpperAscii(src) : input;
+        }
 
         var letterCount = CountAsciiLetters(src);
         return letterCount == 0 ? string.Empty : FilterLettersToUpper(src, letterCount);
@@ -27,18 +31,33 @@ public sealed class TextNormalizer : ITextNormalizer
         bool non = false, lower = false;
         foreach (var c in s)
         {
-            if (!IsAsciiLetter(c)) { non = true; continue; }
-            if (IsLowerAscii(c)) lower = true;
+            if (!IsAsciiLetter(c))
+            {
+                non = true;
+                continue;
+            }
+
+            if (IsLowerAscii(c))
+            {
+                lower = true;
+            }
         }
+
         return (non, lower);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int CountAsciiLetters(ReadOnlySpan<char> s)
     {
-        int count = 0;
+        var count = 0;
         foreach (var c in s)
-            if (IsAsciiLetter(c)) count++;
+        {
+            if (IsAsciiLetter(c))
+            {
+                count++;
+            }
+        }
+
         return count;
     }
 
@@ -47,7 +66,7 @@ public sealed class TextNormalizer : ITextNormalizer
     {
         return string.Create(s.Length, s, static (dst, src) =>
         {
-            for (int i = 0; i < src.Length; i++)
+            for (var i = 0; i < src.Length; i++)
             {
                 var c = src[i];
                 dst[i] = IsLowerAscii(c) ? (char)(c & ~0x20) : c;
@@ -60,10 +79,14 @@ public sealed class TextNormalizer : ITextNormalizer
     {
         return string.Create(letterCount, s, static (dst, src) =>
         {
-            int w = 0;
+            var w = 0;
             foreach (var c in src)
             {
-                if (!IsAsciiLetter(c)) continue;
+                if (!IsAsciiLetter(c))
+                {
+                    continue;
+                }
+
                 dst[w++] = IsLowerAscii(c) ? (char)(c & ~0x20) : c;
             }
         });
@@ -77,5 +100,8 @@ public sealed class TextNormalizer : ITextNormalizer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsLowerAscii(char c) => (uint)(c - 'a') <= 'z' - 'a';
+    private static bool IsLowerAscii(char c)
+    {
+        return (uint)(c - 'a') <= 'z' - 'a';
+    }
 }
