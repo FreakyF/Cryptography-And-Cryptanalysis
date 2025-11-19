@@ -17,7 +17,7 @@ IKeyService keyService = new KeyService();
 
 ITextNormalizer textNormalizer = new TextNormalizer();
 ISubstitutionCipher cipher = new SubstitutionCipher();
-IHeuristicAnalyzer heuristicAnalyzer = new MetropolisHastingsAnalyzer(textNormalizer, cipher);
+IHeuristicAnalyzer heuristicAnalyzer = new SimulatedAnnealingAnalyzer(textNormalizer, cipher);
 
 ICipherOrchestrator orchestrator = new CipherOrchestrator(
     fileService, keyService, textNormalizer, cipher, heuristicAnalyzer);
