@@ -55,7 +55,8 @@ flowchart TB
 
 #### Implementacja
 
-- IArgumentParser.cs - Declares the contract for parsing CLI arguments into a strongly typed Arguments object, ensuring the application receives validated input options.
+- IArgumentParser.cs - Declares the contract for parsing CLI arguments into a strongly typed Arguments object, ensuring
+  the application receives validated input options.
 
 ```csharp
 using Task01.Application.Services;
@@ -68,7 +69,8 @@ public interface IArgumentParser
 }
 ```
 
-- ICipherOrchestrator.cs - Exposes a coordinator interface that orchestrates encryption or decryption workflows based on parsed arguments and underlying services.
+- ICipherOrchestrator.cs - Exposes a coordinator interface that orchestrates encryption or decryption workflows based on
+  parsed arguments and underlying services.
 
 ```csharp
 using Task01.Application.Models;
@@ -82,7 +84,8 @@ public interface ICipherOrchestrator
 }
 ```
 
-- IFileService.cs - Defines abstractions for asynchronous file I/O operations so the application can read plaintexts and persist results without coupling to the filesystem.
+- IFileService.cs - Defines abstractions for asynchronous file I/O operations so the application can read plaintexts and
+  persist results without coupling to the filesystem.
 
 ```csharp
 namespace Task01.Application.Abstractions;
@@ -95,7 +98,8 @@ public interface IFileService
 }
 ```
 
-- IKeyService.cs - Specifies methods for generating random substitution keys and extracting embedded permutations from cipher payloads.
+- IKeyService.cs - Specifies methods for generating random substitution keys and extracting embedded permutations from
+  cipher payloads.
 
 ```csharp
 namespace Task01.Application.Abstractions;
@@ -108,7 +112,8 @@ public interface IKeyService
 }
 ```
 
-- ArgumentParser.cs - Implements CLI parsing by validating operation flags and required file paths, producing a ready-to-use Arguments record or throwing descriptive errors.
+- ArgumentParser.cs - Implements CLI parsing by validating operation flags and required file paths, producing a
+  ready-to-use Arguments record or throwing descriptive errors.
 
 ```csharp
 using Task01.Application.Abstractions;
@@ -203,7 +208,8 @@ public sealed class ArgumentParser : IArgumentParser
 }
 ```
 
-- Operation.cs - Enumerates supported modes (Encrypt/Decrypt) so orchestration code can branch on the requested operation in a type-safe way.
+- Operation.cs - Enumerates supported modes (Encrypt/Decrypt) so orchestration code can branch on the requested
+  operation in a type-safe way.
 
 ```csharp
 namespace Task01.Application.Models;
@@ -215,7 +221,8 @@ public enum Operation
 }
 ```
 
-- ProcessingResult.cs - Represents the exit code and optional message produced by processing, providing a convenience property to check for success.
+- ProcessingResult.cs - Represents the exit code and optional message produced by processing, providing a convenience
+  property to check for success.
 
 ```cshap
 namespace Task01.Application.Models;
@@ -243,7 +250,8 @@ public sealed record Arguments(
 );
 ```
 
-- CipherOrchestrator.cs - Coordinates reading input files, normalizing text, generating or extracting keys, delegating to the cipher, and writing results while mapping errors to exit codes.
+- CipherOrchestrator.cs - Coordinates reading input files, normalizing text, generating or extracting keys, delegating
+  to the cipher, and writing results while mapping errors to exit codes.
 
 ```csharp
 using Task01.Application.Abstractions;
@@ -342,7 +350,8 @@ public interface ITextNormalizer
 }
 ```
 
-- SubstitutionCipher.cs - Implements monoalphabetic substitution by mapping characters via lookup dictionaries and validating alphabet consistency.
+- SubstitutionCipher.cs - Implements monoalphabetic substitution by mapping characters via lookup dictionaries and
+  validating alphabet consistency.
 
 ```csharp
 using Task01.Domain.Abstractions;
@@ -411,7 +420,8 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
 }
 ```
 
-- TextNormalizer.cs - Filters input down to alphabetic characters and converts them to uppercase to produce clean cipher-ready text.
+- TextNormalizer.cs - Filters input down to alphabetic characters and converts them to uppercase to produce clean
+  cipher-ready text.
 
 ```csharp
 using Task01.Domain.Abstractions;
@@ -496,7 +506,8 @@ public sealed class FileService : IFileService
 }
 ```
 
-- KeyService.cs - Generates random permutations of the alphabet using cryptographically secure RNG and extracts/validates permutation headers from cipher text.
+- KeyService.cs - Generates random permutations of the alphabet using cryptographically secure RNG and
+  extracts/validates permutation headers from cipher text.
 
 ```csharp
 using System.Security.Cryptography;
@@ -704,6 +715,74 @@ Environment.ExitCode = result.ExitCode;
 
 #### Wyniki
 
+```
+➜  Task01 (main) dotnet run -- \                                                                            ✭
+  -e \
+  -i Samples/plaintext.txt \
+  -o Samples/cipher.txt
+
+➜  Task01 (main) diff Samples/plaintext.txt  Samples/cipher.txt                                             ✭
+1,53c1,2
+< For several years I’ve lived in an old building where three lime trees lean over the façade and dust the steps each June. In the early hours, before the first tram groans awake, the street is as thin as paper. You can hear a newspaper being unfolded in the kiosk, the creak of a bicycle rack, the faint buzz of a sign that was never properly fixed. A bakery opens across the way, and heat rolls out in a small, invisible wave. People arrive with soft voices and exact change, and for a moment we all pretend we know each other better than we do.
+< 
+< The baker has a habit of talking with his elbows on the counter, as if conversation needed support. He asks about cracked windows and loose tiles, about the plants we try to keep alive on narrow sills. When the sky is the color of wet stone, he switches off the bright strip above the bread and turns on a lamp in the corner. The loaves look warmer that way, and the line moves a little slower, as if we’re all visiting instead of buying. Flour drifts onto sleeves and stays there like a polite remark.
+< 
+< Across the street the post office clings to the idea of order. The door breathes out a draft when you pull it, and the bell makes a tired sound that must have been cheerful once. The clerk is tall and bony, and she straightens her glasses the way a conductor might raise a baton. People come with parcels tied in string, addresses written in careful block letters. Sometimes you can tell a package carries something that weighs more in memory than on a scale—an old scarf, a family photograph, a jar of jam wrapped in newspaper.
+< 
+< Behind my building a courtyard makes a shallow bowl of air. In summer the sound collects there: a radio playing a game, a dog who believes the world needs a warning once every hour, a child counting the steps to the basement door. Neighbors move flower boxes, adjust folding chairs, patch a hose with tape that won’t last. One August evening we hung a white sheet between the windows and projected a film. The breeze lifted the fabric now and then, and faces on the screen swelled and thinned, as if the story were breathing on its own.
+< 
+< I walk to the river from habit, not purpose. The water suffers our reflections for a moment and then forgets them. Anglers stand on the wooden pier and argue about the correct names for silence. Couples take photos in which the background is asked to do most of the work. In winter the river has the stubborn look of a creature that would rather sleep. In summer it’s harder to look at, full of light that loosens the mind.
+< 
+< My office is a repurposed warehouse where bolts of fabric used to live. The floors remember wheels and grit. During coffee breaks we go outside and invent strange ways to measure time—counting cyclists, watching a cloud clear the edge of a crane, noting the exact second a traffic light hesitates between colors. Ideas seem to appear in the space between the door and the curb. I’ve learned to keep a pen in my pocket for those ten yards that refuse to be ordinary.
+< 
+< The market is at its best when the sky threatens rain and nobody believes it. Stalls glow with their own logic: apples arranged by shade, cheese cut into patient cubes, herbs bound into dark, fragrant fists. The sellers greet regulars by name and new faces by advice. “These tomatoes for salad, those for cooking,” a woman says, passing a slice over the pile as if knighting it. A used-book table leans under the weight of paperbacks that keep coming back, like old songs you thought you’d forgotten.
+< 
+< On my floor, neighbors keep the building alive by sustaining small rituals. Mrs. Novak waters her plants at seven and asks whether I need sugar or an opinion. The man across the hall shakes dust from rugs with a seriousness that makes you stand straighter. We meet on the stairs and talk about weather and buses, about a bulb that flickers and a hinge that needs oil. These tiny negotiations are how a place agrees to be shared.
+< 
+< I have a fondness for the train station most people call ugly. It’s a concrete riddle that has solved itself in the only way it knows. The departure board refuses to hurry. Names of towns appear and vanish as if they were shy. People practice waiting: standing tall with a new coat, resting with caution on a suitcase, pacing in measured loops to keep the body from arguing. In the café on the platform, the owner pours tea that is never hot enough and coffee that is always too strong, and both taste right because they are what travelers expect.
+< 
+< In the evening I sometimes duck into a small café where no one is in a rush to prove anything. The room is lined with photographs taken on film, which means the light has a history of being trusted. The barista talks about paper straws and compostable cups, not with zealotry but with the steady voice of a person who likes to get details correct. From the window I watch the city draw threads of light behind the trams. When it rains, the glass becomes a gentle drum, and conversations fall into tempo without noticing.
+< 
+< Once a year the street pretends to be a village. Tables appear where cars usually rest, a pot of soup arrives in a hand that isn’t sure it’s strong enough, a cake inherits a plate from the 1980s. People who have nodded for years learn each other’s first names. A child explains the rules of a game they have just invented, and the rules are better than most. Someone tunes a guitar and produces a song that is almost the same as every other song, which is why it works.
+< 
+< Autumn doesn’t close the city; it rearranges it. Chairs in front of cafés wear blankets like vests. The parks practice how to be noisy when the leaves break underfoot. Runners slice the cool air and steam like small locomotives at every corner. The sky arrives early and sets down in a heavy way, but windows answer with squares of warmth. It’s the season when you can leave a library with a stack of books and the feeling that you have at last negotiated fair terms with the day.
+< 
+< I like to leave for a few days when routine starts to show its seams. In smaller towns the clock over the square speaks with authority, and the bakery line is the newspaper you actually read. Strangers look up when you enter a room because they need to take stock of the air. Time there puts on slippers. It speeds up only when the bus sighs at the stop, as if to prove it can. Coming home, I miss the slowness for exactly one evening, then remember that calm is sometimes a decision rather than a landscape.
+< 
+< At home, order is the smallest luxury I can afford. A mug returned to its shelf, the lamp turned on at the right moment, the shirt hung on a chair to dry—these are victories that never make the news. In winter I only open the radiator when the windows blur with breath. In summer I leave them open long after midnight, letting the courtyard collect laughter that the street refuses to keep. The voices blend into something harmless and oddly kind.
+< 
+< Every now and then a friend from childhood calls and asks if I still know how to skate. I say yes because the body remembers in a way the mind admires. We meet at a rink that smells like rubber and cold metal. We move in wide circles, dodging beginners who stare at their feet and others who spin without apology. Later my legs burn and the world seems properly attached to its own axis again. Some skills feel like messages from a previous version of yourself who had the good sense to practice.
+< 
+< In December the city becomes a map of hesitant stars. Not every bulb works, and that’s fine. People argue pleasantly about the arrangement of ornaments, as if tradition were a polite guest who appreciates a little debate. The market smells like cloves and honey. The air nibbles at pockets and noses. You can measure kindness by how often someone steadies a door or lifts a bag up a step. The season makes small helpers of almost everyone.
+< 
+< I think a lot about how a city is a net of minor stories. The major ones rarely visit. What stays are narrow habits: a woman on the first floor waving at schoolchildren; a radio in the kiosk that insists on the same hour for the same voice; a courtyard cat that chooses a different car for sleep each week. These details teach you the rhythm that outlives headlines. You can hear it with your eyes closed if you walk the same block twice.
+< 
+< Spring turns the stairwell dust into a floating script. Windows ask politely for cleaning. Lines of laundry appear like flags of practicality. Children draw impossible houses and suns with more rays than the science requires. Adults, pretending not to watch, revise their errands so they can slow down by the chalk. Mornings brighten as if they had been practicing in secret. Even the river looks less certain about its refusal to be pleased.
+< 
+< I don’t know whether I’ll ever move away. The idea arrives sometimes like a polite stranger and waits in the doorway. For now I’m happy with the sound of the tram, the smell of bread, and the sight of the water that keeps going even when no one is cheering. An older neighbor told me once that staying is a skill, the twin of leaving. It was the kind of sentence that felt larger than the room and didn’t need to be written down.
+< 
+< At night the city never goes silent; it changes key. Windows grow warmer while the streets cool. A single laugh escapes from an alley; a dog objects to the moon; someone walks home and forgives the day for having too much to say. I stand on the balcony and let my hands rest on cold metal. The world shivers but holds. In the morning I’ll wake under the trees again and find the street as I left it, almost. That “almost” is the reason there’s always more to notice.
+< 
+< On weekends I visit a museum that is better than its budget. Volunteers smile as if the exhibits were guests they had invited personally. A small room holds a temporary show about maps and the errors that became standard. Labels admit uncertainty with a kind of grace. I love the corner where drafts are pinned beside the final versions, proof that correction can be a kind of kindness to the future.
+< 
+< There’s a bus route I take when I want the city to narrate itself. It climbs a hill, curls around a park, and sighs past an industrial lot where weeds keep a stubborn schedule. You see into kitchens for a second, enough to know someone is frying onions or reheating soup. You catch the comical dignity of dogs who believe leashes are part of fashion. You witness arguments without words: a shrug, a shake of the head, an apology delivered by the way a hand puts down a bag.
+< 
+< The library’s reading room is a sheltered sea. Pages turn at a pace that keeps faith with breath. A man in a blue sweater takes notes with a pencil sharpened to ceremony. A student annotates a textbook in tiny letters that look like careful weather. When the clock clicks over to the next minute, the sound is softer than you expect, as if the building wanted time to feel less abrupt.
+< 
+< If I had to explain why I stay, I’d say it’s because the city answers in complete sentences. It doesn’t always agree, but it listens. It accepts that a morning can be spoiled and still be part of a good week. It remembers people who have gone without turning them into statues. It forgives, up to a point, and then requests improvement, also up to a point. We meet halfway and revise as needed.
+< 
+< Some evenings I walk without a destination, and the streets assemble themselves as I go. A shopkeeper waters a plant with the seriousness of a ritual. A busker tunes a guitar that refuses to cooperate. A couple laughs too loudly and then notices, and then laughs again, smaller and more honest. A window glows in an upper floor, and a hand moves across a table, and a glass catches the light like a small piece of permission.
+< 
+< When rain comes hard, the city behaves as though it had been expecting it. Drains swallow and complain. Umbrellas multiply like opinions. Shoes line up on thresholds, and floors accept the temporary indignity of mud. Later the sky loosens, and the wet streets hold a second city made entirely of reflections. Walking home, I sometimes try to step only on the copies of the paving stones, just to check that the evening understands play.
+< 
+< I’ve learned to carry a pen, a book, and a coin for luck. The pen is for the idea that refuses to wait, the book is for lines that teach patience, the coin is for the jar by the register that promises nothing and keeps that promise. None of these things are necessary in the strict sense, but they help keep the day in one piece. And most days, one piece is exactly the right size.
+\ No newline at end of file
+---
+> QVKAULOCJIDSYWXGRFBHZTMENP
+> LXFBUTUFQSNUQFBJTUSJTUAJWQWXSAVZJSAJWOMCUFUHCFUUSJYUHFUUBSUQWXTUFHCULQQAUQWAAZBHHCUBHUGBUQKCIZWUJWHCUUQFSNCXZFBVULXFUHCULJFBHHFQYOFXQWBQMQDUHCUBHFUUHJBQBHCJWQBGQGUFNXZKQWCUQFQWUMBGQGUFVUJWOZWLXSAUAJWHCUDJXBDHCUKFUQDXLQVJKNKSUFQKDHCULQJWHVZPPXLQBJOWHCQHMQBWUTUFGFXGUFSNLJEUAQVQDUFNXGUWBQKFXBBHCUMQNQWACUQHFXSSBXZHJWQBYQSSJWTJBJVSUMQTUGUXGSUQFFJTUMJHCBXLHTXJKUBQWAUEQKHKCQWOUQWALXFQYXYUWHMUQSSGFUHUWAMUDWXMUQKCXHCUFVUHHUFHCQWMUAXHCUVQDUFCQBQCQVJHXLHQSDJWOMJHCCJBUSVXMBXWHCUKXZWHUFQBJLKXWTUFBQHJXWWUUAUABZGGXFHCUQBDBQVXZHKFQKDUAMJWAXMBQWASXXBUHJSUBQVXZHHCUGSQWHBMUHFNHXDUUGQSJTUXWWQFFXMBJSSBMCUWHCUBDNJBHCUKXSXFXLMUHBHXWUCUBMJHKCUBXLLHCUVFJOCHBHFJGQVXTUHCUVFUQAQWAHZFWBXWQSQYGJWHCUKXFWUFHCUSXQTUBSXXDMQFYUFHCQHMQNQWAHCUSJWUYXTUBQSJHHSUBSXMUFQBJLMUFUQSSTJBJHJWOJWBHUQAXLVZNJWOLSXZFAFJLHBXWHXBSUUTUBQWABHQNBHCUFUSJDUQGXSJHUFUYQFDQKFXBBHCUBHFUUHHCUGXBHXLLJKUKSJWOBHXHCUJAUQXLXFAUFHCUAXXFVFUQHCUBXZHQAFQLHMCUWNXZGZSSJHQWAHCUVUSSYQDUBQHJFUABXZWAHCQHYZBHCQTUVUUWKCUUFLZSXWKUHCUKSUFDJBHQSSQWAVXWNQWABCUBHFQJOCHUWBCUFOSQBBUBHCUMQNQKXWAZKHXFYJOCHFQJBUQVQHXWGUXGSUKXYUMJHCGQFKUSBHJUAJWBHFJWOQAAFUBBUBMFJHHUWJWKQFULZSVSXKDSUHHUFBBXYUHJYUBNXZKQWHUSSQGQKDQOUKQFFJUBBXYUHCJWOHCQHMUJOCBYXFUJWYUYXFNHCQWXWQBKQSUQWXSABKQFLQLQYJSNGCXHXOFQGCQIQFXLIQYMFQGGUAJWWUMBGQGUFVUCJWAYNVZJSAJWOQKXZFHNQFAYQDUBQBCQSSXMVXMSXLQJFJWBZYYUFHCUBXZWAKXSSUKHBHCUFUQFQAJXGSQNJWOQOQYUQAXOMCXVUSJUTUBHCUMXFSAWUUABQMQFWJWOXWKUUTUFNCXZFQKCJSAKXZWHJWOHCUBHUGBHXHCUVQBUYUWHAXXFWUJOCVXFBYXTULSXMUFVXEUBQAIZBHLXSAJWOKCQJFBGQHKCQCXBUMJHCHQGUHCQHMXWHSQBHXWUQZOZBHUTUWJWOMUCZWOQMCJHUBCUUHVUHMUUWHCUMJWAXMBQWAGFXIUKHUAQLJSYHCUVFUUPUSJLHUAHCULQVFJKWXMQWAHCUWQWALQKUBXWHCUBKFUUWBMUSSUAQWAHCJWWUAQBJLHCUBHXFNMUFUVFUQHCJWOXWJHBXMWJMQSDHXHCUFJTUFLFXYCQVJHWXHGZFGXBUHCUMQHUFBZLLUFBXZFFULSUKHJXWBLXFQYXYUWHQWAHCUWLXFOUHBHCUYQWOSUFBBHQWAXWHCUMXXAUWGJUFQWAQFOZUQVXZHHCUKXFFUKHWQYUBLXFBJSUWKUKXZGSUBHQDUGCXHXBJWMCJKCHCUVQKDOFXZWAJBQBDUAHXAXYXBHXLHCUMXFDJWMJWHUFHCUFJTUFCQBHCUBHZVVXFWSXXDXLQKFUQHZFUHCQHMXZSAFQHCUFBSUUGJWBZYYUFJHBCQFAUFHXSXXDQHLZSSXLSJOCHHCQHSXXBUWBHCUYJWAYNXLLJKUJBQFUGZFGXBUAMQFUCXZBUMCUFUVXSHBXLLQVFJKZBUAHXSJTUHCULSXXFBFUYUYVUFMCUUSBQWAOFJHAZFJWOKXLLUUVFUQDBMUOXXZHBJAUQWAJWTUWHBHFQWOUMQNBHXYUQBZFUHJYUKXZWHJWOKNKSJBHBMQHKCJWOQKSXZAKSUQFHCUUAOUXLQKFQWUWXHJWOHCUUEQKHBUKXWAQHFQLLJKSJOCHCUBJHQHUBVUHMUUWKXSXFBJAUQBBUUYHXQGGUQFJWHCUBGQKUVUHMUUWHCUAXXFQWAHCUKZFVJTUSUQFWUAHXDUUGQGUWJWYNGXKDUHLXFHCXBUHUWNQFABHCQHFULZBUHXVUXFAJWQFNHCUYQFDUHJBQHJHBVUBHMCUWHCUBDNHCFUQHUWBFQJWQWAWXVXANVUSJUTUBJHBHQSSBOSXMMJHCHCUJFXMWSXOJKQGGSUBQFFQWOUAVNBCQAUKCUUBUKZHJWHXGQHJUWHKZVUBCUFVBVXZWAJWHXAQFDLFQOFQWHLJBHBHCUBUSSUFBOFUUHFUOZSQFBVNWQYUQWAWUMLQKUBVNQATJKUHCUBUHXYQHXUBLXFBQSQAHCXBULXFKXXDJWOQMXYQWBQNBGQBBJWOQBSJKUXTUFHCUGJSUQBJLDWJOCHJWOJHQZBUAVXXDHQVSUSUQWBZWAUFHCUMUJOCHXLGQGUFVQKDBHCQHDUUGKXYJWOVQKDSJDUXSABXWOBNXZHCXZOCHNXZALXFOXHHUWXWYNLSXXFWUJOCVXFBDUUGHCUVZJSAJWOQSJTUVNBZBHQJWJWOBYQSSFJHZQSBYFBWXTQDMQHUFBCUFGSQWHBQHBUTUWQWAQBDBMCUHCUFJWUUABZOQFXFQWXGJWJXWHCUYQWQKFXBBHCUCQSSBCQDUBAZBHLFXYFZOBMJHCQBUFJXZBWUBBHCQHYQDUBNXZBHQWABHFQJOCHUFMUYUUHXWHCUBHQJFBQWAHQSDQVXZHMUQHCUFQWAVZBUBQVXZHQVZSVHCQHLSJKDUFBQWAQCJWOUHCQHWUUABXJSHCUBUHJWNWUOXHJQHJXWBQFUCXMQGSQKUQOFUUBHXVUBCQFUAJCQTUQLXWAWUBBLXFHCUHFQJWBHQHJXWYXBHGUXGSUKQSSZOSNJHBQKXWKFUHUFJAASUHCQHCQBBXSTUAJHBUSLJWHCUXWSNMQNJHDWXMBHCUAUGQFHZFUVXQFAFULZBUBHXCZFFNWQYUBXLHXMWBQGGUQFQWATQWJBCQBJLHCUNMUFUBCNGUXGSUGFQKHJKUMQJHJWOBHQWAJWOHQSSMJHCQWUMKXQHFUBHJWOMJHCKQZHJXWXWQBZJHKQBUGQKJWOJWYUQBZFUASXXGBHXDUUGHCUVXANLFXYQFOZJWOJWHCUKQLXWHCUGSQHLXFYHCUXMWUFGXZFBHUQHCQHJBWUTUFCXHUWXZOCQWAKXLLUUHCQHJBQSMQNBHXXBHFXWOQWAVXHCHQBHUFJOCHVUKQZBUHCUNQFUMCQHHFQTUSUFBUEGUKHJWHCUUTUWJWOJBXYUHJYUBAZKDJWHXQBYQSSKQLMCUFUWXXWUJBJWQFZBCHXGFXTUQWNHCJWOHCUFXXYJBSJWUAMJHCGCXHXOFQGCBHQDUWXWLJSYMCJKCYUQWBHCUSJOCHCQBQCJBHXFNXLVUJWOHFZBHUAHCUVQFJBHQHQSDBQVXZHGQGUFBHFQMBQWAKXYGXBHQVSUKZGBWXHMJHCPUQSXHFNVZHMJHCHCUBHUQANTXJKUXLQGUFBXWMCXSJDUBHXOUHAUHQJSBKXFFUKHLFXYHCUMJWAXMJMQHKCHCUKJHNAFQMHCFUQABXLSJOCHVUCJWAHCUHFQYBMCUWJHFQJWBHCUOSQBBVUKXYUBQOUWHSUAFZYQWAKXWTUFBQHJXWBLQSSJWHXHUYGXMJHCXZHWXHJKJWOXWKUQNUQFHCUBHFUUHGFUHUWABHXVUQTJSSQOUHQVSUBQGGUQFMCUFUKQFBZBZQSSNFUBHQGXHXLBXZGQFFJTUBJWQCQWAHCQHJBWHBZFUJHBBHFXWOUWXZOCQKQDUJWCUFJHBQGSQHULFXYHCUBGUXGSUMCXCQTUWXAAUALXFNUQFBSUQFWUQKCXHCUFBLJFBHWQYUBQKCJSAUEGSQJWBHCUFZSUBXLQOQYUHCUNCQTUIZBHJWTUWHUAQWAHCUFZSUBQFUVUHHUFHCQWYXBHBXYUXWUHZWUBQOZJHQFQWAGFXAZKUBQBXWOHCQHJBQSYXBHHCUBQYUQBUTUFNXHCUFBXWOMCJKCJBMCNJHMXFDBQZHZYWAXUBWHKSXBUHCUKJHNJHFUQFFQWOUBJHKCQJFBJWLFXWHXLKQLBMUQFVSQWDUHBSJDUTUBHBHCUGQFDBGFQKHJKUCXMHXVUWXJBNMCUWHCUSUQTUBVFUQDZWAUFLXXHFZWWUFBBSJKUHCUKXXSQJFQWABHUQYSJDUBYQSSSXKXYXHJTUBQHUTUFNKXFWUFHCUBDNQFFJTUBUQFSNQWABUHBAXMWJWQCUQTNMQNVZHMJWAXMBQWBMUFMJHCBRZQFUBXLMQFYHCJHBHCUBUQBXWMCUWNXZKQWSUQTUQSJVFQFNMJHCQBHQKDXLVXXDBQWAHCULUUSJWOHCQHNXZCQTUQHSQBHWUOXHJQHUALQJFHUFYBMJHCHCUAQNJSJDUHXSUQTULXFQLUMAQNBMCUWFXZHJWUBHQFHBHXBCXMJHBBUQYBJWBYQSSUFHXMWBHCUKSXKDXTUFHCUBRZQFUBGUQDBMJHCQZHCXFJHNQWAHCUVQDUFNSJWUJBHCUWUMBGQGUFNXZQKHZQSSNFUQABHFQWOUFBSXXDZGMCUWNXZUWHUFQFXXYVUKQZBUHCUNWUUAHXHQDUBHXKDXLHCUQJFHJYUHCUFUGZHBXWBSJGGUFBJHBGUUABZGXWSNMCUWHCUVZBBJOCBQHHCUBHXGQBJLHXGFXTUJHKQWKXYJWOCXYUJYJBBHCUBSXMWUBBLXFUEQKHSNXWUUTUWJWOHCUWFUYUYVUFHCQHKQSYJBBXYUHJYUBQAUKJBJXWFQHCUFHCQWQSQWABKQGUQHCXYUXFAUFJBHCUBYQSSUBHSZEZFNJKQWQLLXFAQYZOFUHZFWUAHXJHBBCUSLHCUSQYGHZFWUAXWQHHCUFJOCHYXYUWHHCUBCJFHCZWOXWQKCQJFHXAFNHCUBUQFUTJKHXFJUBHCQHWUTUFYQDUHCUWUMBJWMJWHUFJXWSNXGUWHCUFQAJQHXFMCUWHCUMJWAXMBVSZFMJHCVFUQHCJWBZYYUFJSUQTUHCUYXGUWSXWOQLHUFYJAWJOCHSUHHJWOHCUKXZFHNQFAKXSSUKHSQZOCHUFHCQHHCUBHFUUHFULZBUBHXDUUGHCUTXJKUBVSUWAJWHXBXYUHCJWOCQFYSUBBQWAXAASNDJWAUTUFNWXMQWAHCUWQLFJUWALFXYKCJSACXXAKQSSBQWAQBDBJLJBHJSSDWXMCXMHXBDQHUJBQNNUBVUKQZBUHCUVXANFUYUYVUFBJWQMQNHCUYJWAQAYJFUBMUYUUHQHQFJWDHCQHBYUSSBSJDUFZVVUFQWAKXSAYUHQSMUYXTUJWMJAUKJFKSUBAXAOJWOVUOJWWUFBMCXBHQFUQHHCUJFLUUHQWAXHCUFBMCXBGJWMJHCXZHQGXSXONSQHUFYNSUOBVZFWQWAHCUMXFSABUUYBGFXGUFSNQHHQKCUAHXJHBXMWQEJBQOQJWBXYUBDJSSBLUUSSJDUYUBBQOUBLFXYQGFUTJXZBTUFBJXWXLNXZFBUSLMCXCQAHCUOXXABUWBUHXGFQKHJKUJWAUKUYVUFHCUKJHNVUKXYUBQYQGXLCUBJHQWHBHQFBWXHUTUFNVZSVMXFDBQWAHCQHBLJWUGUXGSUQFOZUGSUQBQWHSNQVXZHHCUQFFQWOUYUWHXLXFWQYUWHBQBJLHFQAJHJXWMUFUQGXSJHUOZUBHMCXQGGFUKJQHUBQSJHHSUAUVQHUHCUYQFDUHBYUSSBSJDUKSXTUBQWACXWUNHCUQJFWJVVSUBQHGXKDUHBQWAWXBUBNXZKQWYUQBZFUDJWAWUBBVNCXMXLHUWBXYUXWUBHUQAJUBQAXXFXFSJLHBQVQOZGQBHUGHCUBUQBXWYQDUBBYQSSCUSGUFBXLQSYXBHUTUFNXWUJHCJWDQSXHQVXZHCXMQKJHNJBQWUHXLYJWXFBHXFJUBHCUYQIXFXWUBFQFUSNTJBJHMCQHBHQNBQFUWQFFXMCQVJHBQMXYQWXWHCULJFBHLSXXFMQTJWOQHBKCXXSKCJSAFUWQFQAJXJWHCUDJXBDHCQHJWBJBHBXWHCUBQYUCXZFLXFHCUBQYUTXJKUQKXZFHNQFAKQHHCQHKCXXBUBQAJLLUFUWHKQFLXFBSUUGUQKCMUUDHCUBUAUHQJSBHUQKCNXZHCUFCNHCYHCQHXZHSJTUBCUQASJWUBNXZKQWCUQFJHMJHCNXZFUNUBKSXBUAJLNXZMQSDHCUBQYUVSXKDHMJKUBGFJWOHZFWBHCUBHQJFMUSSAZBHJWHXQLSXQHJWOBKFJGHMJWAXMBQBDGXSJHUSNLXFKSUQWJWOSJWUBXLSQZWAFNQGGUQFSJDULSQOBXLGFQKHJKQSJHNKCJSAFUWAFQMJYGXBBJVSUCXZBUBQWABZWBMJHCYXFUFQNBHCQWHCUBKJUWKUFURZJFUBQAZSHBGFUHUWAJWOWXHHXMQHKCFUTJBUHCUJFUFFQWABBXHCUNKQWBSXMAXMWVNHCUKCQSDYXFWJWOBVFJOCHUWQBJLHCUNCQAVUUWGFQKHJKJWOJWBUKFUHUTUWHCUFJTUFSXXDBSUBBKUFHQJWQVXZHJHBFULZBQSHXVUGSUQBUAJAXWHDWXMMCUHCUFJSSUTUFYXTUQMQNHCUJAUQQFFJTUBBXYUHJYUBSJDUQGXSJHUBHFQWOUFQWAMQJHBJWHCUAXXFMQNLXFWXMJYCQGGNMJHCHCUBXZWAXLHCUHFQYHCUBYUSSXLVFUQAQWAHCUBJOCHXLHCUMQHUFHCQHDUUGBOXJWOUTUWMCUWWXXWUJBKCUUFJWOQWXSAUFWUJOCVXFHXSAYUXWKUHCQHBHQNJWOJBQBDJSSHCUHMJWXLSUQTJWOJHMQBHCUDJWAXLBUWHUWKUHCQHLUSHSQFOUFHCQWHCUFXXYQWAAJAWHWUUAHXVUMFJHHUWAXMWQHWJOCHHCUKJHNWUTUFOXUBBJSUWHJHKCQWOUBDUNMJWAXMBOFXMMQFYUFMCJSUHCUBHFUUHBKXXSQBJWOSUSQZOCUBKQGUBLFXYQWQSSUNQAXOXVIUKHBHXHCUYXXWBXYUXWUMQSDBCXYUQWALXFOJTUBHCUAQNLXFCQTJWOHXXYZKCHXBQNJBHQWAXWHCUVQSKXWNQWASUHYNCQWABFUBHXWKXSAYUHQSHCUMXFSABCJTUFBVZHCXSABJWHCUYXFWJWOJSSMQDUZWAUFHCUHFUUBQOQJWQWALJWAHCUBHFUUHQBJSULHJHQSYXBHHCQHQSYXBHJBHCUFUQBXWHCUFUBQSMQNBYXFUHXWXHJKUXWMUUDUWABJTJBJHQYZBUZYHCQHJBVUHHUFHCQWJHBVZAOUHTXSZWHUUFBBYJSUQBJLHCUUECJVJHBMUFUOZUBHBHCUNCQAJWTJHUAGUFBXWQSSNQBYQSSFXXYCXSABQHUYGXFQFNBCXMQVXZHYQGBQWAHCUUFFXFBHCQHVUKQYUBHQWAQFASQVUSBQAYJHZWKUFHQJWHNMJHCQDJWAXLOFQKUJSXTUHCUKXFWUFMCUFUAFQLHBQFUGJWWUAVUBJAUHCULJWQSTUFBJXWBGFXXLHCQHKXFFUKHJXWKQWVUQDJWAXLDJWAWUBBHXHCULZHZFUHCUFUBQVZBFXZHUJHQDUMCUWJMQWHHCUKJHNHXWQFFQHUJHBUSLJHKSJYVBQCJSSKZFSBQFXZWAQGQFDQWABJOCBGQBHQWJWAZBHFJQSSXHMCUFUMUUABDUUGQBHZVVXFWBKCUAZSUNXZBUUJWHXDJHKCUWBLXFQBUKXWAUWXZOCHXDWXMBXYUXWUJBLFNJWOXWJXWBXFFUCUQHJWOBXZGNXZKQHKCHCUKXYJKQSAJOWJHNXLAXOBMCXVUSJUTUSUQBCUBQFUGQFHXLLQBCJXWNXZMJHWUBBQFOZYUWHBMJHCXZHMXFABQBCFZOQBCQDUXLHCUCUQAQWQGXSXONAUSJTUFUAVNHCUMQNQCQWAGZHBAXMWQVQOHCUSJVFQFNBFUQAJWOFXXYJBQBCUSHUFUABUQGQOUBHZFWQHQGQKUHCQHDUUGBLQJHCMJHCVFUQHCQYQWJWQVSZUBMUQHUFHQDUBWXHUBMJHCQGUWKJSBCQFGUWUAHXKUFUYXWNQBHZAUWHQWWXHQHUBQHUEHVXXDJWHJWNSUHHUFBHCQHSXXDSJDUKQFULZSMUQHCUFMCUWHCUKSXKDKSJKDBXTUFHXHCUWUEHYJWZHUHCUBXZWAJBBXLHUFHCQWNXZUEGUKHQBJLHCUVZJSAJWOMQWHUAHJYUHXLUUSSUBBQVFZGHJLJCQAHXUEGSQJWMCNJBHQNJABQNJHBVUKQZBUHCUKJHNQWBMUFBJWKXYGSUHUBUWHUWKUBJHAXUBWHQSMQNBQOFUUVZHJHSJBHUWBJHQKKUGHBHCQHQYXFWJWOKQWVUBGXJSUAQWABHJSSVUGQFHXLQOXXAMUUDJHFUYUYVUFBGUXGSUMCXCQTUOXWUMJHCXZHHZFWJWOHCUYJWHXBHQHZUBJHLXFOJTUBZGHXQGXJWHQWAHCUWFURZUBHBJYGFXTUYUWHQSBXZGHXQGXJWHMUYUUHCQSLMQNQWAFUTJBUQBWUUAUABXYUUTUWJWOBJMQSDMJHCXZHQAUBHJWQHJXWQWAHCUBHFUUHBQBBUYVSUHCUYBUSTUBQBJOXQBCXGDUUGUFMQHUFBQGSQWHMJHCHCUBUFJXZBWUBBXLQFJHZQSQVZBDUFHZWUBQOZJHQFHCQHFULZBUBHXKXXGUFQHUQKXZGSUSQZOCBHXXSXZASNQWAHCUWWXHJKUBQWAHCUWSQZOCBQOQJWBYQSSUFQWAYXFUCXWUBHQMJWAXMOSXMBJWQWZGGUFLSXXFQWAQCQWAYXTUBQKFXBBQHQVSUQWAQOSQBBKQHKCUBHCUSJOCHSJDUQBYQSSGJUKUXLGUFYJBBJXWMCUWFQJWKXYUBCQFAHCUKJHNVUCQTUBQBHCXZOCJHCQAVUUWUEGUKHJWOJHAFQJWBBMQSSXMQWAKXYGSQJWZYVFUSSQBYZSHJGSNSJDUXGJWJXWBBCXUBSJWUZGXWHCFUBCXSABQWALSXXFBQKKUGHHCUHUYGXFQFNJWAJOWJHNXLYZASQHUFHCUBDNSXXBUWBQWAHCUMUHBHFUUHBCXSAQBUKXWAKJHNYQAUUWHJFUSNXLFULSUKHJXWBMQSDJWOCXYUJBXYUHJYUBHFNHXBHUGXWSNXWHCUKXGJUBXLHCUGQTJWOBHXWUBIZBHHXKCUKDHCQHHCUUTUWJWOZWAUFBHQWABGSQNJTUSUQFWUAHXKQFFNQGUWQVXXDQWAQKXJWLXFSZKDHCUGUWJBLXFHCUJAUQHCQHFULZBUBHXMQJHHCUVXXDJBLXFSJWUBHCQHHUQKCGQHJUWKUHCUKXJWJBLXFHCUIQFVNHCUFUOJBHUFHCQHGFXYJBUBWXHCJWOQWADUUGBHCQHGFXYJBUWXWUXLHCUBUHCJWOBQFUWUKUBBQFNJWHCUBHFJKHBUWBUVZHHCUNCUSGDUUGHCUAQNJWXWUGJUKUQWAYXBHAQNBXWUGJUKUJBUEQKHSNHCUFJOCHBJPU
+\ No newline at end of file
+```
+
 ### Zadanie 2
 
 Dokonać kryptoanalizy heurystycznej na zaimplementowany w ramach pierwszego zadania monoalfabetyczny kryptosystem
@@ -756,7 +835,8 @@ flowchart TB
 
 #### Implementacja
 
-- IArgumentParser.cs - Declares the parser interface for translating CLI flags into structured arguments for the heuristic analyzer tool.
+- IArgumentParser.cs - Declares the parser interface for translating CLI flags into structured arguments for the
+  heuristic analyzer tool.
 
 ```csharp
 using Task02.Application.Models;
@@ -769,7 +849,8 @@ public interface IArgumentParser
 }
 ```
 
-- ICipherOrchestrator.cs - Interface defining the entry point that coordinates encryption/decryption and heuristic analysis based on provided arguments.
+- ICipherOrchestrator.cs - Interface defining the entry point that coordinates encryption/decryption and heuristic
+  analysis based on provided arguments.
 
 ```csharp
 using Task02.Application.Models;
@@ -795,7 +876,8 @@ public interface IFileService
 }
 ```
 
-- IKeyService.cs - Contract for generating random permutations and extracting stored keys from cipher payloads for reuse.
+- IKeyService.cs - Contract for generating random permutations and extracting stored keys from cipher payloads for
+  reuse.
 
 ```csharp
 namespace Task02.Application.Abstractions;
@@ -808,7 +890,8 @@ public interface IKeyService
 }
 ```
 
-- Arguments.cs - Record bundling operation mode, file paths, optional reference corpus, and iteration count parameters for execution.
+- Arguments.cs - Record bundling operation mode, file paths, optional reference corpus, and iteration count parameters
+  for execution.
 
 ```csharp
 namespace Task02.Application.Models;
@@ -849,7 +932,8 @@ public readonly record struct ProcessingResult(
 }
 ```
 
-- ArgumentParser.cs - Parses CLI tokens, validates flags/paths, handles optional parameters like reference file and iteration count, and returns a populated Arguments record.
+- ArgumentParser.cs - Parses CLI tokens, validates flags/paths, handles optional parameters like reference file and
+  iteration count, and returns a populated Arguments record.
 
 ```csharp
 using Task02.Application.Abstractions;
@@ -968,7 +1052,8 @@ public sealed class ArgumentParser : IArgumentParser
 }
 ```
 
-- CipherOrchestrator.cs - Coordinates Task02 encryption/decryption paths, integrates heuristic analysis for decryption, and manages file outputs and error handling.
+- CipherOrchestrator.cs - Coordinates Task02 encryption/decryption paths, integrates heuristic analysis for decryption,
+  and manages file outputs and error handling.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1102,7 +1187,8 @@ public sealed class CipherOrchestrator(
 }
 ```
 
-- IConfigurableIterations.cs - Interface allowing heuristic analyzers to adjust iteration counts for probabilistic search.
+- IConfigurableIterations.cs - Interface allowing heuristic analyzers to adjust iteration counts for probabilistic
+  search.
 
 ```csharp
 namespace Task02.Domain.Abstractions;
@@ -1113,7 +1199,8 @@ public interface IConfigurableIterations
 }
 ```
 
-- IHeuresticAnalyzer.cs - Declares the heuristic analysis contract that returns the most likely plaintext and key for a cipher.
+- IHeuresticAnalyzer.cs - Declares the heuristic analysis contract that returns the most likely plaintext and key for a
+  cipher.
 
 ```csharp
 using Task02.Domain.Models;
@@ -1126,7 +1213,8 @@ public interface IHeuristicAnalyzer
 }
 ```
 
-- ISubstitutionCipher.cs - Interface defining symmetric encrypt/decrypt methods for substitution ciphers used during analysis.
+- ISubstitutionCipher.cs - Interface defining symmetric encrypt/decrypt methods for substitution ciphers used during
+  analysis.
 
 ```csharp
 namespace Task02.Domain.Abstractions;
@@ -1150,7 +1238,8 @@ public interface ITextNormalizer
 }
 ```
 
-- BigramLanguageModel.cs - Builds a bigram probability table from reference text and provides scoring/delta methods for evaluating candidate permutations.
+- BigramLanguageModel.cs - Builds a bigram probability table from reference text and provides scoring/delta methods for
+  evaluating candidate permutations.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1368,7 +1457,8 @@ public sealed class BigramLanguageModel
 }
 ```
 
-- HeuresticResult.cs - Record containing the permutation, decrypted plaintext, and log-likelihood score produced by the Metropolis-Hastings search.
+- HeuresticResult.cs - Record containing the permutation, decrypted plaintext, and log-likelihood score produced by the
+  Metropolis-Hastings search.
 
 ```csharp
 namespace Task02.Domain.Models;
@@ -1376,7 +1466,8 @@ namespace Task02.Domain.Models;
 public sealed record HeuristicResult(string Permutation, string PlainText, double LogLikelihood);
 ```
 
-- MetropolisHastingsAnalyzer.cs - Implements a Metropolis-Hastings heuristic to iteratively improve key permutations using bigram statistics.
+- MetropolisHastingsAnalyzer.cs - Implements a Metropolis-Hastings heuristic to iteratively improve key permutations
+  using bigram statistics.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1510,7 +1601,8 @@ public sealed class MetropolisHastingsAnalyzer(
 }
 ```
 
-- SubstitutionCipher.cs - High-performance substitution cipher using dense lookup tables to transform characters safely during encryption and decryption.
+- SubstitutionCipher.cs - High-performance substitution cipher using dense lookup tables to transform characters safely
+  during encryption and decryption.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1610,7 +1702,8 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
 }
 ```
 
-- TextNormalizer.cs - Efficiently normalizes input by filtering ASCII letters and converting to uppercase while avoiding allocations when possible.
+- TextNormalizer.cs - Efficiently normalizes input by filtering ASCII letters and converting to uppercase while avoiding
+  allocations when possible.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -1704,7 +1797,8 @@ public sealed class TextNormalizer : ITextNormalizer
 }
 ```
 
-- Xoshiro256.cs - Implements the Xoshiro256 pseudo-random number generator used for proposing key swaps in heuristic searches.
+- Xoshiro256.cs - Implements the Xoshiro256 pseudo-random number generator used for proposing key swaps in heuristic
+  searches.
 
 ```csharp
 using System.Numerics;
@@ -1991,7 +2085,8 @@ global using System.Text;
 global using System.Threading.Tasks;
 ```
 
-- Program.cs - Configures services, parses CLI arguments, executes the orchestrator, and sets process exit codes for the heuristic attack tool.
+- Program.cs - Configures services, parses CLI arguments, executes the orchestrator, and sets process exit codes for the
+  heuristic attack tool.
 
 ```csharp
 #pragma warning disable CA1859
@@ -2045,6 +2140,19 @@ Environment.ExitCode = result.ExitCode;
 
 #### Wyniki
 
+```
+➜  publish (main) ./Task02 -d -i Samples/cipher.txt -o Samples/output_key.txt -r Samples/bigrams.txt        ✭
+
+➜  publish (main) diff <(head -c 100 Samples/cipher.txt) <(head -c 100 Samples/lotr.txt)                    ✭
+1c1
+< LSARNUKJAXVXUZRULNUGRAKNDJXASPQUJXNSUYKPVXGNSUKUQJOUGASPBBJNXPNAXAINDGJKNDMUNSPQUCJQQUGMJNSNSUUXGIPC
+\ No newline at end of file
+---
+> CHAPTERIANUNEXPECTEDPARTYINAHOLEINTHEGROUNDTHERELIVEDAHOBBITNOTANASTYDIRTYWETHOLEFILLEDWITHTHEENDSOF
+\ No newline at end of file
+➜  publish (main)                                                                                           ✭
+```
+
 ### Zadanie 3
 
 Dokonać kryptoanalizy heurystycznej na zaimplementowany w ramach pierwszego zadania monoalfabetyczny kryptosystem
@@ -2094,7 +2202,8 @@ flowchart TB
 
 #### Implementacja
 
-- IArgumentParser.cs - Defines parsing contract for converting CLI flags into Arguments for the simulated annealing tool.
+- IArgumentParser.cs - Defines parsing contract for converting CLI flags into Arguments for the simulated annealing
+  tool.
 
 ```csharp
 using Task03.Application.Models;
@@ -2107,7 +2216,8 @@ public interface IArgumentParser
 }
 ```
 
-- ICipherOrchestrator.cs - Outlines orchestrator responsibilities for running encryption or simulated annealing-based decryption.
+- ICipherOrchestrator.cs - Outlines orchestrator responsibilities for running encryption or simulated annealing-based
+  decryption.
 
 ```csharp
 using Task03.Application.Models;
@@ -2302,7 +2412,8 @@ public sealed class ArgumentParser : IArgumentParser
 }
 ```
 
-- CipherOrchestrator.cs - Drives file I/O, normalization, cipher operations, heuristic analysis, and writes outputs/keys while handling common errors.
+- CipherOrchestrator.cs - Drives file I/O, normalization, cipher operations, heuristic analysis, and writes outputs/keys
+  while handling common errors.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -2444,7 +2555,8 @@ public interface IConfigurableIterations
 }
 ```
 
-- IHeuresticAnalyzer.cs - Interface for analyzers that derive plaintext and permutation using simulated annealing heuristics.
+- IHeuresticAnalyzer.cs - Interface for analyzers that derive plaintext and permutation using simulated annealing
+  heuristics.
 
 ```csharp
 using Task03.Domain.Models;
@@ -2481,7 +2593,8 @@ public interface ITextNormalizer
 }
 ```
 
-- BigramLanguageModel.cs - Creates and stores log-likelihood weights for bigrams and computes score deltas for permutation swaps.
+- BigramLanguageModel.cs - Creates and stores log-likelihood weights for bigrams and computes score deltas for
+  permutation swaps.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -2716,7 +2829,8 @@ public sealed class BigramLanguageModel
 }
 ```
 
-- HeuresticResult.cs - Record encapsulating the best-found permutation, recovered plaintext, and associated likelihood score.
+- HeuresticResult.cs - Record encapsulating the best-found permutation, recovered plaintext, and associated likelihood
+  score.
 
 ```csharp
 namespace Task03.Domain.Models;
@@ -2724,7 +2838,8 @@ namespace Task03.Domain.Models;
 public sealed record HeuristicResult(string Permutation, string PlainText, double LogLikelihood);
 ```
 
-- SimulatedAnnealingAnalyzer.cs - Implements simulated annealing search with restarts to explore permutation space and maximize bigram likelihoods.
+- SimulatedAnnealingAnalyzer.cs - Implements simulated annealing search with restarts to explore permutation space and
+  maximize bigram likelihoods.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -2863,7 +2978,8 @@ public sealed class SimulatedAnnealingAnalyzer(
 }
 ```
 
-- SubstitutionCipher.cs - Implements Task03 substitution cipher with dense lookup tables to efficiently map characters during encryption and decryption.
+- SubstitutionCipher.cs - Implements Task03 substitution cipher with dense lookup tables to efficiently map characters
+  during encryption and decryption.
 
 ```csharp
 using System.Runtime.CompilerServices;
@@ -3162,6 +3278,7 @@ public sealed class FileService : IFileService
 ```
 
 - KeyService.cs - Creates secure random permutations for Task03 and extracts validated key headers from cipher payloads.
+
 ```csharp
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -3345,6 +3462,7 @@ global using System.Threading.Tasks;
 ```
 
 - Program.cs - Initializes Task03 services, parses CLI arguments, runs the orchestrator, and sets exit codes.
+
 ```csharp
 #pragma warning disable CA1859
 
@@ -3397,9 +3515,83 @@ Environment.ExitCode = result.ExitCode;
 
 #### Wyniki
 
+```
+➜  publish (main) ./Task03 -d -i Samples/cipher.txt -o Samples/output_key.txt -r Samples/bigrams.txt        ✭
+
+➜  publish (main) diff <(head -c 100 Samples/cipher.txt) <(head -c 100 Samples/lotr.txt)                    ✭
+1c1
+< LSARNUKJAXVXUZRULNUGRAKNDJXASPQUJXNSUYKPVXGNSUKUQJOUGASPBBJNXPNAXAINDGJKNDMUNSPQUCJQQUGMJNSNSUUXGIPC
+\ No newline at end of file
+---
+> CHAPTERIANUNEXPECTEDPARTYINAHOLEINTHEGROUNDTHERELIVEDAHOBBITNOTANASTYDIRTYWETHOLEFILLEDWITHTHEENDSOF
+\ No newline at end of file
+➜  publish (main)            
+```
+
 ### Zadanie 4
 
 Dokonać analizy pracy zaimplementowanych algorytmów, porównując ich wydajność w ataku na analizowany
 kryptosystem.
 
 #### Wyniki
+
+```
+➜  Task04 (main) ./bin/Release/net9.0/linux-x64/publish/Task04 \                                                                                                                                                                          ✗
+  --task02 /home/kamil/Repos/Cryptography-And-Cryptanalysis/Lab03/Task02/bin/Release/net9.0/linux-x64/publish/Task02 \
+  --task03 /home/kamil/Repos/Cryptography-And-Cryptanalysis/Lab03/Task03/bin/Release/net9.0/linux-x64/publish/Task03 \
+  -i Samples/cipher.txt \
+  -r Samples/bigrams.txt \
+  -p Samples/lotr.txt \
+  -o ./.work \
+  -k Samples/cipher_key.txt
+
+Quality comparison
+╭─────────────┬───────────────┬──────────────╮                                                                                                                                                                                              
+│ Algorithm   │ Text accuracy │ Key accuracy │                                                                                                                                                                                              
+├─────────────┼───────────────┼──────────────┤                                                                                                                                                                                              
+│ MH (Task02) │ 100.00 %      │ 100.00 %     │                                                                                                                                                                                              
+│ SA (Task03) │ 100.00 %      │ 100.00 %     │                                                                                                                                                                                              
+╰─────────────┴───────────────┴──────────────╯                                                                                                                                                                                              
+Performance comparison
+╭─────────────┬───────────────────┬──────────────────────────┬───────────────────╮                                                                                                                                                          
+│ Algorithm   │ Min iters for 85% │ Mean time (ms) - 10 runs │ Mean text acc (%) │                                                                                                                                                          
+├─────────────┼───────────────────┼──────────────────────────┼───────────────────┤                                                                                                                                                          
+│ MH (Task02) │ 4388              │ 0.550                    │ 87.45             │                                                                                                                                                          
+│ SA (Task03) │ 1249              │ 2.121                    │ 92.37             │                                                                                                                                                          
+╰─────────────┴───────────────────┴──────────────────────────┴───────────────────╯                                                                                                                                                          
+Convergence analysis
+╭─────────────────────────────────────╮                                                                                ╭─────────────────────────────────────╮                                                                              
+│ Convergence – objective — MH (mean) │                                                                                │ Convergence – objective — SA (mean) │                                                                              
+│  100114.54 ┤            ╭──╮  ╭     │                                                                                │  105898.94 ┤          ╭────────     │                                                                              
+│   93772.86 ┤          ╭─╯  ╰──╯     │                                                                                │   99681.76 ┤         ╭╯             │                                                                              
+│   87431.17 ┤         ╭╯             │                                                                                │   93464.57 ┤        ╭╯              │                                                                              
+│   81089.49 ┤         │              │                                                                                │   87247.38 ┤        │               │                                                                              
+│   74747.81 ┤        ╭╯              │                                                                                │   81030.19 ┤       ╭╯               │                                                                              
+│   68406.13 ┤        │               │                                                                                │   74813.00 ┤       │                │                                                                              
+│   62064.45 ┤       ╭╯               │                                                                                │   68595.81 ┤      ╭╯                │                                                                              
+│   55722.77 ┤      ╭╯                │                                                                                │   62378.62 ┤      │                 │                                                                              
+│   49381.09 ┤      │                 │                                                                                │   56161.43 ┤     ╭╯                 │                                                                              
+│   43039.40 ┤    ╭─╯                 │                                                                                │   49944.25 ┤    ╭╯                  │                                                                              
+│   36697.72 ┤    │                   │                                                                                │   43727.06 ┤   ╭╯                   │                                                                              
+│   30356.04 ┤  ╭─╯                   │                                                                                │   37509.87 ┤ ╭─╯                    │                                                                              
+│   24014.36 ┼──╯                     │                                                                                │   31292.68 ┼─╯                      │                                                                              
+│ iters: 1         1000     500000    │                                                                                │ iters: 1         1000     500000    │                                                                              
+╰─────────────────────────────────────╯                                                                                ╰─────────────────────────────────────╯                                                                              
+╭─────────────────────────────────────────────╮                                                                        ╭─────────────────────────────────────────────╮                                                                      
+│ Convergence – text accuracy (%) — MH (mean) │                                                                        │ Convergence – text accuracy (%) — SA (mean) │                                                                      
+│  89.49 ┤              ╭╮                    │                                                                        │  100.00 ┤          ╭────╮╭──                │                                                                      
+│  82.39 ┤           ╭──╯╰───                 │                                                                        │   91.91 ┤         ╭╯    ╰╯                  │                                                                      
+│  75.28 ┤          ╭╯                        │                                                                        │   83.82 ┤         │                         │                                                                      
+│  68.18 ┤         ╭╯                         │                                                                        │   75.73 ┤         │                         │                                                                      
+│  61.07 ┤         │                          │                                                                        │   67.64 ┤        ╭╯                         │                                                                      
+│  53.97 ┤         │                          │                                                                        │   59.55 ┤        │                          │                                                                      
+│  46.86 ┤         │                          │                                                                        │   51.46 ┤        │                          │                                                                      
+│  39.76 ┤        ╭╯                          │                                                                        │   43.37 ┤       ╭╯                          │                                                                      
+│  32.65 ┤        │                           │                                                                        │   35.28 ┤       │                           │                                                                      
+│  25.55 ┤        │                           │                                                                        │   27.19 ┤      ╭╯                           │                                                                      
+│  18.44 ┤      ╭─╯                           │                                                                        │   19.10 ┤    ╭╮│                            │                                                                      
+│  11.34 ┤      │                             │                                                                        │   11.01 ┤ ╭──╯╰╯                            │                                                                      
+│   4.23 ┼──────╯                             │                                                                        │    2.92 ┼─╯                                 │                                                                      
+│ iters: 1        1000   500000               │                                                                        │ iters: 1        1000   500000               │                                                                      
+╰─────────────────────────────────────────────╯                                                                        ╰─────────────────────────────────────────────╯                                                                      
+```
