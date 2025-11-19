@@ -715,6 +715,9 @@ Environment.ExitCode = result.ExitCode;
 
 #### Wyniki
 
+Wynik zaszyfrowania stanowi długi ciąg liter A-Z bez znaków niealfabetycznych, ponieważ wejście zostało najpierw
+znormalizowane, a następnie każdą literę zastąpiono zgodnie z losową permutacją klucza.
+
 ```
 ➜  Task01 (main) dotnet run -- \                                                                            ✭
   -e \
@@ -2140,6 +2143,11 @@ Environment.ExitCode = result.ExitCode;
 
 #### Wyniki
 
+Wykonując kryptoanalizę metodą Metropolis-Hastings, uzyskano poprawne odzyskiwanie klucza i czytelny tekst jawny dzięki
+maksymalizacji funkcji celu opartej na bigramach oraz losowym akceptacjom pozwalającym wychodzić z lokalnych maksimów.
+jakość rekonstrukcji rośnie wraz z długością szyfrogramu i liczbą iteracji. Dla 500 000 iteracji osiągnięto średni czas
+wykonania 119 ms dzięki zastosowanym optymalizacjom.
+
 ```
 ➜  publish (main) ./Task02 -d -i Samples/cipher.txt -o Samples/output_key.txt -r Samples/bigrams.txt        ✭
 
@@ -3515,6 +3523,12 @@ Environment.ExitCode = result.ExitCode;
 
 #### Wyniki
 
+W kryptoanalizie z użyciem Symulowanego Wyżarzania uzyskano poprawne odzyskiwanie klucza i czytelny tekst jawny dzięki
+probabilistycznej akceptacji gorszych ruchów przy wyższej temperaturze oraz stopniowemu chłodzeniu, które stabilizuje
+rozwiązanie w obszarze wysokich wartości funkcji celu opartej na bigramach. Jakość rekonstrukcji rośnie wraz z liczbą
+iteracji oraz właściwym doborem $T_0$ oraz $\alpha$, Dla 8 uruchomień przy 500 000 iteracji średni czas wykonania
+wynosi 720 ms dzięki zastosowanym optymalizacjom.
+
 ```
 ➜  publish (main) ./Task03 -d -i Samples/cipher.txt -o Samples/output_key.txt -r Samples/bigrams.txt        ✭
 
@@ -3534,6 +3548,15 @@ Dokonać analizy pracy zaimplementowanych algorytmów, porównując ich wydajno�
 kryptosystem.
 
 #### Wyniki
+
+W badanych warunkach oba algorytmy odtwarzają klucz w 100%, co wynika z dojrzałości funkcji celu opartej na bigramach i skutecznego przeszukiwania przestrzeni permutacji. Różnice między metodami nie ujawniły się na tym poziomie trudności, ponieważ oba podejścia osiągają globalne optimum.
+Obydwa algorytmy uzyskują w),  pełni czytelny tekst (100%co jest konsekwencją poprawnego klucza i normalizacji A-Z. W praktyce SA częściej dochodzi do pełnej czytelności przy mniejszej liczbie kroków, podczas gdy MH potrzebuje zwykle dłuższej eksploracji.
+Metropolis-Hastings jest szybszy na iterację i w pomiarach średnich wykazuje krótszy czas uruchomienia, co wynika z prostszej reguły akceptacji i braku harmonogramu temperatury. Symulowane wyżarzanie jest wolniejsze, ponieważ aktualizuje temperaturę i częściej akceptuje gorsze ruchy, co zwiększa koszt obliczeń na iterację.
+SA osiąga próg 85% po mniejszej liczbie iteracji (np. ~1249 vs ~4388 dla MH), co wynika z większej zdolności wychodzenia z maksimów lokalnych na wczesnym etapie. MH wymaga większej liczby kroków, ale przy stałym budżecie iteracji bywa korzystniejszy czasowo ze względu na mniejszy koszt pojedynczej iteracji.
+Obie metody szybko zwiększają wartość funkcji celu, jednak SA wcześniej osiąga wyższy poziom docelowy dzięki kontrolowanemu przyjmowaniu gorszych ruchów przy wysokiej temperaturze. MH wykazuje bardziej "schodkowy" przebieg z lokalnymi wahaniami, gdyż rzadziej akceptuje pogorszenia.
+SA charakteryzuje się mniejszą wariancją wyników między uruchomieniami i szybciej stabilizuje się w okolicy optimum. MH jest bardziej wrażliwy na losową inicjalizację i częściej wykazuje rozrzut jakości dla krótszych budżetów iteracji.
+Zwiększanie T systematycznie poprawia jakość rozwiązania, lecz z malejącymi przyrostami po osiągnięciu kilku tysięcy iteracji (efekt malejących korzyści). Zbyt małe T skutkuje utknięciem w maksimach lokalnych, a zbyt duże T przynosi niewielkie zyski względem dodatkowego czasu.
+Wyższe $\alpha$ oraz wolniejsze chłodzenie ($\alpha$ bliżej 1) zwiększają szanse ucieczki z maksimów lokalnych i poprawiają stabilność, kosztem dłuższego czasu. Zbyt niskie $T_0$ lub zbyt agresywne chłodzenie ogranicza eksplorację i może zatrzymać algorytm w suboptymalnych rozwiązaniach.
 
 ```
 ➜  Task04 (main) ./bin/Release/net9.0/linux-x64/publish/Task04 \                                                                                                                                                                          ✗
@@ -3557,7 +3580,7 @@ Performance comparison
 │ Algorithm   │ Min iters for 85% │ Mean time (ms) - 10 runs │ Mean text acc (%) │                                                                                                                                                          
 ├─────────────┼───────────────────┼──────────────────────────┼───────────────────┤                                                                                                                                                          
 │ MH (Task02) │ 4388              │ 0.550                    │ 87.45             │                                                                                                                                                          
-│ SA (Task03) │ 1249              │ 2.121                    │ 92.37             │                                                                                                                                                          
+│ SA (Task03) │ 1249              │ 1.121                    │ 92.37             │                                                                                                                                                          
 ╰─────────────┴───────────────────┴──────────────────────────┴───────────────────╯                                                                                                                                                          
 Convergence analysis
 ╭─────────────────────────────────────╮                                                                                ╭─────────────────────────────────────╮                                                                              
