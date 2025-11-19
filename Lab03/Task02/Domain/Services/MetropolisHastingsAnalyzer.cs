@@ -11,7 +11,7 @@ public sealed class MetropolisHastingsAnalyzer(
     : IHeuristicAnalyzer
 {
     private const double SmoothingConstant = 0.01d;
-    private const int IterationCount = 100_000_000;
+    private const int IterationCount = 500_000;
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public HeuristicResult Analyze(string cipherText, string referenceText, string alphabet)
@@ -21,12 +21,10 @@ public sealed class MetropolisHastingsAnalyzer(
         if (!alphabet.Equals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", StringComparison.Ordinal))
             throw new ArgumentException("Alphabet must be A–Z for the fast path.", nameof(alphabet));
 
-        // Normalizujemy TYLKO szyfrogram
         var normalizedCipher = textNormalizer.Normalize(cipherText);
         if (normalizedCipher.Length == 0)
             return new HeuristicResult(alphabet, string.Empty, double.NegativeInfinity);
 
-        // referenceText to teraz treść bigrams.txt
         var model = BigramLanguageModel.CreateFromBigramsText(referenceText, SmoothingConstant);
 
         var c = normalizedCipher.AsSpan();
@@ -227,11 +225,9 @@ public sealed class MetropolisHastingsAnalyzer(
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public double ProposedScoreDelta(ReadOnlySpan<byte> invPos, int[] counts, int iPos, int jPos, double currentScore)
         {
-            // Zamiast różnicowania: zbudujmy invPos' po zamianie i policzmy pełny score.
             Span<byte> invPosProposal = stackalloc byte[26];
             invPos.CopyTo(invPosProposal);
 
-            // Zamiana pozycji iPos <-> jPos w wektorze invPos (który mapuje: CIPHER letter -> PLAIN pos)
             for (int ch = 0; ch < 26; ch++)
             {
                 byte pos = invPosProposal[ch];
@@ -239,7 +235,6 @@ public sealed class MetropolisHastingsAnalyzer(
                 else if (pos == jPos) invPosProposal[ch] = (byte)iPos;
             }
 
-            // Zwracamy "proposalScore" (pełny), pętla MH używa go już prawidłowo.
             return ScoreFromCounts(invPosProposal, counts);
         }
     }
