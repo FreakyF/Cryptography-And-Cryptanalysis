@@ -11,5 +11,14 @@
         <Prefer32Bit>false</Prefer32Bit>
         <InvariantGlobalization>true</InvariantGlobalization>
         <DebugType>none</DebugType>
+        <PublishAot>true</PublishAot>
+        <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
     </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="Samples/**">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        </Content>
+    </ItemGroup>
 </Project>
