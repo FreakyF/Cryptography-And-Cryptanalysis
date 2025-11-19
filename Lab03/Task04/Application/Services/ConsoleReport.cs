@@ -7,9 +7,9 @@ public static class ConsoleReport
 {
     public static void PrintQualityTable(IReadOnlyList<QualityMetrics> rows)
     {
-        AnsiConsole.WriteLine();
+        PrintSectionHeader("Quality comparison");
 
-        var table = new Table().Border(TableBorder.Rounded).Title("[bold]Quality comparison[/]");
+        var table = CreateTable();
         table.AddColumn("Algorithm");
         table.AddColumn("Text accuracy");
         table.AddColumn("Key accuracy");
@@ -23,14 +23,14 @@ public static class ConsoleReport
             );
         }
 
-        AnsiConsole.Write(table);
+        AnsiConsole.Write(new Align(table, HorizontalAlignment.Left));
     }
 
     public static void PrintPerformanceTable(IReadOnlyList<PerformanceMetrics> rows)
     {
-        AnsiConsole.WriteLine();
+        PrintSectionHeader("Performance comparison");
 
-        var table = new Table().Border(TableBorder.Rounded).Title("[bold]Performance comparison[/]");
+        var table = CreateTable();
         table.AddColumn("Algorithm");
         table.AddColumn("Min iters for 85%");
         table.AddColumn("Mean time (ms) - 10 runs");
@@ -39,22 +39,33 @@ public static class ConsoleReport
         foreach (var r in rows)
         {
             var alg = Markup.Escape(r.Algorithm);
+            var iters = r.MinIterations.HasValue ? r.MinIterations.Value.ToString() : "[grey]not reached[/]";
+            var mean = r.MeanTimeMs.HasValue ? $"{r.MeanTimeMs.Value:0.000}" : "[grey]N/A[/]";
+            var acc = r.MeanTextAccuracy.HasValue ? $"{r.MeanTextAccuracy.Value:0.00}" : "[grey]N/A[/]";
 
-            var iters = r.MinIterations.HasValue
-                ? r.MinIterations.Value.ToString()
-                : "[grey]not reached[/]";
-
-            var meanTime = r.MeanTimeMs.HasValue
-                ? $"{r.MeanTimeMs.Value:0.000}"
-                : "[grey]N/A[/]";
-
-            var meanAcc = r.MeanTextAccuracy.HasValue
-                ? $"{r.MeanTextAccuracy.Value:0.00}"
-                : "[grey]N/A[/]";
-
-            table.AddRow(alg, iters, meanTime, meanAcc);
+            table.AddRow(alg, iters, mean, acc);
         }
 
-        AnsiConsole.Write(table);
+        AnsiConsole.Write(new Align(table, HorizontalAlignment.Left));
+    }
+
+    public static void PrintConvergenceHeader()
+    {
+        PrintSectionHeader("Convergence analysis");
+    }
+
+    private static void PrintSectionHeader(string title)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"[bold]{Markup.Escape(title)}[/]");
+    }
+
+    private static Table CreateTable()
+    {
+        return new Table
+        {
+            Border = TableBorder.Rounded,
+            Expand = false
+        };
     }
 }

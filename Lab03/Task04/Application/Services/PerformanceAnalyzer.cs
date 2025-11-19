@@ -9,10 +9,10 @@ public sealed class PerformanceAnalyzer(
     double thresholdPercent,
     int repeats)
 {
+    public delegate Task<AlgorithmResult> AlgoInvoker(int iterations, CancellationToken ct);
+
     private const int SearchAvgTrials = 5;
     private const int BaselineTrials = 5;
-
-    public delegate Task<AlgorithmResult> AlgoInvoker(int iterations, CancellationToken ct);
 
     public async Task<PerformanceMetrics> MeasureAsync(string name, AlgoInvoker invoke, CancellationToken ct = default)
     {
@@ -34,7 +34,9 @@ public sealed class PerformanceAnalyzer(
         }
 
         if (itersUpper == 0)
+        {
             return new PerformanceMetrics(name, null, null, null);
+        }
 
         int lo = itersLower + 1, hi = itersUpper, best = itersUpper;
         while (lo <= hi)
@@ -84,7 +86,8 @@ public sealed class PerformanceAnalyzer(
         return s / trials;
     }
 
-    private static async Task<double> MeanTimeMsAsync(AlgoInvoker invoke, int iterations, int trials, CancellationToken ct)
+    private static async Task<double> MeanTimeMsAsync(AlgoInvoker invoke, int iterations, int trials,
+        CancellationToken ct)
     {
         double s = 0;
         for (var i = 0; i < trials; i++)
@@ -100,7 +103,9 @@ public sealed class PerformanceAnalyzer(
     {
         double s = 0;
         foreach (var t in v)
+        {
             s += t;
+        }
 
         return v.Length == 0 ? 0 : s / v.Length;
     }

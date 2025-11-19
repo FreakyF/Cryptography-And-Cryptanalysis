@@ -22,7 +22,7 @@ var algoMh = new ExternalRunner(process, argsModel.Task02ExePath, "MH");
 var algoSa = new ExternalRunner(process, argsModel.Task03ExePath, "SA");
 
 var orchestrator = new QualityComparisonOrchestrator(
-    algoMh, algoSa, evaluator
+    algoMh, algoSa, evaluator, normalizer
 );
 
 await orchestrator.RunAsync(argsModel);
