@@ -132,7 +132,6 @@ public sealed class KeyService : IKeyService
     }
 
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     /// <summary>Validates whether the permutation contains every alphabet character exactly once.</summary>
     /// <param name="permutation">The permutation string to verify.</param>
     /// <param name="alphabet">The alphabet defining the expected character set.</param>
