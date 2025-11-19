@@ -211,7 +211,6 @@ public sealed class BigramLanguageModel
             }
         }
 
-        // NAROŻA
         var Cxx = Unsafe.Add(ref cntBase, cntRowX + x);
         if (Cxx != 0)
         {
