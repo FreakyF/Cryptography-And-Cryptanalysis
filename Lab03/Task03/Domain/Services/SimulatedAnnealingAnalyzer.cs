@@ -8,13 +8,19 @@ namespace Task03.Domain.Services;
 public sealed class SimulatedAnnealingAnalyzer(
     ITextNormalizer textNormalizer,
     ISubstitutionCipher cipher)
-    : IHeuristicAnalyzer
+    : IHeuristicAnalyzer, IConfigurableIterations
 {
-    private const int IterationCount = 500_000;
     private const int RestartCount = 8;
     private const double T0 = 5.0;
     private const double Alpha = 0.9995;
     private const double Smoothing = 0.01;
+
+    private int _iterationCount = 500_000;
+
+    public void SetIterations(int iterations)
+    {
+        _iterationCount = iterations > 0 ? iterations : 500_000;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public HeuristicResult Analyze(string cipherText, string referenceText, string alphabet)
@@ -86,7 +92,7 @@ public sealed class SimulatedAnnealingAnalyzer(
 
             var T = T0;
 
-            for (var it = 0; it < IterationCount; it++)
+            for (var it = 0; it < _iterationCount; it++)
             {
                 var i = rng.NextInt(26);
                 var j = rng.NextInt(25);

@@ -8,10 +8,15 @@ namespace Task02.Domain.Services;
 public sealed class MetropolisHastingsAnalyzer(
     ITextNormalizer textNormalizer,
     ISubstitutionCipher cipher)
-    : IHeuristicAnalyzer
+    : IHeuristicAnalyzer, IConfigurableIterations
 {
     private const double SmoothingConstant = 0.01d;
-    private const int IterationCount = 500_000;
+    private int _iterationCount = 500_000;
+
+    public void SetIterations(int iterations)
+    {
+        _iterationCount = iterations > 0 ? iterations : 500_000;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public HeuristicResult Analyze(string cipherText, string referenceText, string alphabet)
@@ -75,7 +80,7 @@ public sealed class MetropolisHastingsAnalyzer(
         var currentScore = model.ScoreFromCounts(invPos, counts);
         var bestScore = currentScore;
 
-        for (var it = 0; it < IterationCount; it++)
+        for (var it = 0; it < _iterationCount; it++)
         {
             var i = rng.NextInt(26);
             var j = rng.NextInt(25);

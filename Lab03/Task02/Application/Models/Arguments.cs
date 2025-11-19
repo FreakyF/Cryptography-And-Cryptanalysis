@@ -4,5 +4,6 @@ public sealed record Arguments(
     Operation Operation,
     string InputFilePath,
     string OutputFilePath,
-    string? ReferenceFilePath
+    string? ReferenceFilePath,
+    int Iterations
 );

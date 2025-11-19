@@ -5,6 +5,8 @@ namespace Task02.Application.Services;
 
 public sealed class ArgumentParser : IArgumentParser
 {
+    private const int DefaultIterations = 500_000;
+
     /// <summary>Validates and converts the provided command-line tokens into structured cipher arguments.</summary>
     /// <param name="args">The command-line tokens describing the desired operation and file paths.</param>
     /// <returns>The arguments object containing the parsed settings.</returns>
@@ -19,6 +21,7 @@ public sealed class ArgumentParser : IArgumentParser
         string? inputPath = null;
         string? outputPath = null;
         string? referencePath = null;
+        var iterations = DefaultIterations;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -39,12 +42,23 @@ public sealed class ArgumentParser : IArgumentParser
                 case "-r":
                     referencePath = ReadValue(args, ref i, "-r");
                     break;
+                case "--iters":
+                {
+                    var val = ReadValue(args, ref i, "--iters");
+                    if (!int.TryParse(val, out iterations) || iterations <= 0)
+                    {
+                        throw new ArgumentException("Invalid --iters value (must be positive integer)");
+                    }
+
+                    break;
+                }
+
                 default:
                     throw new ArgumentException("Unknown argument " + token);
             }
         }
 
-        return BuildArguments(mode, inputPath, outputPath, referencePath);
+        return BuildArguments(mode, inputPath, outputPath, referencePath, iterations);
     }
 
     /// <summary>Determines the cipher mode based on a flag while preventing conflicting selections.</summary>
@@ -84,8 +98,12 @@ public sealed class ArgumentParser : IArgumentParser
     /// <param name="inputPath">The path to the input text file.</param>
     /// <param name="outputPath">The path to the output text file.</param>
     /// <returns>A fully populated arguments record ready for processing.</returns>
-    private static Arguments BuildArguments(Operation? mode, string? inputPath, string? outputPath,
-        string? referencePath)
+    private static Arguments BuildArguments(
+        Operation? mode,
+        string? inputPath,
+        string? outputPath,
+        string? referencePath,
+        int iterations)
     {
         if (mode is null)
         {
@@ -106,7 +124,8 @@ public sealed class ArgumentParser : IArgumentParser
             mode.Value,
             inputPath,
             outputPath,
-            referencePath
+            referencePath,
+            iterations
         );
     }
 }

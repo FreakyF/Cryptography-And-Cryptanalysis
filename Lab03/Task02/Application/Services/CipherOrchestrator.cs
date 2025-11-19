@@ -46,6 +46,10 @@ public sealed class CipherOrchestrator(
             }
 
             var bigramTableText = ReadReferenceText(args);
+            if (heuristicAnalyzer is IConfigurableIterations cfg)
+            {
+                cfg.SetIterations(args.Iterations);
+            }
 
             var heuristicResult = heuristicAnalyzer.Analyze(normalizedCipher, bigramTableText, Alphabet);
 
