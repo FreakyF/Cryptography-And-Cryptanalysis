@@ -8,12 +8,19 @@ public sealed class BigramLanguageModel
     private readonly double[] _log;
     private readonly int[] _rowOff;
 
+    /// <summary>Initializes the immutable language model with precalculated log probabilities and row offsets.</summary>
+    /// <param name="log">The flattened matrix of log probabilities for every bigram pair.</param>
+    /// <param name="rowOff">The precomputed row offsets for each leading character.</param>
     private BigramLanguageModel(double[] log, int[] rowOff)
     {
         _log = log;
         _rowOff = rowOff;
     }
 
+    /// <summary>Creates a smoothed bigram language model from raw count text by ingesting counts and converting to logs.</summary>
+    /// <param name="bigramsText">The textual table containing bigram counts separated by whitespace.</param>
+    /// <param name="alpha">The smoothing constant added to each bigram count.</param>
+    /// <returns>The constructed language model ready to score permutations.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static BigramLanguageModel CreateFromBigramsText(string bigramsText, double alpha)
     {
@@ -87,6 +94,10 @@ public sealed class BigramLanguageModel
         return new BigramLanguageModel(log, rowOff);
     }
 
+    /// <summary>Computes the log-likelihood of observed bigram counts for a permutation defined by inverse positions.</summary>
+    /// <param name="invPos">The mapping from alphabet symbols to their positions in the candidate permutation.</param>
+    /// <param name="counts">The precomputed bigram occurrence counts from the cipher text.</param>
+    /// <returns>The summed log-likelihood score for the provided permutation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public double ScoreFromCounts(ReadOnlySpan<byte> invPos, int[] counts)
     {
@@ -114,6 +125,14 @@ public sealed class BigramLanguageModel
         return sum;
     }
 
+    /// <summary>Calculates the updated score resulting from swapping two permutation positions without recomputing fully.</summary>
+    /// <param name="invPos">The mapping from alphabet symbols to their indices in the permutation.</param>
+    /// <param name="perm">The candidate permutation whose two positions are being swapped.</param>
+    /// <param name="counts">The bigram frequency counts extracted from the cipher text.</param>
+    /// <param name="iPos">The index of the first position to swap.</param>
+    /// <param name="jPos">The index of the second position to swap.</param>
+    /// <param name="currentScore">The current log-likelihood score before applying the swap.</param>
+    /// <returns>The proposed score after applying the swap.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public double ProposedScoreDelta(
         ReadOnlySpan<byte> invPos,

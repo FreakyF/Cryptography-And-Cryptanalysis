@@ -6,6 +6,9 @@ namespace Task03.Infrastructure.Services;
 
 public sealed class KeyService : IKeyService
 {
+    /// <summary>Creates a random permutation of the provided alphabet using a Fisher-Yates shuffle.</summary>
+    /// <param name="alphabet">The alphabet whose characters will be rearranged.</param>
+    /// <returns>A permutation string containing every character from the alphabet exactly once.</returns>
     public string CreatePermutation(string alphabet)
     {
         if (string.IsNullOrEmpty(alphabet))
@@ -23,6 +26,11 @@ public sealed class KeyService : IKeyService
         return new string(chars);
     }
 
+    /// <summary>Extracts and validates a permutation stored in the first line of the raw input while returning the remaining cipher text.</summary>
+    /// <param name="rawInput">The combined key and cipher text payload read from disk.</param>
+    /// <param name="alphabet">The alphabet that the permutation must cover.</param>
+    /// <param name="cipherText">When the method returns, contains the cipher text body without the key header.</param>
+    /// <returns>A normalized permutation string suitable for decryption.</returns>
     public string ExtractPermutation(string rawInput, string alphabet, out string cipherText)
     {
         if (string.IsNullOrEmpty(alphabet))
@@ -62,6 +70,10 @@ public sealed class KeyService : IKeyService
         return permutation;
     }
 
+    /// <summary>Reads the first non-empty line from the buffer and returns the remaining span after trimming line breaks.</summary>
+    /// <param name="value">The span that contains the raw key and cipher text data.</param>
+    /// <param name="remainder">Receives the remaining span after the first line and trailing line breaks are removed.</param>
+    /// <returns>The slice corresponding to the first line of text.</returns>
     private static ReadOnlySpan<char> ReadFirstLine(ReadOnlySpan<char> value, out ReadOnlySpan<char> remainder)
     {
         var index = 0;
@@ -100,6 +112,9 @@ public sealed class KeyService : IKeyService
         return line;
     }
 
+    /// <summary>Trims leading and trailing whitespace characters from the provided span.</summary>
+    /// <param name="value">The span to sanitize.</param>
+    /// <returns>The sub-span without leading and trailing whitespace.</returns>
     private static ReadOnlySpan<char> TrimWhite(ReadOnlySpan<char> value)
     {
         int start = 0, end = value.Length - 1;
@@ -117,6 +132,11 @@ public sealed class KeyService : IKeyService
     }
 
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    /// <summary>Validates whether the permutation contains every alphabet character exactly once.</summary>
+    /// <param name="permutation">The permutation string to verify.</param>
+    /// <param name="alphabet">The alphabet defining the expected character set.</param>
+    /// <returns><c>true</c> if the permutation is valid; otherwise <c>false</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static bool IsValidPermutation(string permutation, string alphabet)
     {
