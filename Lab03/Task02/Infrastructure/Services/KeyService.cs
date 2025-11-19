@@ -132,11 +132,11 @@ public sealed class KeyService : IKeyService
     }
 
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     /// <summary>Verifies that the permutation contains every alphabet character exactly once.</summary>
     /// <param name="permutation">The permutation string to validate.</param>
     /// <param name="alphabet">The alphabet defining the required character set.</param>
     /// <returns><c>true</c> if the permutation is valid; otherwise <c>false</c>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static bool IsValidPermutation(string permutation, string alphabet)
     {
         if (permutation.Length != alphabet.Length)
