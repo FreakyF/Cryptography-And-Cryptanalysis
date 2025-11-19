@@ -3,12 +3,6 @@ using Task04.Application.Services;
 using Task04.Domain.Services;
 using Task04.Infrastructure.Services;
 
-static string? NextOf(string key, string[] args)
-{
-    var i = Array.IndexOf(args, key);
-    return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-}
-
 var argsModel = new QualityComparisonArgs(
     NextOf("--task02", args) ?? throw new ArgumentException("--task02 is required"),
     NextOf("--task03", args) ?? throw new ArgumentException("--task03 is required"),
@@ -32,3 +26,10 @@ var orchestrator = new QualityComparisonOrchestrator(
 );
 
 await orchestrator.RunAsync(argsModel);
+return;
+
+static string? NextOf(string key, string[] args)
+{
+    var i = Array.IndexOf(args, key);
+    return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+}
