@@ -7,11 +7,17 @@ public sealed class BigramLanguageModel
 {
     private readonly float[] _w;
 
+    /// <summary>Initializes the model with normalized bigram weights.</summary>
+    /// <param name="w">The weight array to retain.</param>
     private BigramLanguageModel(float[] w)
     {
         _w = w;
     }
 
+    /// <summary>Builds a language model by parsing bigram counts and applying additive smoothing.</summary>
+    /// <param name="bigramsText">The text listing bigrams and their counts.</param>
+    /// <param name="alpha">The smoothing value added to each count.</param>
+    /// <returns>A normalized bigram language model.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static BigramLanguageModel CreateFromBigramsText(string bigramsText, double alpha)
     {
@@ -85,6 +91,10 @@ public sealed class BigramLanguageModel
         return new BigramLanguageModel(w);
     }
 
+    /// <summary>Computes the log-likelihood score for a permutation using cached bigram counts.</summary>
+    /// <param name="invPos">The inverse permutation positions for each alphabet index.</param>
+    /// <param name="counts">The bigram occurrence counts from the cipher text.</param>
+    /// <returns>The score representing the quality of the permutation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public double ScoreFromCounts(ReadOnlySpan<byte> invPos, int[] counts)
     {
@@ -114,6 +124,14 @@ public sealed class BigramLanguageModel
         return sum;
     }
 
+    /// <summary>Estimates the new score when swapping two permutation positions without recomputing the entire score.</summary>
+    /// <param name="invPos">The inverse permutation lookup.</param>
+    /// <param name="perm">The current permutation.</param>
+    /// <param name="counts">The bigram occurrence counts.</param>
+    /// <param name="iPos">The first position to swap.</param>
+    /// <param name="jPos">The second position to swap.</param>
+    /// <param name="currentScore">The current score before applying the swap.</param>
+    /// <returns>The updated score reflecting the proposed swap.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public double ProposedScoreDelta(
         ReadOnlySpan<byte> invPos,

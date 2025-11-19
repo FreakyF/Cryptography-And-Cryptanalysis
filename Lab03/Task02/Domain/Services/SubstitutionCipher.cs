@@ -6,18 +6,34 @@ namespace Task02.Domain.Services;
 
 public sealed class SubstitutionCipher : ISubstitutionCipher
 {
+    /// <summary>Encrypts normalized text by mapping characters from the alphabet to the provided permutation.</summary>
+    /// <param name="normalizedText">The uppercase plaintext comprised solely of alphabet letters.</param>
+    /// <param name="alphabet">The canonical ordered alphabet describing plaintext symbols.</param>
+    /// <param name="permutation">The substitution alphabet representing how plaintext maps to cipher letters.</param>
+    /// <returns>The cipher text produced by substituting every character.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public string Encrypt(string normalizedText, string alphabet, string permutation)
     {
         return Transform(normalizedText, alphabet, permutation, true);
     }
 
+    /// <summary>Decrypts normalized text by applying the inverse mapping defined by the alphabet and permutation.</summary>
+    /// <param name="normalizedText">The uppercase cipher text comprised solely of alphabet letters.</param>
+    /// <param name="alphabet">The canonical ordered alphabet describing plaintext symbols.</param>
+    /// <param name="permutation">The substitution alphabet representing how plaintext maps to cipher letters.</param>
+    /// <returns>The plaintext recovered by reversing the substitution.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public string Decrypt(string normalizedText, string alphabet, string permutation)
     {
         return Transform(normalizedText, alphabet, permutation, false);
     }
 
+    /// <summary>Transforms text by either encrypting or decrypting according to the substitution mapping.</summary>
+    /// <param name="text">The normalized text to process.</param>
+    /// <param name="alphabet">The reference alphabet representing the source side of the mapping.</param>
+    /// <param name="permutation">The permutation representing the target side of the mapping.</param>
+    /// <param name="encrypt"><c>true</c> to encrypt, or <c>false</c> to decrypt.</param>
+    /// <returns>The transformed text, or an empty string when inputs are missing.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static string Transform(string text, string alphabet, string permutation, bool encrypt)
     {
@@ -63,6 +79,10 @@ public sealed class SubstitutionCipher : ISubstitutionCipher
         });
     }
 
+    /// <summary>Builds a dense lookup table that converts characters from the source alphabet to the target alphabet.</summary>
+    /// <param name="source">The alphabet representing the keys of the mapping.</param>
+    /// <param name="target">The alphabet representing the mapped values.</param>
+    /// <returns>A dense lookup table storing the substitution mapping.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static DenseLookup BuildLookup(string source, string target)
     {

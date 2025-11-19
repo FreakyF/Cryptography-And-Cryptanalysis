@@ -83,6 +83,7 @@ public sealed class ArgumentParser : IArgumentParser
     /// <param name="mode">The parsed operation mode, if any was selected.</param>
     /// <param name="inputPath">The path to the input text file.</param>
     /// <param name="outputPath">The path to the output text file.</param>
+    /// <param name="referencePath">The optional reference file containing bigram frequencies.</param>
     /// <returns>A fully populated arguments record ready for processing.</returns>
     private static Arguments BuildArguments(Operation? mode, string? inputPath, string? outputPath,
         string? referencePath)

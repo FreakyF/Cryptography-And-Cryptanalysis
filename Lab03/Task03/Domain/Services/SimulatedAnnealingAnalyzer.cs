@@ -16,6 +16,11 @@ public sealed class SimulatedAnnealingAnalyzer(
     private const double Alpha = 0.9995;
     private const double Smoothing = 0.01;
 
+    /// <summary>Applies a simulated annealing heuristic to recover the best permutation and plaintext for the cipher text.</summary>
+    /// <param name="cipherText">The cipher text to analyze.</param>
+    /// <param name="referenceText">The reference corpus used to compute bigram probabilities.</param>
+    /// <param name="alphabet">The plaintext alphabet describing the permutation domain.</param>
+    /// <returns>The heuristic result containing the best permutation, plaintext, and score.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public HeuristicResult Analyze(string cipherText, string referenceText, string alphabet)
     {
