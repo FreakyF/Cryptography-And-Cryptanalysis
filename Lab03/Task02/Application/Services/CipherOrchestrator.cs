@@ -15,6 +15,9 @@ public sealed class CipherOrchestrator(
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    /// <summary>Runs encryption or decryption end-to-end by reading files, applying the cipher, and writing results.</summary>
+    /// <param name="args">The parsed command-line arguments specifying operation mode and file paths.</param>
+    /// <returns>The outcome describing success or failure and any diagnostic message.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public ProcessingResult Run(Arguments args)
     {
@@ -86,6 +89,10 @@ public sealed class CipherOrchestrator(
         }
     }
 
+    /// <summary>Constructs a sibling file path that reuses the base directory while swapping the file name.</summary>
+    /// <param name="basePath">The original file path whose directory should be reused.</param>
+    /// <param name="fileName">The new file name to place within the same directory.</param>
+    /// <returns>The combined path pointing to the sibling file.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string BuildSiblingPath(string basePath, string fileName)
     {
@@ -93,6 +100,9 @@ public sealed class CipherOrchestrator(
         return string.IsNullOrEmpty(dir) ? fileName : Path.Combine(dir, fileName);
     }
 
+    /// <summary>Isolates the cipher text payload from input that may contain an embedded permutation header.</summary>
+    /// <param name="rawInput">The raw file contents which might include the persisted permutation and cipher text.</param>
+    /// <returns>The cipher text portion stripped of any valid permutation header or the original input on failure.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private string ExtractCipherPayload(string rawInput)
     {
@@ -112,6 +122,9 @@ public sealed class CipherOrchestrator(
         }
     }
 
+    /// <summary>Loads the bigram reference table from either the user-provided path or the embedded default sample.</summary>
+    /// <param name="args">The parsed arguments that may include a custom reference file path.</param>
+    /// <returns>The textual contents of the selected bigram reference file.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private string ReadReferenceText(Arguments args)
     {

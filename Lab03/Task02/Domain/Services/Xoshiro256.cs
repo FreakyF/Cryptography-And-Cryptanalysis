@@ -7,12 +7,19 @@ public struct Xoshiro256
 {
     private ulong _s0, _s1, _s2, _s3;
 
+    /// <summary>Rotates the provided 64-bit value left by the specified number of bits for RNG state updates.</summary>
+    /// <param name="x">The value to rotate.</param>
+    /// <param name="k">The number of bits to rotate.</param>
+    /// <returns>The rotated 64-bit value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong RotL(ulong x, int k)
     {
         return BitOperations.RotateLeft(x, k);
     }
 
+    /// <summary>Advances the SplitMix64 generator to expand a seed into high-quality 64-bit values.</summary>
+    /// <param name="x">The mutable state being evolved.</param>
+    /// <returns>The generated 64-bit value for seeding.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong SplitMix64(ref ulong x)
     {
@@ -23,6 +30,8 @@ public struct Xoshiro256
         return z ^ (z >> 31);
     }
 
+    /// <summary>Initializes the RNG state from a single seed by expanding it into four 64-bit lanes.</summary>
+    /// <param name="seed">The initial entropy used to seed the generator.</param>
     public Xoshiro256(ulong seed)
     {
         _s0 = _s1 = _s2 = _s3 = 0;
@@ -33,6 +42,8 @@ public struct Xoshiro256
         _s3 = SplitMix64(ref sm);
     }
 
+    /// <summary>Generates the next 64-bit pseudorandom value and advances the internal state.</summary>
+    /// <returns>A 64-bit unsigned pseudorandom integer.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ulong Next64()
     {
@@ -60,6 +71,9 @@ public struct Xoshiro256
         return result;
     }
 
+    /// <summary>Produces a uniformly distributed integer in the range [0, exclusiveMax).</summary>
+    /// <param name="exclusiveMax">The exclusive upper bound for the generated value.</param>
+    /// <returns>An integer uniformly sampled from the allowed range.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int NextInt(int exclusiveMax)
     {
@@ -68,6 +82,8 @@ public struct Xoshiro256
         return (int)(prod >> 64);
     }
 
+    /// <summary>Generates a double precision floating-point value uniformly distributed in [0, 1).</summary>
+    /// <returns>A pseudorandom double precision value in the unit interval.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public double NextDouble()
     {

@@ -15,6 +15,9 @@ public sealed class CipherOrchestrator(
 {
     private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    /// <summary>Runs the encryption or decryption routine, coordinating file IO, key management, and heuristic analysis.</summary>
+    /// <param name="args">The parsed arguments describing the requested operation and file paths.</param>
+    /// <returns>The processing result containing success status and optional message.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public ProcessingResult Run(Arguments args)
     {
@@ -84,6 +87,10 @@ public sealed class CipherOrchestrator(
         }
     }
 
+    /// <summary>Builds a file path located in the same directory as the supplied base path.</summary>
+    /// <param name="basePath">The path whose directory will be reused.</param>
+    /// <param name="fileName">The file name to append within that directory.</param>
+    /// <returns>The combined path for the sibling file.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string BuildSiblingPath(string basePath, string fileName)
     {
@@ -91,6 +98,9 @@ public sealed class CipherOrchestrator(
         return string.IsNullOrEmpty(dir) ? fileName : Path.Combine(dir, fileName);
     }
 
+    /// <summary>Attempts to strip the persisted key header from the cipher payload, falling back to the raw input.</summary>
+    /// <param name="rawInput">The raw contents read from the cipher file.</param>
+    /// <returns>The cipher text portion without the embedded key if extraction succeeds; otherwise the original text.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private string ExtractCipherPayload(string rawInput)
     {
@@ -110,6 +120,9 @@ public sealed class CipherOrchestrator(
         }
     }
 
+    /// <summary>Loads the reference bigram table from the provided path or from the default samples directory.</summary>
+    /// <param name="args">The parsed arguments that may specify a custom reference file.</param>
+    /// <returns>The reference text containing bigram frequencies.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private string ReadReferenceText(Arguments args)
     {

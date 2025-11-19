@@ -93,10 +93,11 @@ public sealed class ArgumentParser : IArgumentParser
         return args[index];
     }
 
-    /// <summary>Builds the final arguments record after verifying that all required values are present.</summary>
+    /// <summary>Builds the final arguments record after verifying required flags and resolving optional references.</summary>
     /// <param name="mode">The parsed operation mode, if any was selected.</param>
     /// <param name="inputPath">The path to the input text file.</param>
     /// <param name="outputPath">The path to the output text file.</param>
+    /// <param name="referencePath">The optional reference text file path for the bigram table.</param>
     /// <returns>A fully populated arguments record ready for processing.</returns>
     private static Arguments BuildArguments(
         Operation? mode,

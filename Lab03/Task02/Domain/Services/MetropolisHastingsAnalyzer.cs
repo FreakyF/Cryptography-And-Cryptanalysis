@@ -18,6 +18,11 @@ public sealed class MetropolisHastingsAnalyzer(
         _iterationCount = iterations > 0 ? iterations : 500_000;
     }
 
+    /// <summary>Performs a Metropolis-Hastings search that ingests cipher text, reference counts, and an alphabet to recover a key.</summary>
+    /// <param name="cipherText">The cipher text sample to analyze.</param>
+    /// <param name="referenceText">The text used to build the bigram frequency model.</param>
+    /// <param name="alphabet">The ordered alphabet defining the permutation search space.</param>
+    /// <returns>The best-scoring permutation, plaintext, and log-likelihood discovered.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public HeuristicResult Analyze(string cipherText, string referenceText, string alphabet)
     {
