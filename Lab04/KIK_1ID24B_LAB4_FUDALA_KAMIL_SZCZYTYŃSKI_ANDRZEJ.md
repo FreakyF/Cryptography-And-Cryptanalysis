@@ -219,7 +219,7 @@ niejednoznacznego traktowania kolejności bitów lub kodowania znaków.
 ### Funkcje matematyczne (arytmetyka modularna, extGCD, modInv, test Millera–Rabina)
 
 Warstwa funkcji matematycznych obejmuje podstawowe operacje arytmetyki modularnej oraz procedury niezbędne do budowy i
-analizy generatora LCG. Zaimplementowano funkcję normalizacji reszty $\operatorname{NormalizeMod}(x, m)$, która dla
+analizy generatora LCG. Zaimplementowano funkcję normalizacji reszty $NormalizeMod(x, m)$, która dla
 dowolnej liczby całkowitej $x$ zwraca reprezentanta z przedziału $\{0, 1, \dots, m-1\}$. Pozwala to w jednolity sposób
 traktować wyniki operacji dodawania, odejmowania i mnożenia w pierścieniu $\mathbb{Z}_m$, a także eliminuje problemy
 związane z ujemnymi resztami, co ma znaczenie zarówno przy obliczaniu stanów LCG, jak i różnic wykorzystywanych w
@@ -230,8 +230,8 @@ oraz $b$ oblicza największy wspólny dzielnik $\gcd(a, b)$ oraz współczynnik 
 $$
 \gcd(a, b) = a \cdot x + b \cdot y.
 $$
-Na tej podstawie funkcja $\operatorname{modInv}(a, m)$ wyznacza element odwrotny $a^{-1} \bmod m$, jeśli
-tylko $\gcd(a, m) = 1$, tzn. $\operatorname{NormalizeMod}(x, m)$ stanowi rozwiązanie równania
+Na tej podstawie funkcja $modInv(a, m)$ wyznacza element odwrotny $a^{-1} \bmod m$, jeśli
+tylko $\gcd(a, m) = 1$, tzn. $NormalizeMod(x, m)$ stanowi rozwiązanie równania
 $$
 a \cdot a^{-1} \equiv 1 \pmod m.
 $$
