@@ -227,22 +227,28 @@ kryptoanalizie.
 
 Do wyznaczania odwrotności modularnej wykorzystano rozszerzony algorytm Euklidesa, który dla liczb całkowitych $a$
 oraz $b$ oblicza największy wspólny dzielnik $\gcd(a, b)$ oraz współczynnik $x$ spełniający równanie
+
 $$
 \gcd(a, b) = a \cdot x + b \cdot y.
 $$
+
 Na tej podstawie funkcja $modInv(a, m)$ wyznacza element odwrotny $a^{-1} \bmod m$, jeśli
 tylko $\gcd(a, m) = 1$, tzn. $NormalizeMod(x, m)$ stanowi rozwiązanie równania
+
 $$
 a \cdot a^{-1} \equiv 1 \pmod m.
 $$
+
 W przypadku gdy $\gcd(a, m) \neq 1$, moduł nie jest odwracalny i procedura zwraca wartość sygnalizującą brak
 jednoznacznego rozwiązania, co jest kluczowe przy obsłudze przypadków szczególnych w ataku.
 
 Test pierwszości Millera–Rabina został wprowadzony jako probabilistyczny algorytm służący do generowania dużych liczb
 pierwszych na potrzeby modułu $m$. Dla nieparzystej liczby $n > 2$ wykonywana jest dekompozycja
+
 $$
 n - 1 = 2^r \cdot d,
 $$
+
 gdzie $d$ jest nieparzyste, a następnie dla losowo dobranych podstaw $a$ (w zakresie $2 \le a \le n-2$) sprawdzane są
 warunki świadczące o złożoności lub „przejściu” testu. Implementacja opiera się na typie `BigInteger` z biblioteki
 `System.Numerics` oraz kryptograficznym generatorze liczb losowych do wyboru podstaw, co zapewnia zarówno poprawność
@@ -255,30 +261,38 @@ zarówno w procesie generowania parametrów, jak i w analizie kryptograficznej.
 Procedura ataku ze znanym tekstem jawnym opiera się na założeniu, że przeciwnik zna pewien fragment tekstu jawnego oraz
 odpowiadający mu szyfrogram, co umożliwia odzyskanie fragmentu strumienia klucza. Dla pary $(P_i, C_i)$ zachodzi
 zależność
+
 $$
 K_i = P_i \oplus C_i,
 $$
+
 więc po stronie atakującego możliwe jest obliczenie ciągu bitów $\{K_i\}$ bez znajomości parametrów generatora LCG. W
 implementacji operację tę realizuje moduł `KeyStreamRecovery`, który wykonuje bitową operację XOR pomiędzy bitową
 reprezentacją znanego tekstu jawnego a szyfrogramem dla odpowiadającego mu zakresu pozycji.
 
 Uzyskany strumień klucza jest następnie dzielony na bloki długości $n$ bitów, które interpretowane są jako kolejne stany
 generatora $S_1, S_2, S_3$ w przestrzeni $\mathbb{Z}_m$. Na ich podstawie konstruuje się układ równań
+
 $$
 \begin{aligned}
 S_2 &\equiv A \cdot S_1 + B \pmod m, \\
 S_3 &\equiv A \cdot S_2 + B \pmod m,
 \end{aligned}
 $$
+
 który po odjęciu stronami prowadzi do relacji
+
 $$
 \lambda = S_2 - S_3, \quad \mu = S_1 - S_2, \quad \lambda \equiv A \cdot \mu \pmod m.
 $$
+
 Dla typowego przypadku, gdy $\gcd(\mu, m) = 1$, element $\mu$ jest odwracalny w $\mathbb{Z}_m$ i można obliczyć
+
 $$
 A \equiv \lambda \cdot \mu^{-1} \pmod m, \quad
 B \equiv S_2 - A \cdot S_1 \pmod m,
 $$
+
 co jednoznacznie wyznacza parametry generatora. W warstwie implementacyjnej procedurę tę realizuje klasa
 `LcgKnownPlaintextAttacker`, która korzysta z modułu arytmetyki modularnej do obliczeń $\gcd$, odwrotności modularnej
 oraz normalizacji reszt.
