@@ -3,9 +3,9 @@ using System.Runtime.CompilerServices;
 namespace Task01;
 
 [SkipLocalsInit]
-public sealed class KnownPlaintextAttacker : IKnownPlaintextAttacker
+public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPlaintextAttacker
 {
-    private readonly IGaloisFieldSolver _solver;
+    private readonly IGaloisFieldSolver _solver = solver ?? throw new ArgumentNullException(nameof(solver));
 
     private int _degree;
     private int _requiredBits;
@@ -14,11 +14,6 @@ public sealed class KnownPlaintextAttacker : IKnownPlaintextAttacker
     private bool[]? _knownBits;
     private bool[]? _keyStream;
     private bool[]? _initialState;
-
-    public KnownPlaintextAttacker(IGaloisFieldSolver solver)
-    {
-        _solver = solver ?? throw new ArgumentNullException(nameof(solver));
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public AttackResult? Attack(string knownPlaintext, IReadOnlyList<bool> ciphertextBits, int lfsrDegree)
@@ -42,33 +37,30 @@ public sealed class KnownPlaintextAttacker : IKnownPlaintextAttacker
 
         if (ciphertextBits.Count < _requiredBits)
         {
-            throw new ArgumentException("Ciphertext does not contain enough bits for the attack.", nameof(ciphertextBits));
+            throw new ArgumentException("Ciphertext does not contain enough bits for the attack.",
+                nameof(ciphertextBits));
         }
 
-        if (knownPlaintext.Length * 8 < _requiredBits)
+        var knownBitsUtf8 = BitConversions.StringToBits(knownPlaintext);
+        if (knownBitsUtf8.Count < _requiredBits)
         {
             return null;
         }
 
         var knownBits = _knownBits!;
-        var keyStream = _keyStream!;
-        var bitIndex = 0;
-
-        for (var i = 0; i < knownPlaintext.Length && bitIndex < _requiredBits; i++)
+        if (knownBitsUtf8 is bool[] knownArray && knownArray.Length >= _requiredBits)
         {
-            var value = (byte)knownPlaintext[i];
-
-            for (var bit = 7; bit >= 0 && bitIndex < _requiredBits; bit--)
+            Array.Copy(knownArray, knownBits, _requiredBits);
+        }
+        else
+        {
+            for (var i = 0; i < _requiredBits; i++)
             {
-                knownBits[bitIndex++] = ((value >> bit) & 1) != 0;
+                knownBits[i] = knownBitsUtf8[i];
             }
         }
 
-        if (bitIndex < _requiredBits)
-        {
-            return null;
-        }
-
+        var keyStream = _keyStream!;
         for (var i = 0; i < _requiredBits; i++)
         {
             keyStream[i] = knownBits[i] ^ ciphertextBits[i];
@@ -106,7 +98,7 @@ public sealed class KnownPlaintextAttacker : IKnownPlaintextAttacker
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-    void EnsureBuffers(int lfsrDegree)
+    private void EnsureBuffers(int lfsrDegree)
     {
         if (_degree == lfsrDegree && _matrix != null)
         {
@@ -115,7 +107,8 @@ public sealed class KnownPlaintextAttacker : IKnownPlaintextAttacker
 
         if (_degree != 0 && _degree != lfsrDegree)
         {
-            throw new ArgumentException("KnownPlaintextAttacker instance supports only a single fixed degree.", nameof(lfsrDegree));
+            throw new ArgumentException("KnownPlaintextAttacker instance supports only a single fixed degree.",
+                nameof(lfsrDegree));
         }
 
         _degree = lfsrDegree;

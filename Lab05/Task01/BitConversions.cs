@@ -10,27 +10,20 @@ public static class BitConversions
     public static IReadOnlyList<bool> StringToBits(string text)
     {
         if (text == null)
-        {
             throw new ArgumentNullException(nameof(text));
-        }
 
-        var length = text.Length;
-        if (length == 0)
-        {
+        if (text.Length == 0)
             return Array.Empty<bool>();
-        }
 
-        var bitCount = length * 8;
-        var bits = GC.AllocateUninitializedArray<bool>(bitCount);
+        var bytes = Encoding.UTF8.GetBytes(text);
+        var bits = GC.AllocateUninitializedArray<bool>(bytes.Length * 8);
         var index = 0;
 
-        for (var i = 0; i < length; i++)
+        foreach (var b in bytes)
         {
-            var value = (byte)text[i];
-
-            for (var bit = 7; bit >= 0; bit--)
+            for (int bit = 7; bit >= 0; bit--)
             {
-                bits[index++] = ((value >> bit) & 1) != 0;
+                bits[index++] = ((b >> bit) & 1) != 0;
             }
         }
 
@@ -41,82 +34,60 @@ public static class BitConversions
     public static string BitsToString(IEnumerable<bool> bits)
     {
         if (bits == null)
-        {
             throw new ArgumentNullException(nameof(bits));
-        }
 
         if (bits is bool[] bitArray)
-        {
-            return BitsArrayToString(bitArray);
-        }
+            return BitsArrayToUtf8String(bitArray);
 
         if (bits is IReadOnlyCollection<bool> collection)
         {
-            var count = collection.Count;
-            if (count == 0)
-            {
+            if (collection.Count == 0)
                 return string.Empty;
-            }
 
-            var temp = GC.AllocateUninitializedArray<bool>(count);
-            var index = 0;
+            var tmp = GC.AllocateUninitializedArray<bool>(collection.Count);
+            var idx = 0;
+            foreach (var b in collection)
+                tmp[idx++] = b;
 
-            foreach (var bit in collection)
-            {
-                temp[index++] = bit;
-            }
-
-            return BitsArrayToString(temp);
+            return BitsArrayToUtf8String(tmp);
         }
 
         var list = bits.ToList();
         if (list.Count == 0)
-        {
             return string.Empty;
-        }
 
         var copy = GC.AllocateUninitializedArray<bool>(list.Count);
-        for (var i = 0; i < list.Count; i++)
-        {
+        for (int i = 0; i < list.Count; i++)
             copy[i] = list[i];
-        }
 
-        return BitsArrayToString(copy);
+        return BitsArrayToUtf8String(copy);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-    static string BitsArrayToString(bool[] bits)
+    static string BitsArrayToUtf8String(bool[] bits)
     {
-        var bitCount = bits.Length;
-        var charCount = bitCount / 8;
-
-        if (charCount == 0)
-        {
+        int bitCount = bits.Length;
+        int byteCount = bitCount / 8;
+        if (byteCount == 0)
             return string.Empty;
+
+        var bytes = GC.AllocateUninitializedArray<byte>(byteCount);
+        int index = 0;
+
+        for (int i = 0; i < byteCount; i++)
+        {
+            byte value = 0;
+
+            for (int bit = 7; bit >= 0; bit--)
+            {
+                if (bits[index++])
+                    value |= (byte)(1 << bit);
+            }
+
+            bytes[i] = value;
         }
 
-        return string.Create(
-            charCount,
-            bits,
-            static (span, state) =>
-            {
-                var index = 0;
-
-                for (var i = 0; i < span.Length; i++)
-                {
-                    byte value = 0;
-
-                    for (var bit = 7; bit >= 0; bit--)
-                    {
-                        if (state[index++])
-                        {
-                            value |= (byte)(1 << bit);
-                        }
-                    }
-
-                    span[i] = (char)value;
-                }
-            });
+        return Encoding.UTF8.GetString(bytes);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
