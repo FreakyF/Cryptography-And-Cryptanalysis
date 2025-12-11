@@ -2,7 +2,6 @@ using System.Runtime.CompilerServices;
 
 namespace Task01;
 
-[SkipLocalsInit]
 public sealed class GaussianEliminationSolver : IGaloisFieldSolver
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]

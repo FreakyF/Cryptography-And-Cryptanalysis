@@ -16,7 +16,6 @@ public sealed class Runner : IRunner
         _quiet = quiet;
         if (!quiet)
         {
-            // Bufor na logi; 4 KB na start to dużo jak na ten program
             _logBuilder = new StringBuilder(4096);
         }
     }
@@ -33,7 +32,6 @@ public sealed class Runner : IRunner
     {
         if (_quiet)
         {
-            // W trybie quiet nic nie zbieramy – i tak pokażemy tylko Attack success
             return;
         }
 
@@ -260,7 +258,6 @@ public sealed class Runner : IRunner
 
         if (_quiet)
         {
-            // W trybie quiet wyświetlamy tylko ten jeden wiersz
             Console.WriteLine(resultLine);
         }
     }

@@ -2,7 +2,6 @@ using System.Runtime.CompilerServices;
 
 namespace Task01;
 
-[SkipLocalsInit]
 public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPlaintextAttacker
 {
     private readonly IGaloisFieldSolver _solver = solver ?? throw new ArgumentNullException(nameof(solver));

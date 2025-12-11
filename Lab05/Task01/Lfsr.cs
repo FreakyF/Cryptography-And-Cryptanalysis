@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 
 namespace Task01;
 
-[SkipLocalsInit]
 public sealed class Lfsr : ILfsr
 {
     private readonly bool[] _feedback;
