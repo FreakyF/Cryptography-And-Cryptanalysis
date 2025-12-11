@@ -1,9 +1,26 @@
+using System.Runtime.CompilerServices;
+
 namespace Task01;
 
-public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPlaintextAttacker
+[SkipLocalsInit]
+public sealed class KnownPlaintextAttacker : IKnownPlaintextAttacker
 {
-    private readonly IGaloisFieldSolver _solver = solver ?? throw new ArgumentNullException(nameof(solver));
+    private readonly IGaloisFieldSolver _solver;
 
+    private int _degree;
+    private int _requiredBits;
+    private bool[,]? _matrix;
+    private bool[]? _vector;
+    private bool[]? _knownBits;
+    private bool[]? _keyStream;
+    private bool[]? _initialState;
+
+    public KnownPlaintextAttacker(IGaloisFieldSolver solver)
+    {
+        _solver = solver ?? throw new ArgumentNullException(nameof(solver));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public AttackResult? Attack(string knownPlaintext, IReadOnlyList<bool> ciphertextBits, int lfsrDegree)
     {
         if (knownPlaintext == null)
@@ -21,32 +38,56 @@ public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPl
             throw new ArgumentOutOfRangeException(nameof(lfsrDegree));
         }
 
-        var knownBits = BitConversions.StringToBits(knownPlaintext);
+        EnsureBuffers(lfsrDegree);
 
-        if (ciphertextBits.Count < knownBits.Count)
+        if (ciphertextBits.Count < _requiredBits)
         {
-            throw new ArgumentException("Ciphertext is shorter than known plaintext in bits.", nameof(ciphertextBits));
+            throw new ArgumentException("Ciphertext does not contain enough bits for the attack.", nameof(ciphertextBits));
         }
 
-        var keyStream = new List<bool>(knownBits.Count);
-        keyStream.AddRange(knownBits.Select((t, i) => t ^ ciphertextBits[i]));
-
-        if (keyStream.Count < 2 * lfsrDegree)
+        if (knownPlaintext.Length * 8 < _requiredBits)
         {
             return null;
         }
 
-        var matrix = new bool[lfsrDegree, lfsrDegree];
-        var vector = new bool[lfsrDegree];
+        var knownBits = _knownBits!;
+        var keyStream = _keyStream!;
+        var bitIndex = 0;
 
-        for (var i = 0; i < lfsrDegree; i++)
+        for (var i = 0; i < knownPlaintext.Length && bitIndex < _requiredBits; i++)
         {
-            for (var j = 0; j < lfsrDegree; j++)
+            var value = (byte)knownPlaintext[i];
+
+            for (var bit = 7; bit >= 0 && bitIndex < _requiredBits; bit--)
             {
-                matrix[i, j] = keyStream[i + j];
+                knownBits[bitIndex++] = ((value >> bit) & 1) != 0;
+            }
+        }
+
+        if (bitIndex < _requiredBits)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < _requiredBits; i++)
+        {
+            keyStream[i] = knownBits[i] ^ ciphertextBits[i];
+        }
+
+        var matrix = _matrix!;
+        var vector = _vector!;
+        var degree = _degree;
+
+        for (var row = 0; row < degree; row++)
+        {
+            var offset = row;
+
+            for (var col = 0; col < degree; col++)
+            {
+                matrix[row, col] = keyStream[offset + col];
             }
 
-            vector[i] = keyStream[i + lfsrDegree];
+            vector[row] = keyStream[row + degree];
         }
 
         var feedback = _solver.Solve(matrix, vector);
@@ -55,8 +96,35 @@ public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPl
             return null;
         }
 
-        var initialState = keyStream.Take(lfsrDegree).ToArray();
+        var initialState = _initialState!;
+        for (var i = 0; i < degree; i++)
+        {
+            initialState[i] = keyStream[i];
+        }
 
-        return new AttackResult(feedback, initialState, keyStream.ToArray());
+        return new AttackResult(feedback, initialState, keyStream);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    void EnsureBuffers(int lfsrDegree)
+    {
+        if (_degree == lfsrDegree && _matrix != null)
+        {
+            return;
+        }
+
+        if (_degree != 0 && _degree != lfsrDegree)
+        {
+            throw new ArgumentException("KnownPlaintextAttacker instance supports only a single fixed degree.", nameof(lfsrDegree));
+        }
+
+        _degree = lfsrDegree;
+        _requiredBits = lfsrDegree * 2;
+
+        _matrix = new bool[lfsrDegree, lfsrDegree];
+        _vector = GC.AllocateUninitializedArray<bool>(lfsrDegree);
+        _knownBits = GC.AllocateUninitializedArray<bool>(_requiredBits);
+        _keyStream = GC.AllocateUninitializedArray<bool>(_requiredBits);
+        _initialState = GC.AllocateUninitializedArray<bool>(lfsrDegree);
     }
 }
