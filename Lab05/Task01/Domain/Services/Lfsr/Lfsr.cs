@@ -103,7 +103,6 @@ public sealed class Lfsr : ILfsr
         var i = 0;
         var len = count;
 
-        // Unroll 8×
         while (i + 8 <= len)
         {
             result[i++] = NextBitCore(ref state, tapMask, highBitMask);
@@ -116,7 +115,6 @@ public sealed class Lfsr : ILfsr
             result[i++] = NextBitCore(ref state, tapMask, highBitMask);
         }
 
-        // Ewentualny ogon < 8 bitów
         while (i < len)
         {
             result[i++] = NextBitCore(ref state, tapMask, highBitMask);
