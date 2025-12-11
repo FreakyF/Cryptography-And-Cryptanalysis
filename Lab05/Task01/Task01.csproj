@@ -20,6 +20,7 @@
         <StackTraceSupport>false</StackTraceSupport>
         <EventSourceSupport>false</EventSourceSupport>
         <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
