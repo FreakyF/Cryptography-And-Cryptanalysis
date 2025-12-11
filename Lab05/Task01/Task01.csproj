@@ -6,25 +6,39 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <InvariantGlobalization>true</InvariantGlobalization>
-        <Optimize>true</Optimize>
 
-<!--        <PublishAot>true</PublishAot>-->
+        <Configuration>Release</Configuration>
+        <Optimize>true</Optimize>
+        <DebugType>none</DebugType>
+        <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+
+        <TieredCompilation>true</TieredCompilation>
+        <TieredPGO>true</TieredPGO>
+        <ReadyToRun>true</ReadyToRun>
+
+        <SkipLocalsInit>true</SkipLocalsInit>
+
         <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
         <SelfContained>true</SelfContained>
-
         <PublishSingleFile>false</PublishSingleFile>
         <StripSymbols>true</StripSymbols>
+
+<!--        <PublishAot>true</PublishAot>-->
         <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
 
         <DebuggerSupport>false</DebuggerSupport>
         <StackTraceSupport>false</StackTraceSupport>
         <EventSourceSupport>false</EventSourceSupport>
         <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+        <ServerGarbageCollection>false</ServerGarbageCollection>
+        <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet" Version="0.15.8"/>
+        <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     </ItemGroup>
 
 </Project>
