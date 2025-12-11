@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace Task01;
 
+[SkipLocalsInit]
 public sealed class GaussianEliminationSolver : IGaloisFieldSolver
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
@@ -24,6 +25,116 @@ public sealed class GaussianEliminationSolver : IGaloisFieldSolver
             throw new ArgumentException("Matrix must be square and match vector length.", nameof(matrix));
         }
 
+        if (m == 0)
+        {
+            return Array.Empty<bool>();
+        }
+
+        if (m > 63)
+        {
+            return SolveSlow(matrix, vector);
+        }
+
+        var rhsMask = 1UL << m;
+        var leftMask = rhsMask - 1UL;
+
+        Span<ulong> rows = stackalloc ulong[m];
+
+        for (var row = 0; row < m; row++)
+        {
+            ulong rowMask = 0;
+
+            for (var col = 0; col < m; col++)
+            {
+                if (matrix[row, col])
+                {
+                    rowMask |= 1UL << col;
+                }
+            }
+
+            if (vector[row])
+            {
+                rowMask |= rhsMask;
+            }
+
+            rows[row] = rowMask;
+        }
+
+        for (var col = 0; col < m; col++)
+        {
+            var pivotBit = 1UL << col;
+            var pivotRow = col;
+
+            while (pivotRow < m && (rows[pivotRow] & pivotBit) == 0)
+            {
+                pivotRow++;
+            }
+
+            if (pivotRow == m)
+            {
+                continue;
+            }
+
+            if (pivotRow != col)
+            {
+                var tmp = rows[col];
+                rows[col] = rows[pivotRow];
+                rows[pivotRow] = tmp;
+            }
+
+            var pivotRowValue = rows[col];
+
+            for (var row = col + 1; row < m; row++)
+            {
+                if ((rows[row] & pivotBit) != 0)
+                {
+                    rows[row] ^= pivotRowValue;
+                }
+            }
+        }
+
+        for (var row = 0; row < m; row++)
+        {
+            var r = rows[row];
+            if ((r & leftMask) == 0 && (r & rhsMask) != 0)
+            {
+                return null;
+            }
+        }
+
+        var solution = GC.AllocateUninitializedArray<bool>(m);
+
+        for (var i = m - 1; i >= 0; i--)
+        {
+            var r = rows[i];
+            var coeffs = r & leftMask;
+
+            if (((coeffs >> i) & 1UL) == 0)
+            {
+                solution[i] = false;
+                continue;
+            }
+
+            var value = (r & rhsMask) != 0;
+
+            for (var j = i + 1; j < m; j++)
+            {
+                if (((coeffs >> j) & 1UL) != 0 && solution[j])
+                {
+                    value ^= true;
+                }
+            }
+
+            solution[i] = value;
+        }
+
+        return solution;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static bool[]? SolveSlow(bool[,] matrix, bool[] vector)
+    {
+        var m = vector.Length;
         var augmented = new bool[m, m + 1];
 
         for (var row = 0; row < m; row++)
