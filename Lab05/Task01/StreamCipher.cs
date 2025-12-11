@@ -1,7 +1,10 @@
+using System.Runtime.CompilerServices;
+
 namespace Task01;
 
 public sealed class StreamCipher : IStreamCipher
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public IReadOnlyList<bool> Encrypt(string plaintext, ILfsr lfsr)
     {
         if (plaintext == null)
@@ -26,6 +29,7 @@ public sealed class StreamCipher : IStreamCipher
         return cipherBits;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public string Decrypt(IReadOnlyList<bool> ciphertextBits, ILfsr lfsr)
     {
         if (ciphertextBits == null)

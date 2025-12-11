@@ -6,6 +6,24 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <InvariantGlobalization>true</InvariantGlobalization>
+        <Optimize>true</Optimize>
+
+<!--        <PublishAot>true</PublishAot>-->
+        <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+        <SelfContained>true</SelfContained>
+
+        <PublishSingleFile>false</PublishSingleFile>
+        <StripSymbols>true</StripSymbols>
+        <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+
+        <DebuggerSupport>false</DebuggerSupport>
+        <StackTraceSupport>false</StackTraceSupport>
+        <EventSourceSupport>false</EventSourceSupport>
+        <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
     </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet" Version="0.15.8"/>
+    </ItemGroup>
 
 </Project>

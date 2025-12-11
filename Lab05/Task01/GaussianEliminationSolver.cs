@@ -1,7 +1,10 @@
+using System.Runtime.CompilerServices;
+
 namespace Task01;
 
 public sealed class GaussianEliminationSolver : IGaloisFieldSolver
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public bool[]? Solve(bool[,] matrix, bool[] vector)
     {
         if (matrix == null)

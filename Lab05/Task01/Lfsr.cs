@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Task01;
 
 public sealed class Lfsr : ILfsr
@@ -36,6 +38,7 @@ public sealed class Lfsr : ILfsr
     public IReadOnlyList<bool> FeedbackCoefficients => _feedback;
     public IReadOnlyList<bool> State => _state;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public bool NextBit()
     {
         var output = _state[0];

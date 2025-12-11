@@ -1,7 +1,11 @@
 namespace Task01;
 
-public sealed class Runner : IRunner
+public sealed class Runner(bool benchmarkMode) : IRunner
 {
+    public Runner() : this(false)
+    {
+    }
+
     public void RunAll()
     {
         RunLfsrVerification();
@@ -9,10 +13,18 @@ public sealed class Runner : IRunner
         RunFullAttack();
     }
 
-    private static void RunLfsrVerification()
+    private void Log(string message)
     {
-        Console.WriteLine("LFSR verification");
-        Console.WriteLine();
+        if (!benchmarkMode)
+        {
+            Console.WriteLine(message);
+        }
+    }
+
+    private void RunLfsrVerification()
+    {
+        Log("LFSR verification");
+        Log(string.Empty);
 
         VerifyLfsr(
             [1, 1, 0],
@@ -42,7 +54,7 @@ public sealed class Runner : IRunner
             ]);
     }
 
-    private static void VerifyLfsr(int[] feedbackInts, int[] stateInts, int[] expectedInts)
+    private void VerifyLfsr(int[] feedbackInts, int[] stateInts, int[] expectedInts)
     {
         var feedback = BitConversions.IntArrayToBits(feedbackInts);
         var state = BitConversions.IntArrayToBits(stateInts);
@@ -50,26 +62,26 @@ public sealed class Runner : IRunner
 
         ILfsr lfsr = new Lfsr(feedback, state);
 
-        Console.WriteLine("LFSR degree: " + lfsr.Degree);
-        Console.WriteLine("Feedback coefficients (from ILfsr): " +
-                          string.Join("", BitConversions.BitsToIntArray(lfsr.FeedbackCoefficients)));
-        Console.WriteLine("Initial state (from ILfsr): " + string.Join("", BitConversions.BitsToIntArray(lfsr.State)));
+        Log("LFSR degree: " + lfsr.Degree);
+        Log("Feedback coefficients (from ILfsr): " +
+            string.Join("", BitConversions.BitsToIntArray(lfsr.FeedbackCoefficients)));
+        Log("Initial state (from ILfsr): " + string.Join("", BitConversions.BitsToIntArray(lfsr.State)));
 
         lfsr.Reset(state);
 
         var output = lfsr.GenerateBits(expected.Count);
 
-        Console.WriteLine("Feedback coefficients (expected): " + string.Join("", feedbackInts));
-        Console.WriteLine("Initial state (expected): " + string.Join("", stateInts));
-        Console.WriteLine("Expected sequence: " + string.Join("", expectedInts));
-        Console.WriteLine("Generated sequence: " + string.Join("", BitConversions.BitsToIntArray(output)));
-        Console.WriteLine();
+        Log("Feedback coefficients (expected): " + string.Join("", feedbackInts));
+        Log("Initial state (expected): " + string.Join("", stateInts));
+        Log("Expected sequence: " + string.Join("", expectedInts));
+        Log("Generated sequence: " + string.Join("", BitConversions.BitsToIntArray(output)));
+        Log(string.Empty);
     }
 
-    private static void RunBerlekampMasseyVerification()
+    private void RunBerlekampMasseyVerification()
     {
-        Console.WriteLine("Berlekamp–Massey verification");
-        Console.WriteLine();
+        Log("Berlekamp–Massey verification");
+        Log(string.Empty);
 
         var sequences = new[]
         {
@@ -80,10 +92,9 @@ public sealed class Runner : IRunner
             BitConversions.IntArrayToBits([
                 1, 0, 0, 1, 0,
                 1, 1, 0, 0, 1,
-                1, 1, 1, 1, 1,
-                0, 0, 0, 1, 1,
-                0, 1, 1, 1, 0,
-                1
+                1, 1, 1, 1, 0,
+                0, 0, 1, 1, 0,
+                1, 1, 1, 0, 1
             ]),
             BitConversions.IntArrayToBits([
                 1, 0, 0, 1, 0,
@@ -101,18 +112,18 @@ public sealed class Runner : IRunner
             var sequence = sequences[i];
             var result = solver.Solve(sequence);
 
-            Console.WriteLine("Sequence " + (i + 1));
-            Console.WriteLine("Linear complexity: " + result.LinearComplexity);
-            Console.WriteLine("Connection polynomial coefficients: " +
-                              string.Join("", BitConversions.BitsToIntArray(result.ConnectionPolynomial)));
-            Console.WriteLine();
+            Log("Sequence " + (i + 1));
+            Log("Linear complexity: " + result.LinearComplexity);
+            Log("Connection polynomial coefficients: " +
+                string.Join("", BitConversions.BitsToIntArray(result.ConnectionPolynomial)));
+            Log(string.Empty);
         }
     }
 
-    private static void RunFullAttack()
+    private void RunFullAttack()
     {
-        Console.WriteLine("Full known-plaintext attack demonstration");
-        Console.WriteLine();
+        Log("Full known-plaintext attack demonstration");
+        Log(string.Empty);
 
         const int m = 8;
 
@@ -120,12 +131,11 @@ public sealed class Runner : IRunner
         var feedback = GenerateRandomNonZeroVector(random, m, true);
         var initialState = GenerateRandomNonZeroVector(random, m, false);
 
-        Console.WriteLine("Secret LFSR degree m = " + m);
-        Console.WriteLine("Secret feedback coefficients p (p0..p" + (m - 1) + "): " +
-                          string.Join("", BitConversions.BitsToIntArray(feedback)));
-        Console.WriteLine(
-            "Secret initial state sigma0: " + string.Join("", BitConversions.BitsToIntArray(initialState)));
-        Console.WriteLine();
+        Log("Secret LFSR degree m = " + m);
+        Log("Secret feedback coefficients p (p0..p" + (m - 1) + "): " +
+            string.Join("", BitConversions.BitsToIntArray(feedback)));
+        Log("Secret initial state sigma0: " + string.Join("", BitConversions.BitsToIntArray(initialState)));
+        Log(string.Empty);
 
         ILfsr lfsr = new Lfsr(feedback, initialState);
         IStreamCipher cipher = new StreamCipher();
@@ -133,14 +143,14 @@ public sealed class Runner : IRunner
         const string plaintext = "This is a secret message for the LFSR stream cipher laboratory.";
         var ciphertextBits = cipher.Encrypt(plaintext, lfsr);
 
-        Console.WriteLine("Plaintext length (characters): " + plaintext.Length);
-        Console.WriteLine("Ciphertext bit length: " + ciphertextBits.Count);
+        Log("Plaintext length (characters): " + plaintext.Length);
+        Log("Ciphertext bit length: " + ciphertextBits.Count);
 
         var previewLength = Math.Min(128, ciphertextBits.Count);
         var previewBits = ciphertextBits.Take(previewLength);
-        Console.WriteLine("Ciphertext bits (first " + previewLength + "): " +
-                          BitConversions.BitsToBitString(previewBits));
-        Console.WriteLine();
+        Log("Ciphertext bits (first " + previewLength + "): " +
+            BitConversions.BitsToBitString(previewBits));
+        Log(string.Empty);
 
         IGaloisFieldSolver solver = new GaussianEliminationSolver();
         IKnownPlaintextAttacker attacker = new KnownPlaintextAttacker(solver);
@@ -153,48 +163,48 @@ public sealed class Runner : IRunner
 
         var testBits = BitConversions.BitStringToBits("01010101");
         var testBitString = BitConversions.BitsToBitString(testBits);
-        Console.WriteLine("BitStringToBits/BitsToBitString test: " + testBitString);
+        Log("BitStringToBits/BitsToBitString test: " + testBitString);
 
         var knownBits = BitConversions.StringToBits(knownPlaintext);
 
-        Console.WriteLine("Known plaintext used for attack: " + knownPlaintext);
-        Console.WriteLine("Known plaintext bits: " + BitConversions.BitsToBitString(knownBits));
-        Console.WriteLine("Known bits count: " + knownBits.Count);
-        Console.WriteLine();
+        Log("Known plaintext used for attack: " + knownPlaintext);
+        Log("Known plaintext bits: " + BitConversions.BitsToBitString(knownBits));
+        Log("Known bits count: " + knownBits.Count);
+        Log(string.Empty);
 
         var attackResult = attacker.Attack(knownPlaintext, ciphertextBits, m);
 
         if (attackResult == null)
         {
-            Console.WriteLine("Attack failed.");
+            Log("Attack failed.");
             return;
         }
 
-        Console.WriteLine("Recovered keystream bits (from known segment): " +
-                          BitConversions.BitsToBitString(attackResult.KeyStream));
-        Console.WriteLine("Recovered feedback coefficients: " +
-                          string.Join("", BitConversions.BitsToIntArray(attackResult.FeedbackCoefficients)));
-        Console.WriteLine("Recovered initial state: " +
-                          string.Join("", BitConversions.BitsToIntArray(attackResult.InitialState)));
-        Console.WriteLine();
+        Log("Recovered keystream bits (from known segment): " +
+            BitConversions.BitsToBitString(attackResult.KeyStream));
+        Log("Recovered feedback coefficients: " +
+            string.Join("", BitConversions.BitsToIntArray(attackResult.FeedbackCoefficients)));
+        Log("Recovered initial state: " +
+            string.Join("", BitConversions.BitsToIntArray(attackResult.InitialState)));
+        Log(string.Empty);
 
         var feedbackMatch = AreEqual(feedback, attackResult.FeedbackCoefficients);
         var initialStateMatch = AreEqual(initialState, attackResult.InitialState);
 
-        Console.WriteLine("Feedback coefficients match: " + feedbackMatch);
-        Console.WriteLine("Initial state matches: " + initialStateMatch);
-        Console.WriteLine();
+        Log("Feedback coefficients match: " + feedbackMatch);
+        Log("Initial state matches: " + initialStateMatch);
+        Log(string.Empty);
 
         ILfsr recoveredLfsr = new Lfsr(attackResult.FeedbackCoefficients, attackResult.InitialState);
         IStreamCipher recoveredCipher = new StreamCipher();
         var recoveredPlaintext = recoveredCipher.Decrypt(ciphertextBits, recoveredLfsr);
 
-        Console.WriteLine("Recovered plaintext:");
-        Console.WriteLine(recoveredPlaintext);
-        Console.WriteLine();
+        Log("Recovered plaintext:");
+        Log(recoveredPlaintext);
+        Log(string.Empty);
 
         var success = string.Equals(plaintext, recoveredPlaintext, StringComparison.Ordinal);
-        Console.WriteLine("Attack success: " + success);
+        Log("Attack success: " + success);
     }
 
     private static IReadOnlyList<bool> GenerateRandomNonZeroVector(Random random, int length, bool forceFirstBitOne)

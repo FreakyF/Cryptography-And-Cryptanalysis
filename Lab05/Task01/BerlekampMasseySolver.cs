@@ -1,7 +1,10 @@
+using System.Runtime.CompilerServices;
+
 namespace Task01;
 
 public sealed class BerlekampMasseySolver : IBerlekampMasseySolver
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public BerlekampMasseyResult Solve(IReadOnlyList<bool> sequence)
     {
         if (sequence == null)

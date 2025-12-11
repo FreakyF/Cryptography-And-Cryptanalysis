@@ -1,9 +1,11 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Task01;
 
 public static class BitConversions
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<bool> StringToBits(string text)
     {
         if (text == null)
