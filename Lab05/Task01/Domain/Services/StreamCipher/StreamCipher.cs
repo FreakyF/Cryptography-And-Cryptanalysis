@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
+using Task01.Domain.Services.Lfsr;
+using Task01.Domain.Utils;
 
-namespace Task01;
+namespace Task01.Domain.Services.StreamCipher;
 
 public sealed class StreamCipher : IStreamCipher
 {

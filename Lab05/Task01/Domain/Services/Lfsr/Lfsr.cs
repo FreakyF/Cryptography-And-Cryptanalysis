@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace Task01;
+namespace Task01.Domain.Services.Lfsr;
 
 public sealed class Lfsr : ILfsr
 {

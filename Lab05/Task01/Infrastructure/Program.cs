@@ -1,4 +1,6 @@
-﻿namespace Task01;
+﻿using Task01.Application;
+
+namespace Task01.Infrastructure;
 
 public static class Program
 {

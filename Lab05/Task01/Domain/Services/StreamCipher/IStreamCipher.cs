@@ -1,4 +1,6 @@
-namespace Task01;
+using Task01.Domain.Services.Lfsr;
+
+namespace Task01.Domain.Services.StreamCipher;
 
 public interface IStreamCipher
 {

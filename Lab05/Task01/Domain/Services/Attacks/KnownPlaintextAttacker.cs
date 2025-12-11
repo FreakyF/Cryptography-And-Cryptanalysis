@@ -1,6 +1,9 @@
 using System.Runtime.CompilerServices;
+using Task01.Domain.Models;
+using Task01.Domain.Services.LinearComplexity;
+using Task01.Domain.Utils;
 
-namespace Task01;
+namespace Task01.Domain.Services.Attacks;
 
 public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPlaintextAttacker
 {

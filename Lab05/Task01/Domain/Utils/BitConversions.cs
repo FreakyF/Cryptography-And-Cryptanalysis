@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Task01;
+namespace Task01.Domain.Utils;
 
 public static class BitConversions
 {

@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
+using Task01.Domain.Models;
 
-namespace Task01;
+namespace Task01.Domain.Services.LinearComplexity;
 
 public sealed class BerlekampMasseySolver : IBerlekampMasseySolver
 {

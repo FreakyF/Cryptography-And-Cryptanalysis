@@ -1,4 +1,4 @@
-namespace Task01;
+namespace Task01.Application;
 
 public interface IRunner
 {

@@ -1,4 +1,4 @@
-namespace Task01;
+namespace Task01.Domain.Services.LinearComplexity;
 
 public interface IGaloisFieldSolver
 {

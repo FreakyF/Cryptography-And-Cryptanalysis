@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace Task01;
+namespace Task01.Domain.Services.LinearComplexity;
 
 public sealed class GaussianEliminationSolver : IGaloisFieldSolver
 {

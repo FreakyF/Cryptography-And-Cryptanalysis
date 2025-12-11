@@ -1,6 +1,11 @@
 using System.Text;
+using Task01.Domain.Services.Attacks;
+using Task01.Domain.Services.Lfsr;
+using Task01.Domain.Services.LinearComplexity;
+using Task01.Domain.Services.StreamCipher;
+using Task01.Domain.Utils;
 
-namespace Task01;
+namespace Task01.Application;
 
 public sealed class Runner : IRunner
 {
