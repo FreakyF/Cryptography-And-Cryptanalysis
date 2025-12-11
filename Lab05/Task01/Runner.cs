@@ -1,9 +1,24 @@
+using System.Text;
+
 namespace Task01;
 
-public sealed class Runner(bool benchmarkMode) : IRunner
+public sealed class Runner : IRunner
 {
+    private readonly bool _quiet;
+    private readonly StringBuilder? _logBuilder;
+
     public Runner() : this(false)
     {
+    }
+
+    public Runner(bool quiet)
+    {
+        _quiet = quiet;
+        if (!quiet)
+        {
+            // Bufor na logi; 4 KB na start to dużo jak na ten program
+            _logBuilder = new StringBuilder(4096);
+        }
     }
 
     public void RunAll()
@@ -11,14 +26,34 @@ public sealed class Runner(bool benchmarkMode) : IRunner
         RunLfsrVerification();
         RunBerlekampMasseyVerification();
         RunFullAttack();
+        Flush();
     }
 
     private void Log(string message)
     {
-        if (!benchmarkMode)
+        if (_quiet)
         {
-            Console.WriteLine(message);
+            // W trybie quiet nic nie zbieramy – i tak pokażemy tylko Attack success
+            return;
         }
+
+        _logBuilder!.AppendLine(message);
+    }
+
+    private void Flush()
+    {
+        if (_quiet)
+        {
+            return;
+        }
+
+        if (_logBuilder!.Length == 0)
+        {
+            return;
+        }
+
+        Console.Write(_logBuilder.ToString());
+        _logBuilder.Clear();
     }
 
     private void RunLfsrVerification()
@@ -27,31 +62,33 @@ public sealed class Runner(bool benchmarkMode) : IRunner
         Log(string.Empty);
 
         VerifyLfsr(
-            [1, 1, 0],
-            [0, 0, 1],
-            [0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1]);
+            new[] { 1, 1, 0 },
+            new[] { 0, 0, 1 },
+            new[] { 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1 });
 
         VerifyLfsr(
-            [1, 0, 1, 0, 0],
-            [1, 0, 0, 1, 0],
-            [
+            new[] { 1, 0, 1, 0, 0 },
+            new[] { 1, 0, 0, 1, 0 },
+            new[]
+            {
                 1, 0, 0, 1, 0,
                 1, 1, 0, 0, 1,
                 1, 1, 1, 1, 0,
                 0, 0, 1, 1, 0,
                 1, 1, 1, 0, 1
-            ]);
+            });
 
         VerifyLfsr(
-            [1, 1, 0, 1, 0],
-            [1, 0, 0, 1, 0],
-            [
+            new[] { 1, 1, 0, 1, 0 },
+            new[] { 1, 0, 0, 1, 0 },
+            new[]
+            {
                 1, 0, 0, 1, 0,
                 0, 0, 1, 1, 1,
                 1, 0, 1, 0, 1,
                 1, 0, 0, 1, 0,
                 0, 0, 1, 1, 1
-            ]);
+            });
     }
 
     private void VerifyLfsr(int[] feedbackInts, int[] stateInts, int[] expectedInts)
@@ -65,7 +102,8 @@ public sealed class Runner(bool benchmarkMode) : IRunner
         Log("LFSR degree: " + lfsr.Degree);
         Log("Feedback coefficients (from ILfsr): " +
             string.Join("", BitConversions.BitsToIntArray(lfsr.FeedbackCoefficients)));
-        Log("Initial state (from ILfsr): " + string.Join("", BitConversions.BitsToIntArray(lfsr.State)));
+        Log("Initial state (from ILfsr): " +
+            string.Join("", BitConversions.BitsToIntArray(lfsr.State)));
 
         lfsr.Reset(state);
 
@@ -85,24 +123,30 @@ public sealed class Runner(bool benchmarkMode) : IRunner
 
         var sequences = new[]
         {
-            BitConversions.IntArrayToBits([
-                0, 0, 1, 0, 1, 1, 1, 0, 0, 1,
-                0, 1, 1, 1
-            ]),
-            BitConversions.IntArrayToBits([
-                1, 0, 0, 1, 0,
-                1, 1, 0, 0, 1,
-                1, 1, 1, 1, 0,
-                0, 0, 1, 1, 0,
-                1, 1, 1, 0, 1
-            ]),
-            BitConversions.IntArrayToBits([
-                1, 0, 0, 1, 0,
-                0, 0, 1, 1, 1,
-                1, 0, 1, 0, 1,
-                1, 0, 0, 1, 0,
-                0, 0, 1, 1, 1
-            ])
+            BitConversions.IntArrayToBits(
+                new[]
+                {
+                    0, 0, 1, 0, 1, 1, 1, 0, 0, 1,
+                    0, 1, 1, 1
+                }),
+            BitConversions.IntArrayToBits(
+                new[]
+                {
+                    1, 0, 0, 1, 0,
+                    1, 1, 0, 0, 1,
+                    1, 1, 1, 1, 0,
+                    0, 0, 1, 1, 0,
+                    1, 1, 1, 0, 1
+                }),
+            BitConversions.IntArrayToBits(
+                new[]
+                {
+                    1, 0, 0, 1, 0,
+                    0, 0, 1, 1, 1,
+                    1, 0, 1, 0, 1,
+                    1, 0, 0, 1, 0,
+                    0, 0, 1, 1, 1
+                })
         };
 
         IBerlekampMasseySolver solver = new BerlekampMasseySolver();
@@ -128,13 +172,14 @@ public sealed class Runner(bool benchmarkMode) : IRunner
         const int m = 8;
 
         var random = new Random();
-        var feedback = GenerateRandomNonZeroVector(random, m, true);
-        var initialState = GenerateRandomNonZeroVector(random, m, false);
+        var feedback = GenerateRandomNonZeroVector(random, m, forceFirstBitOne: true);
+        var initialState = GenerateRandomNonZeroVector(random, m, forceFirstBitOne: false);
 
         Log("Secret LFSR degree m = " + m);
         Log("Secret feedback coefficients p (p0..p" + (m - 1) + "): " +
             string.Join("", BitConversions.BitsToIntArray(feedback)));
-        Log("Secret initial state sigma0: " + string.Join("", BitConversions.BitsToIntArray(initialState)));
+        Log("Secret initial state sigma0: " +
+            string.Join("", BitConversions.BitsToIntArray(initialState)));
         Log(string.Empty);
 
         ILfsr lfsr = new Lfsr(feedback, initialState);
@@ -147,9 +192,8 @@ public sealed class Runner(bool benchmarkMode) : IRunner
         Log("Ciphertext bit length: " + ciphertextBits.Count);
 
         var previewLength = Math.Min(128, ciphertextBits.Count);
-        var previewBits = ciphertextBits.Take(previewLength);
         Log("Ciphertext bits (first " + previewLength + "): " +
-            BitConversions.BitsToBitString(previewBits));
+            BitConversions.BitsToBitString(new PreviewEnumerable(ciphertextBits, previewLength)));
         Log(string.Empty);
 
         IGaloisFieldSolver solver = new GaussianEliminationSolver();
@@ -176,7 +220,13 @@ public sealed class Runner(bool benchmarkMode) : IRunner
 
         if (attackResult == null)
         {
-            Log("Attack failed.");
+            var failLine = "Attack failed.";
+            Log(failLine);
+            if (_quiet)
+            {
+                Console.WriteLine(failLine);
+            }
+
             return;
         }
 
@@ -204,7 +254,15 @@ public sealed class Runner(bool benchmarkMode) : IRunner
         Log(string.Empty);
 
         var success = string.Equals(plaintext, recoveredPlaintext, StringComparison.Ordinal);
-        Log("Attack success: " + success);
+        var resultLine = "Attack success: " + success;
+
+        Log(resultLine);
+
+        if (_quiet)
+        {
+            // W trybie quiet wyświetlamy tylko ten jeden wiersz
+            Console.WriteLine(resultLine);
+        }
     }
 
     private static IReadOnlyList<bool> GenerateRandomNonZeroVector(Random random, int length, bool forceFirstBitOne)
@@ -222,18 +280,25 @@ public sealed class Runner(bool benchmarkMode) : IRunner
         while (true)
         {
             var result = new bool[length];
+            var hasOne = false;
 
             for (var i = 0; i < length; i++)
             {
-                result[i] = random.Next(2) == 1;
+                var bit = random.Next(2) == 1;
+                result[i] = bit;
+                if (bit)
+                {
+                    hasOne = true;
+                }
             }
 
             if (forceFirstBitOne)
             {
                 result[0] = true;
+                return result;
             }
 
-            if (result.Any(bit => bit))
+            if (hasOne)
             {
                 return result;
             }
@@ -252,11 +317,70 @@ public sealed class Runner(bool benchmarkMode) : IRunner
             throw new ArgumentNullException(nameof(second));
         }
 
-        if (first.Count != second.Count)
+        var count = first.Count;
+        if (count != second.Count)
         {
             return false;
         }
 
-        return !first.Where((t, i) => t != second[i]).Any();
+        for (var i = 0; i < count; i++)
+        {
+            if (first[i] != second[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private readonly struct PreviewEnumerable : IEnumerable<bool>
+    {
+        private readonly IReadOnlyList<bool> _source;
+        private readonly int _length;
+
+        public PreviewEnumerable(IReadOnlyList<bool> source, int length)
+        {
+            _source = source;
+            _length = length;
+        }
+
+        public Enumerator GetEnumerator() => new Enumerator(_source, _length);
+        IEnumerator<bool> IEnumerable<bool>.GetEnumerator() => GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public struct Enumerator : IEnumerator<bool>
+        {
+            private readonly IReadOnlyList<bool> _source;
+            private readonly int _length;
+            private int _index;
+
+            public Enumerator(IReadOnlyList<bool> source, int length)
+            {
+                _source = source;
+                _length = length;
+                _index = -1;
+            }
+
+            public bool Current => _source[_index];
+            object System.Collections.IEnumerator.Current => Current;
+
+            public bool MoveNext()
+            {
+                var next = _index + 1;
+                if (next >= _length)
+                {
+                    return false;
+                }
+
+                _index = next;
+                return true;
+            }
+
+            public void Reset() => _index = -1;
+            public void Dispose()
+            {
+            }
+        }
     }
 }

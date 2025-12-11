@@ -23,7 +23,7 @@
         <PublishSingleFile>false</PublishSingleFile>
         <StripSymbols>true</StripSymbols>
 
-<!--        <PublishAot>true</PublishAot>-->
+        <PublishAot>true</PublishAot>
         <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
 
         <DebuggerSupport>false</DebuggerSupport>
@@ -36,9 +36,5 @@
         <ServerGarbageCollection>false</ServerGarbageCollection>
         <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     </PropertyGroup>
-
-    <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
-    </ItemGroup>
 
 </Project>

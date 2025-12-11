@@ -53,7 +53,6 @@ public sealed class Lfsr : ILfsr
 
     public int Degree => _degree;
     public IReadOnlyList<bool> FeedbackCoefficients => _feedback;
-
     public IReadOnlyList<bool> State => UnpackState(_stateBits, _degree);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
@@ -102,9 +101,26 @@ public sealed class Lfsr : ILfsr
         var tapMask = _tapMask;
         var highBitMask = _highBitMask;
 
-        for (var i = 0; i < count; i++)
+        var i = 0;
+        var len = count;
+
+        // Unroll 8×
+        while (i + 8 <= len)
         {
-            result[i] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
+        }
+
+        // Ewentualny ogon < 8 bitów
+        while (i < len)
+        {
+            result[i++] = NextBitCore(ref state, tapMask, highBitMask);
         }
 
         _stateBits = state;
