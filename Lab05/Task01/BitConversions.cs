@@ -3,6 +3,7 @@ using System.Text;
 
 namespace Task01;
 
+[SkipLocalsInit]
 public static class BitConversions
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
@@ -13,20 +14,30 @@ public static class BitConversions
             throw new ArgumentNullException(nameof(text));
         }
 
-        var bytes = Encoding.UTF8.GetBytes(text);
-        var bits = new List<bool>(bytes.Length * 8);
-
-        foreach (var b in bytes)
+        var length = text.Length;
+        if (length == 0)
         {
-            for (var i = 7; i >= 0; i--)
+            return Array.Empty<bool>();
+        }
+
+        var bitCount = length * 8;
+        var bits = GC.AllocateUninitializedArray<bool>(bitCount);
+        var index = 0;
+
+        for (var i = 0; i < length; i++)
+        {
+            var value = (byte)text[i];
+
+            for (var bit = 7; bit >= 0; bit--)
             {
-                bits.Add(((b >> i) & 1) == 1);
+                bits[index++] = ((value >> bit) & 1) != 0;
             }
         }
 
         return bits;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static string BitsToString(IEnumerable<bool> bits)
     {
         if (bits == null)
@@ -34,27 +45,81 @@ public static class BitConversions
             throw new ArgumentNullException(nameof(bits));
         }
 
-        var bitList = bits.ToList();
-        var byteCount = bitList.Count / 8;
-        var bytes = new byte[byteCount];
-
-        for (var i = 0; i < byteCount; i++)
+        if (bits is bool[] bitArray)
         {
-            byte value = 0;
-            for (var j = 0; j < 8; j++)
-            {
-                if (bitList[i * 8 + j])
-                {
-                    value |= (byte)(1 << (7 - j));
-                }
-            }
-
-            bytes[i] = value;
+            return BitsArrayToString(bitArray);
         }
 
-        return Encoding.UTF8.GetString(bytes);
+        if (bits is IReadOnlyCollection<bool> collection)
+        {
+            var count = collection.Count;
+            if (count == 0)
+            {
+                return string.Empty;
+            }
+
+            var temp = GC.AllocateUninitializedArray<bool>(count);
+            var index = 0;
+
+            foreach (var bit in collection)
+            {
+                temp[index++] = bit;
+            }
+
+            return BitsArrayToString(temp);
+        }
+
+        var list = bits.ToList();
+        if (list.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var copy = GC.AllocateUninitializedArray<bool>(list.Count);
+        for (var i = 0; i < list.Count; i++)
+        {
+            copy[i] = list[i];
+        }
+
+        return BitsArrayToString(copy);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    static string BitsArrayToString(bool[] bits)
+    {
+        var bitCount = bits.Length;
+        var charCount = bitCount / 8;
+
+        if (charCount == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Create(
+            charCount,
+            bits,
+            static (span, state) =>
+            {
+                var index = 0;
+
+                for (var i = 0; i < span.Length; i++)
+                {
+                    byte value = 0;
+
+                    for (var bit = 7; bit >= 0; bit--)
+                    {
+                        if (state[index++])
+                        {
+                            value |= (byte)(1 << bit);
+                        }
+                    }
+
+                    span[i] = (char)value;
+                }
+            });
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<bool> BitStringToBits(string bitString)
     {
         if (bitString == null)
@@ -62,22 +127,75 @@ public static class BitConversions
             throw new ArgumentNullException(nameof(bitString));
         }
 
-        var bits = new List<bool>(bitString.Length);
-        bits.AddRange(bitString.Select(c => c switch
+        var length = bitString.Length;
+        if (length == 0)
         {
-            '0' => false,
-            '1' => true,
-            _ => throw new ArgumentException("Bit string can contain only '0' or '1'.")
-        }));
+            return Array.Empty<bool>();
+        }
+
+        var bits = GC.AllocateUninitializedArray<bool>(length);
+
+        for (var i = 0; i < length; i++)
+        {
+            bits[i] = bitString[i] switch
+            {
+                '0' => false,
+                '1' => true,
+                _ => throw new ArgumentException("Bit string can contain only '0' or '1'.")
+            };
+        }
 
         return bits;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static string BitsToBitString(IEnumerable<bool> bits)
     {
         if (bits == null)
         {
             throw new ArgumentNullException(nameof(bits));
+        }
+
+        if (bits is bool[] bitArray)
+        {
+            return string.Create(
+                bitArray.Length,
+                bitArray,
+                static (span, state) =>
+                {
+                    for (var i = 0; i < span.Length; i++)
+                    {
+                        span[i] = state[i] ? '1' : '0';
+                    }
+                });
+        }
+
+        if (bits is IReadOnlyCollection<bool> collection)
+        {
+            var count = collection.Count;
+            if (count == 0)
+            {
+                return string.Empty;
+            }
+
+            var temp = GC.AllocateUninitializedArray<bool>(count);
+            var index = 0;
+
+            foreach (var bit in collection)
+            {
+                temp[index++] = bit;
+            }
+
+            return string.Create(
+                count,
+                temp,
+                static (span, state) =>
+                {
+                    for (var i = 0; i < span.Length; i++)
+                    {
+                        span[i] = state[i] ? '1' : '0';
+                    }
+                });
         }
 
         var builder = new StringBuilder();
@@ -89,6 +207,7 @@ public static class BitConversions
         return builder.ToString();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<bool> IntArrayToBits(IEnumerable<int> values)
     {
         if (values == null)
@@ -96,16 +215,96 @@ public static class BitConversions
             throw new ArgumentNullException(nameof(values));
         }
 
-        return values.Select(v => v switch
+        if (values is int[] intArray)
         {
-            0 => false,
-            1 => true,
-            _ => throw new ArgumentException("Only 0 and 1 are valid bit values.")
-        }).ToArray();
+            var result = GC.AllocateUninitializedArray<bool>(intArray.Length);
+
+            for (var i = 0; i < intArray.Length; i++)
+            {
+                result[i] = intArray[i] switch
+                {
+                    0 => false,
+                    1 => true,
+                    _ => throw new ArgumentException("Only 0 and 1 are valid bit values.")
+                };
+            }
+
+            return result;
+        }
+
+        var list = values as IList<int> ?? values.ToList();
+        if (list.Count == 0)
+        {
+            return Array.Empty<bool>();
+        }
+
+        var bits = GC.AllocateUninitializedArray<bool>(list.Count);
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            bits[i] = list[i] switch
+            {
+                0 => false,
+                1 => true,
+                _ => throw new ArgumentException("Only 0 and 1 are valid bit values.")
+            };
+        }
+
+        return bits;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<int> BitsToIntArray(IEnumerable<bool> bits)
     {
-        return bits == null ? throw new ArgumentNullException(nameof(bits)) : bits.Select(bit => bit ? 1 : 0).ToArray();
+        if (bits == null)
+        {
+            throw new ArgumentNullException(nameof(bits));
+        }
+
+        if (bits is bool[] bitArray)
+        {
+            var result = GC.AllocateUninitializedArray<int>(bitArray.Length);
+
+            for (var i = 0; i < bitArray.Length; i++)
+            {
+                result[i] = bitArray[i] ? 1 : 0;
+            }
+
+            return result;
+        }
+
+        if (bits is IReadOnlyCollection<bool> collection)
+        {
+            var count = collection.Count;
+            if (count == 0)
+            {
+                return Array.Empty<int>();
+            }
+
+            var result = GC.AllocateUninitializedArray<int>(count);
+            var index = 0;
+
+            foreach (var bit in collection)
+            {
+                result[index++] = bit ? 1 : 0;
+            }
+
+            return result;
+        }
+
+        var list = bits.ToList();
+        if (list.Count == 0)
+        {
+            return Array.Empty<int>();
+        }
+
+        var array = GC.AllocateUninitializedArray<int>(list.Count);
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            array[i] = list[i] ? 1 : 0;
+        }
+
+        return array;
     }
 }
