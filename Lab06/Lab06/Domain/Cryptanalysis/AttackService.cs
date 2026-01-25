@@ -3,16 +3,46 @@ using Lab06.Infrastructure.Utils;
 
 namespace Lab06.Domain.Cryptanalysis;
 
+/// <summary>
+/// Provides services for performing cryptanalytic attacks on the combination generator.
+/// </summary>
 public class AttackService
 {
+    /// <summary>
+    /// The length (degree) of the first LFSR (X).
+    /// </summary>
     private const int LenX = 3;
+
+    /// <summary>
+    /// The length (degree) of the second LFSR (Y).
+    /// </summary>
     private const int LenY = 4;
+
+    /// <summary>
+    /// The length (degree) of the third LFSR (Z).
+    /// </summary>
     private const int LenZ = 5;
 
+    /// <summary>
+    /// The feedback taps for the first LFSR (X).
+    /// </summary>
     private readonly int[] _tapsX = [0, 1];
+
+    /// <summary>
+    /// The feedback taps for the second LFSR (Y).
+    /// </summary>
     private readonly int[] _tapsY = [0, 3];
+
+    /// <summary>
+    /// The feedback taps for the third LFSR (Z).
+    /// </summary>
     private readonly int[] _tapsZ = [0, 2];
 
+    /// <summary>
+    /// Performs a correlation attack to recover the initial states of the LFSRs.
+    /// </summary>
+    /// <param name="keystream">The captured keystream bits.</param>
+    /// <returns>An <see cref="AttackResult"/> containing the recovered states.</returns>
     public AttackResult CorrelationAttack(int[] keystream)
     {
         Console.WriteLine("--- Starting Correlation Attack ---");
@@ -25,6 +55,14 @@ public class AttackService
         return new AttackResult(bestX, bestY, bestZ);
     }
 
+    /// <summary>
+    /// Finds the initial state that maximizes the Pearson correlation between the generated sequence and the keystream.
+    /// </summary>
+    /// <param name="keystream">The captured keystream bits.</param>
+    /// <param name="degree">The degree of the LFSR being analyzed.</param>
+    /// <param name="taps">The feedback taps for the LFSR.</param>
+    /// <param name="label">A label for logging purposes (e.g., "X" or "Z").</param>
+    /// <returns>The initial state that produces the highest correlation.</returns>
     private static int[] FindBestCorrelation(int[] keystream, int degree, int[] taps, string label)
     {
         var maxRho = -2.0;
@@ -53,6 +91,14 @@ public class AttackService
         return bestState;
     }
 
+    /// <summary>
+    /// Recovers the state of the second LFSR (Y) assuming X and Z are known.
+    /// </summary>
+    /// <param name="keystream">The captured keystream bits.</param>
+    /// <param name="stateX">The recovered state of X.</param>
+    /// <param name="stateZ">The recovered state of Z.</param>
+    /// <returns>The recovered state of Y.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the state of Y cannot be recovered.</exception>
     private int[] RecoverY(int[] keystream, int[] stateX, int[] stateZ)
     {
         Console.WriteLine("Recovering Register Y (Exhaustive search)...");
@@ -75,6 +121,11 @@ public class AttackService
             "Could not recover register Y. The correlation attack may have failed for X or Z.");
     }
 
+    /// <summary>
+    /// Performs a brute-force attack to find the initial states by trying all possible combinations.
+    /// </summary>
+    /// <param name="keystream">The captured keystream bits.</param>
+    /// <returns>An <see cref="AttackResult"/> containing the recovered states, or empty states if not found.</returns>
     public AttackResult BruteForceAttack(int[] keystream)
     {
         Console.WriteLine("--- Starting Brute Force Attack ---");
@@ -103,6 +154,14 @@ public class AttackService
         return new AttackResult();
     }
 
+    /// <summary>
+    /// Checks if a candidate key (state set) generates the observed keystream.
+    /// </summary>
+    /// <param name="keystream">The observed keystream bits.</param>
+    /// <param name="sx">The candidate state for X.</param>
+    /// <param name="sy">The candidate state for Y.</param>
+    /// <param name="sz">The candidate state for Z.</param>
+    /// <returns><c>true</c> if the generated stream matches the keystream; otherwise, <c>false</c>.</returns>
     private bool CheckKey(int[] keystream, int[] sx, int[] sy, int[] sz)
     {
         var lx = new Lfsr(LenX, _tapsX, sx);

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using Lab06.Application.Runners;
 using Lab06.Application.Services;
 using Lab06.Domain.Cryptanalysis;
@@ -9,8 +9,14 @@ namespace Lab06;
 
 [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance")]
 // ReSharper disable once ClassNeverInstantiated.Global
+/// <summary>
+/// The main entry point for the application.
+/// </summary>
 internal class Program
 {
+    /// <summary>
+    /// The main method that orchestrates the execution of the lab demonstration.
+    /// </summary>
     private static void Main()
     {
         Console.WriteLine("=== PHASE I: Key Generation ===");
@@ -93,6 +99,12 @@ internal class Program
         ExperimentRunner.RunExperiments();
     }
 
+    /// <summary>
+    /// Generates a non-zero initial state of a given length.
+    /// </summary>
+    /// <param name="length">The length of the state array.</param>
+    /// <param name="rnd">The random number generator.</param>
+    /// <returns>An array of integers representing the state.</returns>
     private static int[] GenerateNonZeroState(int length, Random rnd)
     {
         while (true)
@@ -102,6 +114,12 @@ internal class Program
         }
     }
 
+    /// <summary>
+    /// Prints the verification result of the recovered key against the original key.
+    /// </summary>
+    /// <param name="name">The name of the register.</param>
+    /// <param name="original">The original state.</param>
+    /// <param name="recovered">The recovered state.</param>
     private static void PrintVerification(string name, int[] original, int[] recovered)
     {
         var sOrg = string.Join("", original);

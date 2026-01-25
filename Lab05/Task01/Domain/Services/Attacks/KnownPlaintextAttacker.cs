@@ -5,6 +5,10 @@ using Task01.Domain.Utils;
 
 namespace Task01.Domain.Services.Attacks;
 
+/// <summary>
+/// Implements a known-plaintext attack on an LFSR-based stream cipher by solving a system of linear equations.
+/// </summary>
+/// <param name="solver">The Galois Field solver used to solve the linear system.</param>
 public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPlaintextAttacker
 {
     private readonly IGaloisFieldSolver _solver = solver ?? throw new ArgumentNullException(nameof(solver));
@@ -17,6 +21,16 @@ public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPl
     private bool[]? _keyStream;
     private bool[]? _initialState;
 
+    /// <summary>
+    /// Attempts to recover the LFSR configuration (feedback coefficients and initial state) using a known plaintext segment.
+    /// </summary>
+    /// <param name="knownPlaintext">The known plaintext string.</param>
+    /// <param name="ciphertextBits">The full ciphertext bits (must encompass the known plaintext).</param>
+    /// <param name="lfsrDegree">The assumed degree of the target LFSR.</param>
+    /// <returns>An <see cref="AttackResult"/> containing the recovered key if successful; otherwise, <c>null</c>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="knownPlaintext"/> or <paramref name="ciphertextBits"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="lfsrDegree"/> is non-positive.</exception>
+    /// <exception cref="ArgumentException">Thrown when the ciphertext does not contain enough bits or if the attacker is reused with a different degree.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public AttackResult? Attack(string knownPlaintext, IReadOnlyList<bool> ciphertextBits, int lfsrDegree)
     {
@@ -99,6 +113,11 @@ public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPl
         return new AttackResult(feedback, initialState, keyStream);
     }
 
+    /// <summary>
+    /// Ensures that internal buffers are allocated and sized correctly for the given LFSR degree.
+    /// </summary>
+    /// <param name="lfsrDegree">The degree of the LFSR.</param>
+    /// <exception cref="ArgumentException">Thrown if the degree changes between calls, as this implementation supports only a single fixed degree per instance.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private void EnsureBuffers(int lfsrDegree)
     {
