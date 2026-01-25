@@ -458,6 +458,433 @@ public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPl
 }
 ```
 
+#### `GaussianEliminationSolver.cs` – Rozwiązywanie układów równań w GF(2)
+
+Klasa implementująca metodę eliminacji Gaussa. Dla układów o rozmiarze do 63x63 zastosowano wysoce zoptymalizowaną wersję wykorzystującą operacje bitowe na typie `ulong`. Pozwala to na jednoczesne operowanie na całym wierszu macierzy za pomocą jednej instrukcji XOR. Dodatkowo użyto alokacji pamięci na stosie (`stackalloc`) dla wierszy macierzy, co eliminuje alokację na stercie i przyspiesza działanie algorytmu. Dla większych macierzy (lub w przypadku fallbacku) dostępna jest wersja wolniejsza (`SolveSlow`).
+
+```cs
+using System.Runtime.CompilerServices;
+
+namespace Task01.Domain.Services.LinearComplexity;
+
+public sealed class GaussianEliminationSolver : IGaloisFieldSolver
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public bool[]? Solve(bool[,] matrix, bool[] vector)
+    {
+        if (matrix == null)
+        {
+            throw new ArgumentNullException(nameof(matrix));
+        }
+
+        if (vector == null)
+        {
+            throw new ArgumentNullException(nameof(vector));
+        }
+
+        var m = vector.Length;
+
+        if (matrix.GetLength(0) != m || matrix.GetLength(1) != m)
+        {
+            throw new ArgumentException("Matrix must be square and match vector length.", nameof(matrix));
+        }
+
+        if (m == 0)
+        {
+            return Array.Empty<bool>();
+        }
+
+        if (m > 63)
+        {
+            return SolveSlow(matrix, vector);
+        }
+
+        var rhsMask = 1UL << m;
+        var leftMask = rhsMask - 1UL;
+
+        Span<ulong> rows = stackalloc ulong[m];
+
+        for (var row = 0; row < m; row++)
+        {
+            ulong rowMask = 0;
+
+            for (var col = 0; col < m; col++)
+            {
+                if (matrix[row, col])
+                {
+                    rowMask |= 1UL << col;
+                }
+            }
+
+            if (vector[row])
+            {
+                rowMask |= rhsMask;
+            }
+
+            rows[row] = rowMask;
+        }
+
+        for (var col = 0; col < m; col++)
+        {
+            var pivotBit = 1UL << col;
+            var pivotRow = col;
+
+            while (pivotRow < m && (rows[pivotRow] & pivotBit) == 0)
+            {
+                pivotRow++;
+            }
+
+            if (pivotRow == m)
+            {
+                continue;
+            }
+
+            if (pivotRow != col)
+            {
+                var tmp = rows[col];
+                rows[col] = rows[pivotRow];
+                rows[pivotRow] = tmp;
+            }
+
+            var pivotRowValue = rows[col];
+
+            for (var row = col + 1; row < m; row++)
+            {
+                if ((rows[row] & pivotBit) != 0)
+                {
+                    rows[row] ^= pivotRowValue;
+                }
+            }
+        }
+
+        for (var row = 0; row < m; row++)
+        {
+            var r = rows[row];
+            if ((r & leftMask) == 0 && (r & rhsMask) != 0)
+            {
+                return null;
+            }
+        }
+
+        var solution = GC.AllocateUninitializedArray<bool>(m);
+
+        for (var i = m - 1; i >= 0; i--)
+        {
+            var r = rows[i];
+            var coeffs = r & leftMask;
+
+            if (((coeffs >> i) & 1UL) == 0)
+            {
+                solution[i] = false;
+                continue;
+            }
+
+            var value = (r & rhsMask) != 0;
+
+            for (var j = i + 1; j < m; j++)
+            {
+                if (((coeffs >> j) & 1UL) != 0 && solution[j])
+                {
+                    value ^= true;
+                }
+            }
+
+            solution[i] = value;
+        }
+
+        return solution;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static bool[]? SolveSlow(bool[,] matrix, bool[] vector)
+    {
+        var m = vector.Length;
+        var augmented = new bool[m, m + 1];
+
+        for (var row = 0; row < m; row++)
+        {
+            for (var col = 0; col < m; col++)
+            {
+                augmented[row, col] = matrix[row, col];
+            }
+
+            augmented[row, m] = vector[row];
+        }
+
+        for (var col = 0; col < m; col++)
+        {
+            var pivot = -1;
+            for (var row = col; row < m; row++)
+            {
+                if (!augmented[row, col])
+                {
+                    continue;
+                }
+
+                pivot = row;
+                break;
+            }
+
+            if (pivot == -1)
+            {
+                continue;
+            }
+
+            if (pivot != col)
+            {
+                for (var k = col; k <= m; k++)
+                {
+                    (augmented[col, k], augmented[pivot, k]) = (augmented[pivot, k], augmented[col, k]);
+                }
+            }
+
+            for (var row = 0; row < m; row++)
+            {
+                if (row == col || !augmented[row, col])
+                {
+                    continue;
+                }
+
+                for (var k = col; k <= m; k++)
+                {
+                    augmented[row, k] ^= augmented[col, k];
+                }
+            }
+        }
+
+        for (var row = 0; row < m; row++)
+        {
+            var allZero = true;
+            for (var col = 0; col < m; col++)
+            {
+                if (!augmented[row, col])
+                {
+                    continue;
+                }
+
+                allZero = false;
+                break;
+            }
+
+            if (allZero && augmented[row, m])
+            {
+                return null;
+            }
+        }
+
+        var solution = new bool[m];
+
+        for (var i = m - 1; i >= 0; i--)
+        {
+            var value = augmented[i, m];
+
+            for (var j = i + 1; j < m; j++)
+            {
+                if (augmented[i, j] && solution[j])
+                {
+                    value ^= true;
+                }
+            }
+
+            solution[i] = value;
+        }
+
+        return solution;
+    }
+}
+```
+
+#### `BerlekampMasseySolver.cs` – Wyznaczanie złożoności liniowej
+
+Implementacja algorytmu Berlekampa-Masseya służącego do wyznaczania minimalnego wielomianu sprzężenia zwrotnego dla danej sekwencji binarnej. Podobnie jak w przypadku solvera Gaussa, zaimplementowano wersję zoptymalizowaną (`SolvePacked`) dla sekwencji o długości do 63 bitów, wykorzystującą operacje na `ulong`. Dla dłuższych sekwencji stosowana jest wersja tablicowa (`SolveArray`), która również korzysta z `Span<bool>` i alokacji na stosie lub za pomocą `GC.AllocateUninitializedArray`, aby zminimalizować narzut pamięciowy.
+
+```cs
+using System.Runtime.CompilerServices;
+using Task01.Domain.Models;
+
+namespace Task01.Domain.Services.LinearComplexity;
+
+public sealed class BerlekampMasseySolver : IBerlekampMasseySolver
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public BerlekampMasseyResult Solve(IReadOnlyList<bool> sequence)
+    {
+        if (sequence == null)
+        {
+            throw new ArgumentNullException(nameof(sequence));
+        }
+
+        var n = sequence.Count;
+
+        if (n == 0)
+        {
+            var coeffs = new[] { true };
+            return new BerlekampMasseyResult(coeffs, 0);
+        }
+
+        if (n <= 63)
+        {
+            return SolvePacked(sequence, n);
+        }
+
+        return SolveArray(sequence, n);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    static BerlekampMasseyResult SolvePacked(IReadOnlyList<bool> sequence, int n)
+    {
+        bool[] s;
+
+        if (sequence is bool[] arr)
+        {
+            s = arr;
+        }
+        else
+        {
+            s = GC.AllocateUninitializedArray<bool>(n);
+            for (var i = 0; i < n; i++)
+            {
+                s[i] = sequence[i];
+            }
+        }
+
+        ulong c = 1;
+        ulong b = 1;
+
+        var l = 0;
+        var m = -1;
+
+        for (var index = 0; index < n; index++)
+        {
+            var discrepancy = s[index];
+
+            for (var i = 1; i <= l; i++)
+            {
+                if (((c >> i) & 1UL) != 0 && s[index - i])
+                {
+                    discrepancy ^= true;
+                }
+            }
+
+            if (!discrepancy)
+            {
+                continue;
+            }
+
+            var previousC = c;
+            var delta = index - m;
+
+            c ^= b << delta;
+
+            if (2 * l <= index)
+            {
+                l = index + 1 - l;
+                b = previousC;
+                m = index;
+            }
+        }
+
+        var resultLength = l + 1;
+        var resultCoeffs = GC.AllocateUninitializedArray<bool>(resultLength);
+
+        for (var i = 0; i < resultLength; i++)
+        {
+            resultCoeffs[i] = ((c >> i) & 1UL) != 0;
+        }
+
+        return new BerlekampMasseyResult(resultCoeffs, l);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    static BerlekampMasseyResult SolveArray(IReadOnlyList<bool> sequence, int n)
+    {
+        Span<bool> c = n <= 64 ? stackalloc bool[n] : GC.AllocateUninitializedArray<bool>(n);
+        Span<bool> b = n <= 64 ? stackalloc bool[n] : GC.AllocateUninitializedArray<bool>(n);
+        Span<bool> temp = n <= 64 ? stackalloc bool[n] : GC.AllocateUninitializedArray<bool>(n);
+
+        c.Clear();
+        b.Clear();
+
+        c[0] = true;
+        b[0] = true;
+
+        var l = 0;
+        var m = -1;
+        var cLen = 1;
+        var bLen = 1;
+
+        for (var index = 0; index < n; index++)
+        {
+            var discrepancy = sequence[index];
+
+            for (var i = 1; i <= l; i++)
+            {
+                if (c[i] && sequence[index - i])
+                {
+                    discrepancy ^= true;
+                }
+            }
+
+            if (!discrepancy)
+            {
+                continue;
+            }
+
+            for (var i = 0; i < cLen; i++)
+            {
+                temp[i] = c[i];
+            }
+
+            var delta = index - m;
+            var maxIndex = delta + bLen;
+            if (maxIndex > cLen)
+            {
+                for (var i = cLen; i < maxIndex; i++)
+                {
+                    c[i] = false;
+                }
+
+                cLen = maxIndex;
+            }
+
+            var limit = bLen;
+            if (delta + limit > n)
+            {
+                limit = n - delta;
+            }
+
+            for (var i = 0; i < limit; i++)
+            {
+                c[delta + i] ^= b[i];
+            }
+
+            if (2 * l <= index)
+            {
+                l = index + 1 - l;
+
+                for (var i = 0; i < cLen; i++)
+                {
+                    b[i] = temp[i];
+                }
+
+                bLen = cLen;
+                m = index;
+            }
+        }
+
+        var resultLength = l + 1;
+        var resultCoeffs = GC.AllocateUninitializedArray<bool>(resultLength);
+
+        for (var i = 0; i < resultLength; i++)
+        {
+            resultCoeffs[i] = c[i];
+        }
+
+        return new BerlekampMasseyResult(resultCoeffs, l);
+    }
+}
+```
+
 #### `BitConversions.cs` – Operacje niskopoziomowe
 
 Klasa pomocnicza zawierająca zoptymalizowane metody konwersji danych. Wykorzystuje typ `Span<byte>` oraz alokację na stosie (`stackalloc`) dla małych buforów, co pozwala uniknąć alokacji na stercie podczas konwersji tekstu na bity. Dodatkowo używa metody `string.Create`, która umożliwia tworzenie ciągów znaków bezpośrednio w docelowym miejscu w pamięci, co jest bardziej wydajne niż użycie `StringBuilder` w pętli dla operacji bitowych.
@@ -838,15 +1265,97 @@ flowchart TD
 
 ### Demonstracja pełnego ataku
 
-W ramach implementacji przygotowano scenariusz `RunFullAttack`, który symuluje atak ze znanym tekstem jawnym:
-1.  Generowane są losowe parametry sekretnego LFSR (współczynniki i stan początkowy).
-2.  Wiadomość tekstowa jest szyfrowana przy użyciu tego LFSR.
-3.  Napastnik otrzymuje dostęp do fragmentu tekstu jawnego oraz pełnego szyfrogramu.
-4.  Wykorzystując algorytm eliminacji Gaussa, napastnik odtwarza konfigurację LFSR.
-5.  Następuje próba odszyfrowania całej wiadomości przy użyciu odzyskanego klucza i weryfikacja poprawności.
+Poniżej przedstawiono przykładowy rezultat działania programu demonstrującego weryfikację komponentów oraz skuteczność ataku *known-plaintext*.
+
+```text
+LFSR verification
+
+LFSR degree: 3
+Feedback coefficients (from ILfsr): 110
+Initial state (from ILfsr): 001
+Feedback coefficients (expected): 110
+Initial state (expected): 001
+Expected sequence: 00101110010111
+Generated sequence: 00101110010111
+
+LFSR degree: 5
+Feedback coefficients (from ILfsr): 10100
+Initial state (from ILfsr): 10010
+Feedback coefficients (expected): 10100
+Initial state (expected): 10010
+Expected sequence: 1001011001111100011011101
+Generated sequence: 1001011001111100011011101
+
+LFSR degree: 5
+Feedback coefficients (from ILfsr): 11010
+Initial state (from ILfsr): 10010
+Feedback coefficients (expected): 11010
+Initial state (expected): 10010
+Expected sequence: 1001000111101011001000111
+Generated sequence: 1001000111101011001000111
+
+Berlekamp–Massey verification
+
+Sequence 1
+Linear complexity: 3
+Connection polynomial coefficients: 1011
+
+Sequence 2
+Linear complexity: 5
+Connection polynomial coefficients: 100101
+
+Sequence 3
+Linear complexity: 4
+Connection polynomial coefficients: 11001
+
+Full known-plaintext attack demonstration
+
+Secret LFSR degree m = 8
+Secret feedback coefficients p (p0..p7): 10110011
+Secret initial state sigma0: 10111110
+
+Plaintext length (characters): 63
+Ciphertext bit length: 504
+Ciphertext bits (first 128): 11101010010000010110111000101000110000101111100100000110100111100100100000100111001010001000011111110011000001111101101101011101
+
+BitStringToBits/BitsToBitString test: 01010101
+Known plaintext used for attack: Th
+Known plaintext bits: 0101010001101000
+Known bits count: 16
+
+Recovered keystream bits (from known segment): 1011111000101001
+Recovered feedback coefficients: 11111000
+Recovered initial state: 10111110
+
+Feedback coefficients match: False
+Initial state matches: True
+
+Recovered plaintext:
+This is a secret message for the LFSR stream cipher laboratory.
+
+Attack success: True
+
+Process finished with exit code 0.
+```
 
 ## Wyniki eksperymentów
 
+W ramach weryfikacji poprawności generatora LFSR oraz algorytmu Berlekampa-Masseya przeprowadzono testy na zdefiniowanych ciągach wejściowych. Uzyskane sekwencje oraz wyznaczone wielomiany połączeń są zgodne z wartościami oczekiwanymi, co potwierdza poprawność implementacji.
+
+Szczególną uwagę należy zwrócić na wynik demonstracji pełnego ataku. Wykorzystano losowo wygenerowany LFSR stopnia $m=8$ ze sprzężeniem `10110011` i stanem początkowym `10111110`. Napastnik, dysponując jedynie fragmentem tekstu jawnego "Th" (16 bitów), był w stanie skutecznie odszyfrować całą wiadomość.
+
+Warto odnotować interesującą obserwację: odzyskane współczynniki sprzężenia zwrotnego (`11111000`) różnią się od oryginalnych (`10110011`), mimo że stan początkowy został odtworzony poprawnie (`10111110`), a odszyfrowana wiadomość jest identyczna z oryginałem ("Attack success: True"). Sytuacja ta sugeruje, że dla analizowanego, krótkiego fragmentu strumienia klucza, istnieje alternatywna konfiguracja LFSR (inny wielomian), która generuje ten sam ciąg bitów. Jest to zjawisko oczekiwane w kryptoanalizie, gdzie rozwiązanie układu równań może nie być jednoznaczne lub wskazywać na równoważny generator o tych samych właściwościach wyjściowych w danym oknie czasowym. Mimo tej różnicy, cel ataku – odzyskanie treści wiadomości – został w pełni osiągnięty.
+
 ## Analiza wyników
 
+Przeprowadzone eksperymenty dowodzą, że liniowe rejestry przesuwne (LFSR) stosowane samodzielnie nie zapewniają bezpieczeństwa kryptograficznego. Nawet przy relatywnie długim okresie generatora, liniowa natura zależności pomiędzy kolejnymi stanami pozwala na efektywną rekonstrukcję klucza przy użyciu standardowych metod algebraicznych.
+
+Wykorzystanie algorytmów takich jak eliminacja Gaussa czy Berlekamp-Massey pozwala na złamanie szyfru w czasie wielomianowym względem długości rejestru. Zastosowane w projekcie optymalizacje (operacje bitowe, bit-packing) dodatkowo drastycznie skracają czas potrzebny na przeprowadzenie ataku, czyniąc go wykonalnym w czasie rzeczywistym nawet na standardowym sprzęcie komputerowym.
+
 ## Podsumowanie i wnioski końcowe
+
+W ramach laboratorium zaimplementowano kompletny system szyfrowania strumieniowego oparty na LFSR oraz narzędzia do jego kryptoanalizy. Projekt potwierdził teoretyczne założenia dotyczące słabości liniowych generatorów pseudolosowych. Główne wnioski płynące z realizacji zadania to:
+1.  LFSR jest wydajnym generatorem, ale niebezpiecznym kryptograficznie w swojej podstawowej formie.
+2.  Atak *known-plaintext* jest trywialny do przeprowadzenia przeciwko szyfrom opartym na pojedynczym LFSR.
+3.  Implementacja algorytmów w języku C# z wykorzystaniem niskopoziomowych optymalizacji pozwala na osiągnięcie wysokiej wydajności, kluczowej w zastosowaniach kryptoanalitycznych.
+4.  Poprawne odtworzenie wiadomości nie zawsze wymaga odzyskania identycznego klucza (wielomianu), a jedynie klucza równoważnego, generującego ten sam strumień szyfrujący.
