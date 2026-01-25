@@ -1,11 +1,15 @@
-namespace Lab06;
+using Lab06.Domain.Cryptanalysis;
+using Lab06.Domain.Generators;
+using Lab06.Infrastructure.Utils;
+
+namespace Lab06.Application.Runners;
 
 public static class ExperimentRunner
 {
     public static void RunExperiments()
     {
         Console.WriteLine("\n=== RUNNING EXPERIMENTS ===");
-        
+
         int[] lengths = [8, 16, 24, 31, 62, 93];
         var rnd = new Random();
         var attacker = new AttackService();
@@ -13,8 +17,10 @@ public static class ExperimentRunner
         foreach (var len in lengths)
         {
             var successes = 0;
-            const int trials = 20; 
+            const int trials = 20;
             double totalTime = 0;
+
+            var originalOut = Console.Out;
 
             for (var i = 0; i < trials; i++)
             {
@@ -27,25 +33,24 @@ public static class ExperimentRunner
                     new Lfsr(4, [0, 3], kY),
                     new Lfsr(5, [0, 2], kZ)
                 );
-                
+
                 var keystream = new int[len];
-                for (var b = 0; b < len; b++) 
+                for (var b = 0; b < len; b++)
                 {
                     keystream[b] = gen.NextBit();
                 }
 
                 var sw = Stopwatch.StartNew();
-                try 
+
+                try
                 {
-                    var originalOut = Console.Out;
-                    Console.SetOut(TextWriter.Null); 
-                    
+                    Console.SetOut(TextWriter.Null);
+
                     var result = attacker.CorrelationAttack(keystream);
-                    
-                    Console.SetOut(originalOut);
+
                     sw.Stop();
                     totalTime += sw.Elapsed.TotalMilliseconds;
-                    
+
                     if (Enumerable.SequenceEqual(result.StateX, kX) &&
                         Enumerable.SequenceEqual(result.StateY, kY) &&
                         Enumerable.SequenceEqual(result.StateZ, kZ))
@@ -57,9 +62,14 @@ public static class ExperimentRunner
                 {
                     sw.Stop();
                 }
+                finally
+                {
+                    Console.SetOut(originalOut);
+                }
             }
 
-            Console.WriteLine($"Length {len} bits: Success Rate {successes}/{trials} ({(double)successes/trials:P0}), Avg Time: {totalTime/trials:F4}ms");
+            Console.WriteLine(
+                $"Length {len} bits: Success Rate {successes}/{trials} ({(double)successes / trials:P0}), Avg Time: {totalTime / trials:F4}ms");
         }
     }
 }

@@ -1,4 +1,4 @@
-namespace Lab06;
+namespace Lab06.Domain.Generators;
 
 public class CombinationGenerator(ILfsr x, ILfsr y, ILfsr z) : IStreamGenerator
 {

@@ -1,10 +1,16 @@
-namespace Lab06;
+namespace Lab06.Infrastructure.Utils;
 
 public static class BitUtils
 {
-    public static int[] StringToBits(string text) => BytesToBits(Encoding.UTF8.GetBytes(text));
+    public static int[] StringToBits(string text)
+    {
+        return BytesToBits(Encoding.UTF8.GetBytes(text));
+    }
 
-    public static string BitsToString(int[] bits) => Encoding.UTF8.GetString(BitsToBytes(bits));
+    public static string BitsToString(int[] bits)
+    {
+        return Encoding.UTF8.GetString(BitsToBytes(bits));
+    }
 
     public static int[] BytesToBits(byte[] bytes)
     {
@@ -16,6 +22,7 @@ public static class BitUtils
                 bits.Add((b >> i) & 1);
             }
         }
+
         return bits.ToArray();
     }
 
@@ -39,8 +46,10 @@ public static class BitUtils
                     b |= (byte)(1 << (7 - j));
                 }
             }
+
             bytes[i] = b;
         }
+
         return bytes;
     }
 
@@ -51,6 +60,7 @@ public static class BitUtils
         {
             result[length - 1 - i] = (value >> i) & 1;
         }
+
         return result;
     }
 
@@ -68,6 +78,7 @@ public static class BitUtils
             Array.Copy(state, 1, state, 0, degree - 1);
             state[degree - 1] = feedback;
         }
+
         return seq;
     }
 }

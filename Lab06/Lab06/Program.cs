@@ -1,4 +1,9 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using Lab06.Application.Runners;
+using Lab06.Application.Services;
+using Lab06.Domain.Cryptanalysis;
+using Lab06.Domain.Generators;
+using Lab06.Infrastructure.Utils;
 
 namespace Lab06;
 
@@ -27,7 +32,7 @@ internal class Program
         var cryptoSystem = new CryptoSystem(generator);
 
         Console.WriteLine("\n=== PHASE II: Encryption ===");
-        const string plainText = "Kryptografia jest fascynująca";
+        const string plainText = "Coś tam coś tam kryptografia hehe.";
 
         Console.WriteLine($"Plaintext: {plainText}");
         var cipherTextBits = cryptoSystem.Encrypt(plainText);

@@ -1,4 +1,4 @@
-namespace Lab06;
+namespace Lab06.Domain.Generators;
 
 public class Lfsr(int degree, int[] taps, int[] initialState) : ILfsr
 {

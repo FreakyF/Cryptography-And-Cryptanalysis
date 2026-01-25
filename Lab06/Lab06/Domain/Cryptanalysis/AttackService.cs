@@ -1,4 +1,7 @@
-namespace Lab06;
+using Lab06.Domain.Generators;
+using Lab06.Infrastructure.Utils;
+
+namespace Lab06.Domain.Cryptanalysis;
 
 public class AttackService
 {

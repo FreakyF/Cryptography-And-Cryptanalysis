@@ -1,4 +1,7 @@
-namespace Lab06;
+using Lab06.Domain.Generators;
+using Lab06.Infrastructure.Utils;
+
+namespace Lab06.Application.Services;
 
 public class CryptoSystem(IStreamGenerator generator)
 {
@@ -17,13 +20,15 @@ public class CryptoSystem(IStreamGenerator generator)
     public void EncryptFile(string inputPath, string outputPath)
     {
         if (!File.Exists(inputPath))
+        {
             throw new FileNotFoundException($"Input file not found: {inputPath}");
+        }
 
         var inputBytes = File.ReadAllBytes(inputPath);
         var inputBits = BitUtils.BytesToBits(inputBytes);
-        
+
         var cipherBits = ProcessBits(inputBits);
-        
+
         var cipherBytes = BitUtils.BitsToBytes(cipherBits);
         File.WriteAllBytes(outputPath, cipherBytes);
     }
@@ -41,6 +46,7 @@ public class CryptoSystem(IStreamGenerator generator)
             var keyBit = generator.NextBit();
             outputBits[i] = inputBits[i] ^ keyBit;
         }
+
         return outputBits;
     }
 
@@ -57,6 +63,7 @@ public class CryptoSystem(IStreamGenerator generator)
         {
             keystream[i] = plainBits[i] ^ cipherBits[i];
         }
+
         return keystream;
     }
 }

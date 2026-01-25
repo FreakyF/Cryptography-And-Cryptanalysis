@@ -1,4 +1,4 @@
-namespace Lab06;
+namespace Lab06.Infrastructure.Utils;
 
 public static class Statistics
 {
