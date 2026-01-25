@@ -1,0 +1,65 @@
+namespace Lab06;
+
+public static class ExperimentRunner
+{
+    public static void RunExperiments()
+    {
+        Console.WriteLine("\n=== RUNNING EXPERIMENTS ===");
+        
+        int[] lengths = [8, 16, 24, 31, 62, 93];
+        var rnd = new Random();
+        var attacker = new AttackService();
+
+        foreach (var len in lengths)
+        {
+            var successes = 0;
+            const int trials = 20; 
+            double totalTime = 0;
+
+            for (var i = 0; i < trials; i++)
+            {
+                var kX = BitUtils.IntToBinaryArray(rnd.Next(1, 1 << 3), 3);
+                var kY = BitUtils.IntToBinaryArray(rnd.Next(1, 1 << 4), 4);
+                var kZ = BitUtils.IntToBinaryArray(rnd.Next(1, 1 << 5), 5);
+
+                var gen = new CombinationGenerator(
+                    new Lfsr(3, [0, 1], kX),
+                    new Lfsr(4, [0, 3], kY),
+                    new Lfsr(5, [0, 2], kZ)
+                );
+                
+                var keystream = new int[len];
+                for (var b = 0; b < len; b++) 
+                {
+                    keystream[b] = gen.NextBit();
+                }
+
+                var sw = Stopwatch.StartNew();
+                try 
+                {
+                    var originalOut = Console.Out;
+                    Console.SetOut(TextWriter.Null); 
+                    
+                    var result = attacker.CorrelationAttack(keystream);
+                    
+                    Console.SetOut(originalOut);
+                    sw.Stop();
+                    totalTime += sw.Elapsed.TotalMilliseconds;
+                    
+                    if (Enumerable.SequenceEqual(result.StateX, kX) &&
+                        Enumerable.SequenceEqual(result.StateY, kY) &&
+                        Enumerable.SequenceEqual(result.StateZ, kZ))
+                    {
+                        successes++;
+                    }
+                }
+                catch
+                {
+                    sw.Stop();
+                }
+            }
+
+            Console.WriteLine($"Length {len} bits: Success Rate {successes}/{trials} ({(double)successes/trials:P0}), Avg Time: {totalTime/trials:F4}ms");
+        }
+    }
+}
