@@ -196,7 +196,65 @@ public class AttackService
         return bestState;
     }
 
-    // ... (pozostałe metody ataku brute force i RecoverY)
+    private int[] RecoverY(int[] keystream, int[] stateX, int[] stateZ)
+    {
+        Console.WriteLine("Recovering Register Y (Exhaustive search)...");
+        const int limit = 1 << LenY;
+
+        for (var i = 1; i < limit; i++)
+        {
+            var stateY = BitUtils.IntToBinaryArray(i, LenY);
+
+            if (!CheckKey(keystream, stateX, stateY, stateZ))
+            {
+                continue;
+            }
+
+            Console.WriteLine($"Found Y: {string.Join("", stateY)}");
+            return stateY;
+        }
+
+        throw new InvalidOperationException(
+            "Could not recover register Y. The correlation attack may have failed for X or Z.");
+    }
+
+    public AttackResult BruteForceAttack(int[] keystream)
+    {
+        Console.WriteLine("--- Starting Brute Force Attack ---");
+        const int limX = 1 << LenX;
+        const int limY = 1 << LenY;
+        const int limZ = 1 << LenZ;
+
+        for (var ix = 1; ix < limX; ix++)
+        {
+            for (var iy = 1; iy < limY; iy++)
+            {
+                for (var iz = 1; iz < limZ; iz++)
+                {
+                    var sx = BitUtils.IntToBinaryArray(ix, LenX);
+                    var sy = BitUtils.IntToBinaryArray(iy, LenY);
+                    var sz = BitUtils.IntToBinaryArray(iz, LenZ);
+
+                    if (CheckKey(keystream, sx, sy, sz))
+                    {
+                        return new AttackResult(sx, sy, sz);
+                    }
+                }
+            }
+        }
+
+        return new AttackResult();
+    }
+
+    private bool CheckKey(int[] keystream, int[] sx, int[] sy, int[] sz)
+    {
+        var lx = new Lfsr(LenX, _tapsX, sx);
+        var ly = new Lfsr(LenY, _tapsY, sy);
+        var lz = new Lfsr(LenZ, _tapsZ, sz);
+        var gen = new CombinationGenerator(lx, ly, lz);
+
+        return keystream.All(bit => gen.NextBit() == bit);
+    }
 }
 ```
 
@@ -368,6 +426,8 @@ Dodatkowo, w ramach weryfikacji poprawności operacji plikowych, przeprowadzono 
 ### Eksperyment 1: Minimalna długość tekstu jawnego
 
 Przeprowadzono serię testów (20 prób dla każdej długości), aby określić minimalną długość strumienia klucza (tekstu jawnego) wymaganą do skutecznego ataku.
+
+Tabela 1: Wyniki eksperymentu 1: Minimalna długość tekstu jawnego.
 
 | Długość (bity) | Skuteczność | Średni czas (ms) |
 | :--- | :--- | :--- |
