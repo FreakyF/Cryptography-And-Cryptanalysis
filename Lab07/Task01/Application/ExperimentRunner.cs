@@ -6,11 +6,19 @@ using Task01.Shared;
 
 namespace Task01.Application;
 
+/// <summary>
+///     Orchestrates and executes the various cryptographic experiments and attacks required for the laboratory task.
+/// </summary>
+/// <param name="cipher">The Trivium cipher implementation to be tested.</param>
 public class ExperimentRunner(ITriviumCipher cipher)
 {
     private const string TestKeyHex = "0123456789ABCDEF0123";
     private const string TestIvHex = "FEDCBA9876543210FEDC";
 
+    /// <summary>
+    ///     Experiment 1: Verifies the correctness of the Trivium implementation against known test vectors.
+    ///     Also checks the involutive property (Dec(Enc(P)) == P).
+    /// </summary>
     public void RunExperiment1Verification()
     {
         Console.WriteLine("--- Experiment 1: Verification ---");
@@ -21,12 +29,14 @@ public class ExperimentRunner(ITriviumCipher cipher)
         var stream = cipher.GenerateKeystream(32);
         var hex = Convert.ToHexString(stream);
 
+        // Known expected output for zero key/IV from Trivium specification
         const string expected = "FBE0BF265859051B517A2E4E239FC97F563203161907CF2DE7A8790FA1B2E9CD";
 
         Console.WriteLine($"Generated: {hex}");
         Console.WriteLine($"Expected:  {expected}");
         Console.WriteLine($"Match:     {hex.Equals(expected, StringComparison.OrdinalIgnoreCase)}");
 
+        // Involutive check
         cipher.Initialize(key, iv);
         var testData = "Trivium Involutive Test"u8.ToArray();
         var encrypted = cipher.Encrypt(testData);
@@ -37,6 +47,11 @@ public class ExperimentRunner(ITriviumCipher cipher)
         Console.WriteLine();
     }
 
+    /// <summary>
+    ///     Experiment 2: Demonstrates the "IV Reuse" attack (Two-Time Pad).
+    ///     Shows that encrypting two different plaintexts with the same Key/IV allows an attacker
+    ///     to recover the XOR difference of the plaintexts and potentially recover the plaintexts themselves using crib dragging.
+    /// </summary>
     public void RunExperiment2IvReuse()
     {
         Console.WriteLine("--- Experiment 2: IV Reuse Attack ---");
@@ -50,6 +65,7 @@ public class ExperimentRunner(ITriviumCipher cipher)
         var p2 = Encoding.ASCII.GetBytes(p2Str);
         var minLen = Math.Min(p1.Length, p2.Length);
 
+        // Encrypt both plaintexts with the SAME keystream
         var swEnc = Stopwatch.StartNew();
         cipher.Initialize(key, iv);
         var c1 = cipher.Encrypt(p1);
@@ -58,12 +74,14 @@ public class ExperimentRunner(ITriviumCipher cipher)
         swEnc.Stop();
         Console.WriteLine($"Encryption took: {swEnc.Elapsed.TotalMicroseconds:F2} μs");
 
+        // XORing ciphertexts eliminates the keystream: C1 ^ C2 = (P1 ^ K) ^ (P2 ^ K) = P1 ^ P2
         Span<byte> xorCipher = stackalloc byte[minLen];
         for (var i = 0; i < minLen; i++)
         {
             xorCipher[i] = (byte)(c1[i] ^ c2[i]);
         }
 
+        // Trivial recovery if we know P1
         Span<byte> recoveredP2 = stackalloc byte[minLen];
         for (var i = 0; i < minLen; i++)
         {
@@ -72,6 +90,7 @@ public class ExperimentRunner(ITriviumCipher cipher)
 
         Console.WriteLine($"Recovered P2: {Encoding.ASCII.GetString(recoveredP2)}");
 
+        // Crib dragging demonstration
         string[] cribs = ["HTTP", "Content-Type:", "Secret:", "200 OK"];
         foreach (var cribStr in cribs)
         {
@@ -81,6 +100,9 @@ public class ExperimentRunner(ITriviumCipher cipher)
         Console.WriteLine();
     }
 
+    /// <summary>
+    ///     Helper method for crib dragging analysis.
+    /// </summary>
     private static void AnalyzeCrib(ReadOnlySpan<byte> xorCipher, string cribStr, int maxLen)
     {
         var sw = Stopwatch.StartNew();
@@ -106,11 +128,15 @@ public class ExperimentRunner(ITriviumCipher cipher)
         return matches;
     }
 
+    /// <summary>
+    ///     Checks if XORing the crib with the ciphertext segment results in sensible ASCII text.
+    /// </summary>
     private static bool IsDecryptionSensible(ReadOnlySpan<byte> xorSegment, ReadOnlySpan<byte> crib)
     {
         for (var j = 0; j < crib.Length; j++)
         {
             var val = (byte)(xorSegment[j] ^ crib[j]);
+            // Check for printable ASCII or common whitespace
             if (val is not (>= 32 and <= 126 or 10 or 13))
             {
                 return false;
@@ -120,6 +146,11 @@ public class ExperimentRunner(ITriviumCipher cipher)
         return true;
     }
 
+    /// <summary>
+    ///     Experiment 3: Analyzes the effect of reduced rounds on state statistics and performance.
+    ///     Measures warmup time, keystream generation throughput, and statistical properties (Chi-Square)
+    ///     for various round counts (0 to 1152).
+    /// </summary>
     public void RunExperiment3RoundsAnalysis()
     {
         Console.WriteLine("--- Experiment 3: Rounds Analysis Performance & State Evolution ---");
@@ -150,6 +181,10 @@ public class ExperimentRunner(ITriviumCipher cipher)
         Console.WriteLine();
     }
 
+    /// <summary>
+    ///     Experiment 4: Performs a Cube Attack on reduced-round versions of Trivium.
+    ///     Attempts to recover key bits by finding linear cubes in the offline phase and solving the system in the online phase.
+    /// </summary>
     public void RunExperiment4CubeAttack()
     {
         Console.WriteLine("--- Experiment 4: Cube Attack (Reduced Versions) ---");
@@ -160,11 +195,12 @@ public class ExperimentRunner(ITriviumCipher cipher)
         {
             var attackService = new CubeAttackService(cipher);
             var swOffline = Stopwatch.StartNew();
+            // Offline Phase
             var cubes = attackService.FindLinearCubes(r);
             swOffline.Stop();
 
+            // Online Phase (using a wrapper to simulate an Oracle with a hidden key)
             var oracle = new OracleTriviumWrapper(targetKey);
-
             var recovered = CubeAttackService.RecoverKey(cubes, oracle, r);
 
             var correct = cubes.Count(item => recovered[item.KeyIndex] == targetKey[item.KeyIndex]);
@@ -174,6 +210,9 @@ public class ExperimentRunner(ITriviumCipher cipher)
         }
     }
 
+    /// <summary>
+    ///     Experiment 5: Runs extensive statistical tests (NIST-like) on keystreams generated with varying warmup rounds.
+    /// </summary>
     public void RunExperiment5Statistics()
     {
         Console.WriteLine("--- Experiment 5: Statistical Comparison ---");
@@ -185,11 +224,15 @@ public class ExperimentRunner(ITriviumCipher cipher)
         {
             Console.WriteLine($"Testing rounds: {r}");
             cipher.Initialize(key, iv, r);
-            var stream = cipher.GenerateKeystream(125_000);
+            var stream = cipher.GenerateKeystream(125_000); // ~1 Mbit
             StatisticalTestService.RunTests(stream);
         }
     }
 
+    /// <summary>
+    ///     Experiment 6: Saturation/Stress Test.
+    ///     Generates 1 Gigabit of keystream to benchmark sustained throughput and check for memory stability.
+    /// </summary>
     public void RunExperiment6HighVolumeThroughput()
     {
         Console.WriteLine("--- Experiment 6: 1 Billion Bits Saturation Test (Fixed) ---");
@@ -203,6 +246,7 @@ public class ExperimentRunner(ITriviumCipher cipher)
 
         cipher.Initialize(key, iv);
         var sw = Stopwatch.StartNew();
+        // Generate 125MB of keystream
         _ = cipher.GenerateKeystream(totalBytes);
         sw.Stop();
 
@@ -219,6 +263,7 @@ public class ExperimentRunner(ITriviumCipher cipher)
         cipher.Initialize(key, iv);
         sw.Restart();
 
+        // Encrypt 125MB in-place
         cipher.Encrypt(plaintext);
 
         sw.Stop();
@@ -231,12 +276,18 @@ public class ExperimentRunner(ITriviumCipher cipher)
         Console.WriteLine();
     }
 
+    /// <summary>
+    ///     A wrapper around the <see cref="TriviumCipher"/> that acts as an Oracle with a hidden embedded key.
+    ///     Used in the online phase of the Cube Attack.
+    /// </summary>
+    /// <param name="hiddenKey">The secret key hidden within the oracle.</param>
     private sealed class OracleTriviumWrapper(bool[] hiddenKey) : ITriviumCipher
     {
         private readonly TriviumCipher _internal = new();
 
         public void Initialize(byte[] key, byte[] iv, int warmupRounds = 1152)
         {
+            // Ignores the provided 'key' argument and uses 'hiddenKey' instead
             _internal.Initialize(BitsToBytes(hiddenKey), iv, warmupRounds);
         }
 
