@@ -47,60 +47,66 @@ public class ExperimentRunner(ITriviumCipher cipher)
 
         var p1 = System.Text.Encoding.ASCII.GetBytes(p1Str);
         var p2 = System.Text.Encoding.ASCII.GetBytes(p2Str);
+        var minLen = Math.Min(p1.Length, p2.Length);
 
         var swEnc = Stopwatch.StartNew();
         cipher.Initialize(key, iv);
         var c1 = cipher.Encrypt(p1);
-
         cipher.Initialize(key, iv);
         var c2 = cipher.Encrypt(p2);
         swEnc.Stop();
-        Console.WriteLine($"Encryption (C1, C2) took: {swEnc.Elapsed.TotalMicroseconds:F2} μs");
+        Console.WriteLine($"Encryption took: {swEnc.Elapsed.TotalMicroseconds:F2} μs");
 
-        var swXor = Stopwatch.StartNew();
-        Span<byte> xorCipher = stackalloc byte[c1.Length];
-        for (var i = 0; i < c1.Length; i++) xorCipher[i] = (byte)(c1[i] ^ c2[i]);
-        swXor.Stop();
+        Span<byte> xorCipher = stackalloc byte[minLen];
+        for (var i = 0; i < minLen; i++) xorCipher[i] = (byte)(c1[i] ^ c2[i]);
 
-        Span<byte> xorPlain = stackalloc byte[p1.Length];
-        for (var i = 0; i < p1.Length; i++) xorPlain[i] = (byte)(p1[i] ^ p2[i]);
-
-        Console.WriteLine($"Verification (C1 ^ C2 == P1 ^ P2): {xorCipher.SequenceEqual(xorPlain)}");
-        Console.WriteLine($"XOR calculation took: {swXor.Elapsed.TotalMicroseconds:F2} μs");
-
-        Span<byte> recoveredP2 = stackalloc byte[p1.Length];
-        for (var i = 0; i < p1.Length; i++) recoveredP2[i] = (byte)(xorCipher[i] ^ p1[i]);
+        Span<byte> recoveredP2 = stackalloc byte[minLen];
+        for (var i = 0; i < minLen; i++) recoveredP2[i] = (byte)(xorCipher[i] ^ p1[i]);
         Console.WriteLine($"Recovered P2: {recoveredP2.ToArray().ToAsciiString()}");
 
-        string[] cribs = ["HT", "HTTP", "Content-Type:", "HTTP/1.1 200 OK\r\n"];
-        int[] lengths = [2, 4, 8, 16];
-
-        for (var idx = 0; idx < cribs.Length; idx++)
+        string[] cribs = ["HTTP", "Content-Type:", "Secret:", "200 OK"];
+        foreach (var cribStr in cribs)
         {
-            var swCrib = Stopwatch.StartNew();
-            var cribBytes = System.Text.Encoding.ASCII.GetBytes(cribs[idx]);
-            var len = lengths[idx];
-            var crib = cribBytes.AsSpan(0, Math.Min(cribBytes.Length, len));
-            var matches = 0;
-
-            for (var i = 0; i <= xorCipher.Length - crib.Length; i++)
-            {
-                var isMatch = true;
-                for (var j = 0; j < crib.Length; j++)
-                {
-                    var val = (byte)(xorCipher[i + j] ^ crib[j]);
-                    isMatch &= val is >= 32 and <= 126 or 10 or 13;
-                }
-
-                if (isMatch) matches++;
-            }
-
-            swCrib.Stop();
-            Console.WriteLine(
-                $"Length {len} (Crib: '{cribs[idx]}'): {matches} matches found in {swCrib.Elapsed.TotalMicroseconds:F2} μs");
+            AnalyzeCrib(xorCipher, cribStr, minLen);
         }
 
         Console.WriteLine();
+    }
+
+    private static void AnalyzeCrib(ReadOnlySpan<byte> xorCipher, string cribStr, int maxLen)
+    {
+        var sw = Stopwatch.StartNew();
+        var cribBytes = System.Text.Encoding.ASCII.GetBytes(cribStr);
+        var matches = CountCribMatches(xorCipher, cribBytes, maxLen);
+        sw.Stop();
+        Console.WriteLine($"Crib '{cribStr}': {matches} matches in {sw.Elapsed.TotalMicroseconds:F2} μs");
+    }
+
+    private static int CountCribMatches(ReadOnlySpan<byte> xorCipher, ReadOnlySpan<byte> crib, int maxLen)
+    {
+        var matches = 0;
+        var searchLimit = maxLen - crib.Length;
+
+        for (var i = 0; i <= searchLimit; i++)
+        {
+            if (IsDecryptionSensible(xorCipher.Slice(i, crib.Length), crib))
+            {
+                matches++;
+            }
+        }
+
+        return matches;
+    }
+
+    private static bool IsDecryptionSensible(ReadOnlySpan<byte> xorSegment, ReadOnlySpan<byte> crib)
+    {
+        for (var j = 0; j < crib.Length; j++)
+        {
+            var val = (byte)(xorSegment[j] ^ crib[j]);
+            if (val is not (>= 32 and <= 126 or 10 or 13)) return false;
+        }
+
+        return true;
     }
 
     public void RunExperiment3RoundsAnalysis()
