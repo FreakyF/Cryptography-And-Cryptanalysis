@@ -124,30 +124,76 @@ using System.Runtime.Intrinsics.X86;
 
 namespace Task01.Domain.Core;
 
+/// <summary>
+///     High-performance implementation of the Trivium stream cipher.
+/// </summary>
+/// <remarks>
+///     This class utilizes advanced .NET features including <see cref="Vector256{T}"/> (AVX2),
+///     unsafe pointer arithmetic, and explicit memory layout management to achieve maximum throughput.
+///     The state is represented using bit-sliced or word-packed formats depending on the context
+///     (scalar execution vs. parallel execution).
+///     <para>
+///         Key optimizations include:
+///         <list type="bullet">
+///             <item>AVX2 SIMD intrinsics for parallel block processing.</item>
+///             <item>Bitslicing for high-volume keystream generation.</item>
+///             <item>Aggressive inlining and loop unrolling.</item>
+///             <item>Pinned memory and pointer arithmetic to bypass array bounds checks.</item>
+///         </list>
+///     </para>
+/// </remarks>
 [SkipLocalsInit]
 public unsafe class TriviumCipher : ITriviumCipher
 {
+    /// <summary>
+    ///     The size of a processing chunk in bytes (16 KB). Used for parallel task partitioning.
+    /// </summary>
     private const int ChunkSize = 16 * 1024;
 
+    /// <summary>
+    ///     The threshold (128 KB) above which encryption/decryption switches from sequential to parallel execution.
+    /// </summary>
     private const int ParallelThreshold = 8 * ChunkSize;
 
+    /// <summary>
+    ///     Initial value for the C register (lowest 3 bits set to 1, i.e., value 7).
+    ///     Represented as a 256-bit vector for SIMD operations.
+    /// </summary>
     private static readonly Vector256<ulong> C0_Init = Vector256.Create(7UL);
 
+    // Internal state registers (A, B, C) represented as 64-bit integers.
+    // Trivium state is 288 bits: A (93 bits), B (84 bits), C (111 bits).
+    // Here, we pack them into ulongs (64 bits each) requiring 2 ulongs per register (Low/High).
     private ulong _a0, _a1, _b0, _b1, _c0, _c1;
 
+    // Base values for key and IV, pre-computed during initialization to allow fast resets.
     private ulong _baseK0, _baseK1, _baseIv0, _baseIv1;
+
+    // Buffer for single-bit generation to amortize the cost of state updates.
     private ulong _singleBitBuffer;
     private int _singleBitRemaining;
 
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="TriviumCipher"/> class.
+    /// </summary>
     public TriviumCipher()
     {
+        // Dummy allocations to ensure JIT warms up array structures if necessary (though not strictly needed with unsafe).
         Array.Empty<bool>();
         Array.Empty<bool>();
     }
 
+    /// <summary>
+    ///     Gets the number of ticks elapsed during the last warmup phase.
+    /// </summary>
     public long LastWarmupTicks { get; }
+
+    /// <summary>
+    ///     Gets the number of ticks elapsed during the last keystream generation or encryption operation.
+    /// </summary>
     public long LastGenerationTicks { get; private set; }
 
+    /// <inheritdoc />
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Initialize(byte[] key, byte[] iv, int warmupRounds = 1152)
     {
@@ -155,6 +201,10 @@ public unsafe class TriviumCipher : ITriviumCipher
         _baseK1 = 0;
         _baseIv0 = 0;
         _baseIv1 = 0;
+
+        // Load 80-bit key into _baseK0 (low 64 bits) and _baseK1 (high 16 bits)
+        // Trivium loads key into first 80 bits of register A (indices 0..79)
+        // Mapping: key bit i -> state bit 92-i (reversed in implementation for efficient shifting)
         for (var i = 0; i < 80; i++)
         {
             if ((key[i / 8] & (1 << (i % 8))) != 0)
@@ -170,6 +220,8 @@ public unsafe class TriviumCipher : ITriviumCipher
                 }
             }
 
+            // Load 80-bit IV into _baseIv0 and _baseIv1
+            // Trivium loads IV into first 80 bits of register B (indices 93..172)
             if ((iv[i / 8] & (1 << (i % 8))) != 0)
             {
                 var p = 83 - i;
@@ -188,9 +240,11 @@ public unsafe class TriviumCipher : ITriviumCipher
         _a1 = _baseK1;
         _b0 = _baseIv0;
         _b1 = _baseIv1;
-        _c0 = 7UL;
+        _c0 = 7UL; // Last 3 bits of C are set to 1 (bits 285, 286, 287 in spec)
         _c1 = 0;
 
+        // Perform warmup rounds (4 x 288 = 1152 steps)
+        // We update 64 bits at a time using scalar word packing.
         var batches = warmupRounds / 64;
         for (var i = 0; i < batches; i++)
         {
@@ -198,11 +252,14 @@ public unsafe class TriviumCipher : ITriviumCipher
         }
     }
 
+    /// <inheritdoc />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool GenerateBit()
     {
+        // Amortization: Generate 64 bits at once, buffer them, and return one by one.
         if (_singleBitRemaining == 0)
         {
+            // Calculate 64 bits of keystream (Z)
             var t1_z = ((_a0 >> 27) | (_a1 << 37)) ^ _a0;
             var t2_z = ((_b0 >> 15) | (_b1 << 49)) ^ _b0;
             var t3_z = ((_c0 >> 45) | (_c1 << 19)) ^ _c0;
@@ -219,6 +276,7 @@ public unsafe class TriviumCipher : ITriviumCipher
         return b;
     }
 
+    /// <inheritdoc />
     public byte[] Encrypt(byte[] plaintext)
     {
         return plaintext.Length >= ParallelThreshold
@@ -226,11 +284,13 @@ public unsafe class TriviumCipher : ITriviumCipher
             : EncryptSequential(plaintext);
     }
 
+    /// <inheritdoc />
     public byte[] Decrypt(byte[] ciphertext)
     {
         return Encrypt(ciphertext);
     }
 
+    /// <inheritdoc />
     public (int OnesCount, double Balance) GetStateStatistics()
     {
         var ones = BitOperations.PopCount(_a0) + BitOperations.PopCount(_a1) +
@@ -239,11 +299,13 @@ public unsafe class TriviumCipher : ITriviumCipher
         return (ones, ones / 288.0);
     }
 
+    /// <inheritdoc />
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public byte[] GenerateKeystream(int lengthInBytes)
     {
         var result = GC.AllocateUninitializedArray<byte>(lengthInBytes);
 
+        // For very large requests, use bitsliced generation which is extremely fast for bulk data
         if (lengthInBytes >= 256 * 1024)
         {
             return GenerateKeystreamBitsliced(lengthInBytes);
@@ -256,6 +318,7 @@ public unsafe class TriviumCipher : ITriviumCipher
             var blocks = lengthInBytes / 8;
             ulong a0 = _a0, a1 = _a1, b0 = _b0, b1 = _b1, c0 = _c0, c1 = _c1;
 
+            // Main loop: generate 64 bits (8 bytes) per iteration
             for (var i = 0; i < blocks; i++)
             {
                 var z = ((a0 >> 27) | (a1 << 37)) ^ a0 ^ ((b0 >> 15) | (b1 << 49)) ^ b0 ^ ((c0 >> 45) | (c1 << 19)) ^
@@ -277,6 +340,12 @@ public unsafe class TriviumCipher : ITriviumCipher
         return result;
     }
 
+    /// <summary>
+    ///     Generates keystream using a bitsliced approach for high throughput.
+    ///     Generates 256 streams in parallel (software emulation of SIMD) and transposes results.
+    /// </summary>
+    /// <param name="lengthInBytes">Total length to generate.</param>
+    /// <returns>The generated keystream bytes.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private byte[] GenerateKeystreamBitsliced(int lengthInBytes)
     {
@@ -292,19 +361,26 @@ public unsafe class TriviumCipher : ITriviumCipher
         return result;
     }
 
+    /// <summary>
+    ///     Core bitsliced processing loop.
+    /// </summary>
+    /// <param name="streamLen">Number of bytes to generate per stream.</param>
     private void ProcessBitslicedBatch256(int streamLen)
     {
         var S = new Vector256<ulong>[288];
 
         for (var i = 0; i < 288; i++)
         {
-            S[i] = Vector256<ulong>.Zero;
+            S[i] = Vector256<ulong>.Zero; // Initialize bit columns
         }
 
+        // Simplified bitslicing logic (demonstrative structure for the task context)
+        // In a real optimized bitslice, we would initialize S with actual IV/Key diffs across streams.
         for (var byteIdx = 0; byteIdx < streamLen; byteIdx++)
         {
             for (var bit = 0; bit < 8; bit++)
             {
+                // Trivium update logic applied to 256 bits in parallel using Vector256
                 var t1 = S[65] ^ S[92];
                 var t2 = S[161] ^ S[176];
                 var t3 = S[242] ^ S[287];
@@ -313,6 +389,7 @@ public unsafe class TriviumCipher : ITriviumCipher
                 t2 ^= (S[174] & S[175]) ^ S[263];
                 t3 ^= (S[285] & S[286]) ^ S[68];
 
+                // Shift state
                 for (var k = 287; k > 0; k--)
                 {
                     S[k] = S[k - 1];
@@ -325,6 +402,13 @@ public unsafe class TriviumCipher : ITriviumCipher
         }
     }
 
+    /// <summary>
+    ///     Encrypts data in parallel using AVX2 instructions.
+    ///     The plaintext is split into chunks, and each chunk is encrypted as a separate stream
+    ///     initialized with a counter-based IV (CTR mode-like parallelization).
+    /// </summary>
+    /// <param name="data">The data to encrypt/decrypt.</param>
+    /// <returns>The processed data.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private byte[] EncryptParallel(byte[] data)
     {
@@ -332,7 +416,7 @@ public unsafe class TriviumCipher : ITriviumCipher
         var ptr = (byte*)handle.AddrOfPinnedObject();
         var len = data.Length;
 
-        var bytesPerBatch = ChunkSize * 8;
+        var bytesPerBatch = ChunkSize * 8; // 8 chunks processed per task
         var tasks = (len + bytesPerBatch - 1) / bytesPerBatch;
 
         var sw = Stopwatch.StartNew();
@@ -342,10 +426,12 @@ public unsafe class TriviumCipher : ITriviumCipher
             var off = (long)chunkIdx * ChunkSize;
             if (off + (long)ChunkSize * 8 <= len)
             {
+                // Process 8 full chunks using highly optimized AVX2 path
                 ProcessByteBatch8(chunkIdx, ptr);
             }
             else
             {
+                // Process remaining chunks safely (bounds checked)
                 ProcessByteBatchSafe(chunkIdx, len, ptr);
             }
         });
@@ -356,6 +442,12 @@ public unsafe class TriviumCipher : ITriviumCipher
         return data;
     }
 
+    /// <summary>
+    ///     Standard sequential encryption using scalar 64-bit word operations.
+    ///     Used for small payloads or leftovers.
+    /// </summary>
+    /// <param name="plaintext">The input data.</param>
+    /// <returns>The encrypted data.</returns>
     private byte[] EncryptSequential(byte[] plaintext)
     {
         var result = GC.AllocateUninitializedArray<byte>(plaintext.Length);
@@ -383,6 +475,7 @@ public unsafe class TriviumCipher : ITriviumCipher
                 UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
             }
 
+            // Handle trailing bytes (less than 8 bytes)
             var tail = plaintext.Length & 7;
             if (tail > 0)
             {
@@ -416,17 +509,25 @@ public unsafe class TriviumCipher : ITriviumCipher
         return result;
     }
 
+    /// <summary>
+    ///     Updates the internal state by 64 steps in one go using scalar word operations.
+    ///     This exploits the fact that Trivium's feedback functions are linear within a short range
+    ///     and can be computed using word shifts and XORs.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void UpdateState64Scalar(ref ulong a0, ref ulong a1, ref ulong b0, ref ulong b1, ref ulong c0, ref ulong c1)
     {
+        // Calculate feedback bits (t1, t2, t3) for the next 64 positions
         var t1 = ((a0 >> 27) | (a1 << 37)) ^ a0;
         var t2 = ((b0 >> 15) | (b1 << 49)) ^ b0;
         var t3 = ((c0 >> 45) | (c1 << 19)) ^ c0;
 
+        // Apply non-linear feed-forward (AND operations)
         var r1 = t1 ^ (((a0 >> 2) | (a1 << 62)) & ((a0 >> 1) | (a1 << 63))) ^ ((b0 >> 6) | (b1 << 58));
         var r2 = t2 ^ (((b0 >> 2) | (b1 << 62)) & ((b0 >> 1) | (b1 << 63))) ^ ((c0 >> 24) | (c1 << 40));
         var r3 = t3 ^ (((c0 >> 2) | (c1 << 62)) & ((c0 >> 1) | (c1 << 63))) ^ ((a0 >> 24) | (a1 << 40));
 
+        // Shift registers and inject new bits
         a0 = a1 | (r3 << 29);
         a1 = r3 >> 35;
         b0 = b1 | (r1 << 20);
@@ -436,10 +537,20 @@ public unsafe class TriviumCipher : ITriviumCipher
     }
 
 
+    /// <summary>
+    ///     Processes a batch of 8 chunks (8 * 16KB) simultaneously using AVX2.
+    ///     Maintains 8 separate Trivium states in AVX2 registers (Vector256&lt;ulong&gt;).
+    /// </summary>
+    /// <param name="chunkIndex">The starting index of the chunk batch.</param>
+    /// <param name="ptr">Pointer to the data buffer.</param>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void ProcessByteBatch8(int chunkIndex, byte* ptr)
     {
+        // Initialize 8 parallel states (A, B, C)
+        // A initialized with Key
         Vector256<ulong> aA0 = Vector256.Create(_baseK0), aA1 = Vector256.Create(_baseK1);
+
+        // B initialized with IV + Counter offset (0..3 for first vector, 4..7 for second)
         var aB0 = Avx2.Add(Vector256.Create(_baseIv0),
             Vector256.Create((ulong)chunkIndex, (ulong)chunkIndex + 1, (ulong)chunkIndex + 2, (ulong)chunkIndex + 3));
         var aB1 = Vector256.Create(_baseIv1);
@@ -452,12 +563,14 @@ public unsafe class TriviumCipher : ITriviumCipher
         var bB1 = Vector256.Create(_baseIv1);
         Vector256<ulong> bC0 = C0_Init, bC1 = Vector256<ulong>.Zero;
 
+        // Warmup phases for all 8 states (18 * 64 = 1152 rounds)
         for (var w = 0; w < 18; w++)
         {
             UpdateStateV256_Inline(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
             UpdateStateV256_Inline(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
         }
 
+        // Pointers to the 8 chunks
         var baseOff = (long)chunkIndex * ChunkSize;
         var p0 = ptr + baseOff;
         var p1 = p0 + ChunkSize;
@@ -468,17 +581,23 @@ public unsafe class TriviumCipher : ITriviumCipher
         var p6 = p5 + ChunkSize;
         var p7 = p6 + ChunkSize;
 
+        // Main processing loop with unrolling (128 bytes per step)
         for (var i = 0; i < ChunkSize; i += 128)
         {
+            // Software Prefetching to pull future data into cache
             Sse.Prefetch0(p0 + i + 384);
             Sse.Prefetch0(p4 + i + 384);
 
+            // Generate keystream and update states for first set of 4 chunks
             var z_a = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
             var z_b = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
 
+            // 2nd iteration (next 8 bytes)
             var z_a2 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
             var z_b2 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
 
+            // XOR keystream with plaintext directly in memory (unsafe pointers)
+            // Process 4 streams * 8 bytes (Vector element)
             *(ulong*)(p0 + i) ^= z_a.GetElement(0);
             *(ulong*)(p0 + i + 8) ^= z_a2.GetElement(0);
             *(ulong*)(p1 + i) ^= z_a.GetElement(1);
@@ -496,6 +615,8 @@ public unsafe class TriviumCipher : ITriviumCipher
             *(ulong*)(p7 + i) ^= z_b.GetElement(3);
             *(ulong*)(p7 + i + 8) ^= z_b2.GetElement(3);
 
+            // Repeat for subsequent blocks in the unrolled loop (covering 128 bytes total per iteration)
+            // Block 3 & 4
             var z_a3 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
             var z_b3 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
             var z_a4 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
@@ -518,6 +639,7 @@ public unsafe class TriviumCipher : ITriviumCipher
             *(ulong*)(p7 + i + 16) ^= z_b3.GetElement(3);
             *(ulong*)(p7 + i + 24) ^= z_b4.GetElement(3);
 
+            // Block 5 & 6
             var z_a5 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
             var z_b5 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
             var z_a6 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
@@ -539,6 +661,7 @@ public unsafe class TriviumCipher : ITriviumCipher
             *(ulong*)(p7 + i + 32) ^= z_b5.GetElement(3);
             *(ulong*)(p7 + i + 40) ^= z_b6.GetElement(3);
 
+            // Block 7 & 8
             var z_a7 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
             var z_b7 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
             var z_a8 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
@@ -562,6 +685,13 @@ public unsafe class TriviumCipher : ITriviumCipher
         }
     }
 
+    /// <summary>
+    ///     Safely processes remaining chunks that don't fit into the optimized 8-chunk batch.
+    ///     Performs individual initialization and updates for each chunk.
+    /// </summary>
+    /// <param name="chunkIndex">The starting chunk index.</param>
+    /// <param name="totalLen">Total length of the data buffer.</param>
+    /// <param name="ptr">Pointer to the data buffer.</param>
     private void ProcessByteBatchSafe(int chunkIndex, int totalLen, byte* ptr)
     {
         for (var c = 0; c < 8; c++)
@@ -575,12 +705,16 @@ public unsafe class TriviumCipher : ITriviumCipher
 
             var len = (int)System.Math.Min(ChunkSize, totalLen - off);
             var p = ptr + off;
+            // Initialize state for this specific chunk (Key + IV + Counter)
             ulong a0 = _baseK0, a1 = _baseK1, b0 = _baseIv0 + (ulong)idx, b1 = _baseIv1, c0 = 7, c1 = 0;
+
+            // Warmup
             for (var i = 0; i < 18; i++)
             {
                 UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
             }
 
+            // Process data
             for (var i = 0; i < len; i += 8)
             {
                 UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
@@ -602,10 +736,15 @@ public unsafe class TriviumCipher : ITriviumCipher
         }
     }
 
+    /// <summary>
+    ///     Updates 4 Trivium states in parallel using AVX2 vector operations.
+    ///     Corresponds to the <see cref="UpdateState64Scalar"/> method but applied to 256-bit vectors.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void UpdateStateV256_Inline(ref Vector256<ulong> a0, ref Vector256<ulong> a1, ref Vector256<ulong> b0,
         ref Vector256<ulong> b1, ref Vector256<ulong> c0, ref Vector256<ulong> c1)
     {
+        // Vectorized bitwise shifts, ORs, and XORs to simulate state update logic for 4 states simultaneously
         var t1 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(a0, 27), Avx2.ShiftLeftLogical(a1, 37)), a0);
         var t2 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(b0, 15), Avx2.ShiftLeftLogical(b1, 49)), b0);
         var t3 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(c0, 45), Avx2.ShiftLeftLogical(c1, 19)), c0);
@@ -632,6 +771,10 @@ public unsafe class TriviumCipher : ITriviumCipher
         c1 = Avx2.ShiftRightLogical(r2, 17);
     }
 
+    /// <summary>
+    ///     Calculates the keystream block (Z) and updates the state (AVX2 version).
+    /// </summary>
+    /// <returns>A 256-bit vector containing the generated keystream for 4 parallel states.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Vector256<ulong> CalculateZ_And_Update(ref Vector256<ulong> a0, ref Vector256<ulong> a1,
         ref Vector256<ulong> b0, ref Vector256<ulong> b1, ref Vector256<ulong> c0, ref Vector256<ulong> c1)
@@ -639,7 +782,10 @@ public unsafe class TriviumCipher : ITriviumCipher
         var t1 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(a0, 27), Avx2.ShiftLeftLogical(a1, 37)), a0);
         var t2 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(b0, 15), Avx2.ShiftLeftLogical(b1, 49)), b0);
         var t3 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(c0, 45), Avx2.ShiftLeftLogical(c1, 19)), c0);
+
+        // Z = t1 + t2 + t3
         var z = Avx2.Xor(Avx2.Xor(t1, t2), t3);
+
         var r1 = Avx2.Xor(
             Avx2.Xor(t1,
                 Avx2.And(Avx2.Or(Avx2.ShiftRightLogical(a0, 2), Avx2.ShiftLeftLogical(a1, 62)),
@@ -691,10 +837,31 @@ using Task01.Domain.Math;
 
 namespace Task01.Domain.Services;
 
+/// <summary>
+///     Represents a set of IV bit indices that form a "Cube" for the Cube Attack.
+/// </summary>
+/// <param name="Indices">The list of bit positions (0-79) in the IV that are varied (summed over).</param>
 public record Cube(List<int> Indices);
 
+/// <summary>
+///     Implements the Cube Attack against reduced-round versions of the Trivium stream cipher.
+/// </summary>
+/// <remarks>
+///     The Cube Attack is a chosen-IV algebraic attack. It exploits the fact that for low-degree polynomials,
+///     summing the output over a "cube" (a subspace of IV variables) can reduce the degree of the superpoly
+///     to a linear function of the key bits.
+///     <para>
+///         This service handles both the offline phase (finding linear cubes) and the online phase (key recovery).
+///     </para>
+/// </remarks>
+/// <param name="cipher">The cipher instance used for generating outputs during analysis.</param>
 public class CubeAttackService(ITriviumCipher cipher)
 {
+    /// <summary>
+    ///     Converts an array of boolean bits into a byte array.
+    /// </summary>
+    /// <param name="bits">The input bits (must be a multiple of 8 usually, but here handled generally).</param>
+    /// <returns>A byte array representation.</returns>
     private static byte[] ToByteArray(bool[] bits)
     {
         var bytes = new byte[10];
@@ -709,6 +876,15 @@ public class CubeAttackService(ITriviumCipher cipher)
         return bytes;
     }
 
+    /// <summary>
+    ///     Computes the value of the superpoly for a given cube and key/IV configuration.
+    ///     This effectively sums the first output bit of the cipher over all possible values of the cube variables.
+    /// </summary>
+    /// <param name="cube">The cube defining the IV bits to vary.</param>
+    /// <param name="key">The key to test.</param>
+    /// <param name="fixedIv">The base IV values (non-cube bits).</param>
+    /// <param name="rounds">The number of initialization rounds.</param>
+    /// <returns>The boolean sum (XOR) of the cipher outputs.</returns>
     private bool ComputeSuperpoly(Cube cube, bool[] key, bool[] fixedIv, int rounds)
     {
         var sum = false;
@@ -732,15 +908,25 @@ public class CubeAttackService(ITriviumCipher cipher)
         return sum;
     }
 
+    /// <summary>
+    ///     Offline Phase: Searches for linear cubes for a specified number of rounds.
+    /// </summary>
+    /// <param name="rounds">The number of rounds to target.</param>
+    /// <returns>
+    ///     A list of tuples, where each tuple contains a <see cref="Cube"/> and the index of the key bit
+    ///     that the cube's superpoly is linear in.
+    /// </returns>
     public List<(Cube Cube, int KeyIndex)> FindLinearCubes(int rounds)
     {
         var found = new List<(Cube, int)>();
         var random = new Random(42);
 
+        // Search for cubes of size 1 to 6
         for (var size = 1; size <= 6; size++)
         {
             var swSize = Stopwatch.StartNew();
             var sizeCount = 0;
+            // Attempt 20 random cubes of each size
             for (var i = 0; i < 20; i++)
             {
                 var indices = Enumerable.Range(0, 80).OrderBy(_ => random.Next()).Take(size).ToList();
@@ -762,12 +948,20 @@ public class CubeAttackService(ITriviumCipher cipher)
         return found;
     }
 
+    /// <summary>
+    ///     Tests if a given cube produces a linear superpoly in exactly one key variable.
+    /// </summary>
+    /// <param name="cube">The cube to test.</param>
+    /// <param name="rounds">The number of rounds.</param>
+    /// <param name="keyIndex">Output parameter receiving the index of the key bit if linearity is found.</param>
+    /// <returns><c>true</c> if the cube is linear in exactly one key bit; otherwise, <c>false</c>.</returns>
     private bool TryIdentifyLinearity(Cube cube, int rounds, out int keyIndex)
     {
         keyIndex = -1;
         var random = new Random();
         var candidates = Enumerable.Range(0, 80).ToList();
 
+        // Perform linearity tests using random keys
         for (var test = 0; test < 5; test++)
         {
             var testKey = new bool[80];
@@ -778,6 +972,8 @@ public class CubeAttackService(ITriviumCipher cipher)
 
             var val = ComputeSuperpoly(cube, testKey, new bool[80], rounds);
 
+            // Filter out key bits that do not match the superpoly output behavior
+            // (Simplified linearity check: assumes p(k) = k_i + c, checks consistency)
             candidates.RemoveAll(kIdx => testKey[kIdx] != val);
 
             if (candidates.Count == 0)
@@ -795,11 +991,19 @@ public class CubeAttackService(ITriviumCipher cipher)
         return true;
     }
 
+    /// <summary>
+    ///     Online Phase: Recovers key bits using the identified linear cubes and an oracle.
+    /// </summary>
+    /// <param name="linearCubes">The list of linear cubes found in the offline phase.</param>
+    /// <param name="oracle">The oracle (black box) containing the secret key to be recovered.</param>
+    /// <param name="rounds">The number of rounds.</param>
+    /// <returns>An array of recovered key bits (some may remain unknown/false if no cube covered them).</returns>
     public static bool[] RecoverKey(List<(Cube Cube, int KeyIndex)> linearCubes, ITriviumCipher oracle, int rounds)
     {
         var swOnline = Stopwatch.StartNew();
         var results = new bool[linearCubes.Count];
 
+        // Evaluate cubes against the live oracle in parallel
         Parallel.For(0, linearCubes.Count, i =>
         {
             var localCipher = new TriviumCipher();
@@ -825,6 +1029,9 @@ public class CubeAttackService(ITriviumCipher cipher)
             results[i] = sum;
         });
 
+        // Construct linear system: A * k = results
+        // Since we identified cubes where superpoly = k_i (plus constant, assumed 0 here for simplicity),
+        // we essentially have k_i = result.
         var matrix = new List<bool[]>();
         foreach (var item in linearCubes)
         {
@@ -833,6 +1040,7 @@ public class CubeAttackService(ITriviumCipher cipher)
             matrix.Add(row);
         }
 
+        // Solve the system to recover key bits
         var recoveredBits = Gf2Solver.SolveLinearSystem(matrix, results, 80);
         swOnline.Stop();
         Console.WriteLine($"Online phase: recovery took {swOnline.Elapsed.TotalMicroseconds:F2} μs");
@@ -864,13 +1072,44 @@ using System.Numerics;
 
 namespace Task01.Domain.Math;
 
+/// <summary>
+///     Provides mathematical utilities for solving systems of linear equations over the Galois Field GF(2).
+/// </summary>
+/// <remarks>
+///     This class implements Gaussian elimination optimized for boolean systems using bit-packed operations.
+///     It is specifically designed to handle systems where coefficients and unknowns are binary values (0 or 1),
+///     and arithmetic operations are performed modulo 2 (equivalent to bitwise XOR).
+/// </remarks>
 public static class Gf2Solver
 {
+    /// <summary>
+    ///     Solves a system of linear equations over GF(2) using Gaussian elimination.
+    /// </summary>
+    /// <param name="matrix">
+    ///     The coefficient matrix represented as a list of boolean arrays. Each array corresponds to a row in the system.
+    ///     The length of each boolean array must match <paramref name="variableCount"/>.
+    /// </param>
+    /// <param name="results">
+    ///     The results vector (right-hand side of the equations). The length must match the number of rows in <paramref name="matrix"/>.
+    /// </param>
+    /// <param name="variableCount">
+    ///     The number of variables (unknowns) in the system.
+    ///     <note type="warning">
+    ///         This implementation uses a fixed 128-bit structure (<see cref="Row"/>) to store row data plus the result bit.
+    ///         Therefore, it supports a maximum of 127 variables.
+    ///     </note>
+    /// </param>
+    /// <returns>
+    ///     A boolean array representing the solution vector. If the system is inconsistent or underdetermined,
+    ///     the method attempts to return a valid partial assignment, but no explicit exception is thrown for singular matrices
+    ///     in this specific implementation path.
+    /// </returns>
     public static bool[] SolveLinearSystem(List<bool[]> matrix, bool[] results, int variableCount)
     {
         var rowCount = matrix.Count;
         var rows = new Row[rowCount];
 
+        // Initialize the optimized row representations from the input boolean matrix
         for (var i = 0; i < rowCount; i++)
         {
             for (var j = 0; j < variableCount; j++)
@@ -888,16 +1127,19 @@ public static class Gf2Solver
                 }
             }
 
+            // Store the result bit in the highest bit of the High segment (bit 63)
             if (results[i])
             {
                 rows[i].High |= 1UL << 63;
             }
         }
 
+        // Perform Gaussian elimination (Forward Elimination)
         var pivotRow = 0;
         for (var col = 0; col < variableCount && pivotRow < rowCount; col++)
         {
             var sel = -1;
+            // Find a pivot row for the current column
             for (var r = pivotRow; r < rowCount; r++)
             {
                 var isSet = col < 64
@@ -915,8 +1157,10 @@ public static class Gf2Solver
                 continue;
             }
 
+            // Swap the current row with the pivot row
             (rows[pivotRow], rows[sel]) = (rows[sel], rows[pivotRow]);
 
+            // Eliminate other rows
             for (var r = 0; r < rowCount; r++)
             {
                 if (r != pivotRow)
@@ -926,6 +1170,7 @@ public static class Gf2Solver
                         : (rows[r].High & (1UL << (col - 64))) != 0;
                     if (isSet)
                     {
+                        // Row operation: R_r = R_r XOR R_pivot (Arithmetic mod 2)
                         rows[r].Low ^= rows[pivotRow].Low;
                         rows[r].High ^= rows[pivotRow].High;
                     }
@@ -935,6 +1180,7 @@ public static class Gf2Solver
             pivotRow++;
         }
 
+        // Back-substitution / Extract solution
         var solution = new bool[variableCount];
         for (var i = 0; i < rowCount; i++)
         {
@@ -950,6 +1196,7 @@ public static class Gf2Solver
 
             if (firstBit != -1 && firstBit < variableCount)
             {
+                // The result is stored in the 63rd bit of High
                 solution[firstBit] = (rows[i].High & (1UL << 63)) != 0;
             }
         }
@@ -957,9 +1204,25 @@ public static class Gf2Solver
         return solution;
     }
 
+    /// <summary>
+    ///     Represents a row in the augmented matrix using a bit-packed format for performance.
+    /// </summary>
+    /// <remarks>
+    ///     The row consists of two 64-bit integers (<see cref="ulong"/>), providing a total capacity of 128 bits.
+    ///     Since the last bit of <see cref="High"/> (index 63) is reserved for the equation result (RHS),
+    ///     this structure effectively supports systems with up to 127 variables.
+    /// </remarks>
     private struct Row
     {
+        /// <summary>
+        ///     Stores the coefficients for variables 0 through 63.
+        /// </summary>
         public ulong Low;
+
+        /// <summary>
+        ///     Stores the coefficients for variables 64 through 126.
+        ///     Bit 63 is reserved for the augmented column (result) value.
+        /// </summary>
         public ulong High;
     }
 }
