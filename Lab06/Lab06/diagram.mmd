@@ -1,0 +1,56 @@
+flowchart TD
+    subgraph Initialization
+        RNG[Random Number Generator]
+        Keys[("LFSR Keys (X, Y, Z)")]
+        RNG -->|Generate| Keys
+    end
+
+    subgraph Encryption Process
+        PT[/"Plaintext"/]
+        LFSR_X[LFSR X]
+        LFSR_Y[LFSR Y]
+        LFSR_Z[LFSR Z]
+        CombGen[Combination Generator]
+        KS[Keystream]
+        CT[/"Ciphertext"/]
+
+        Keys -->|Initialize| LFSR_X
+        Keys -->|Initialize| LFSR_Y
+        Keys -->|Initialize| LFSR_Z
+
+        LFSR_X -->|Bits| CombGen
+        LFSR_Y -->|Bits| CombGen
+        LFSR_Z -->|Bits| CombGen
+
+        CombGen -->|"(x&y)^(y&z)^z"| KS
+
+        PT -->|XOR| CT
+        KS -->|XOR| CT
+    end
+
+    subgraph Cryptanalysis Process
+        RecKS[Recovered Keystream]
+        CorrAtt[Correlation Attack]
+        RecX[Recovered Key X]
+        RecZ[Recovered Key Z]
+        BF_Y[Brute Force Y]
+        RecKeys[("Recovered Keys (X, Y, Z)")]
+
+        PT & CT -->|XOR| RecKS
+        RecKS -->|Input| CorrAtt
+
+        CorrAtt -->|Pearson Correlation| RecX
+        CorrAtt -->|Pearson Correlation| RecZ
+
+        RecX & RecZ & RecKS -->|Input| BF_Y
+        BF_Y -->|Exhaustive Search| RecKeys
+    end
+
+    subgraph Verification
+        Comp{Compare Keys}
+        Result[Verification Result]
+
+        Keys --> Comp
+        RecKeys --> Comp
+        Comp -->|Match/Mismatch| Result
+    end
