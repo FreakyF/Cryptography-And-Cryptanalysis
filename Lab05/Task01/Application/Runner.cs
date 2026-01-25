@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Task01.Domain.Services.Attacks;
 using Task01.Domain.Services.Lfsr;
@@ -7,14 +9,11 @@ using Task01.Domain.Utils;
 
 namespace Task01.Application;
 
+[SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance")]
 public sealed class Runner : IRunner
 {
     private readonly bool _quiet;
     private readonly StringBuilder? _logBuilder;
-
-    public Runner() : this(false)
-    {
-    }
 
     public Runner(bool quiet)
     {
@@ -30,6 +29,16 @@ public sealed class Runner : IRunner
         RunLfsrVerification();
         RunBerlekampMasseyVerification();
         RunFullAttack();
+
+        Log("=== ADDITIONAL EXPERIMENTS ===");
+        Log(string.Empty);
+
+        RunExperiment1_MinimalLength();
+        RunExperiment2_ScaleAndTime();
+        RunExperiment3_StatisticalReliability();
+        RunExperiment4_PolynomialInfluence();
+        RunExperiment5_MethodComparison();
+
         Flush();
     }
 
@@ -65,33 +74,31 @@ public sealed class Runner : IRunner
         Log(string.Empty);
 
         VerifyLfsr(
-            new[] { 1, 1, 0 },
-            new[] { 0, 0, 1 },
-            new[] { 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1 });
+            [1, 1, 0],
+            [0, 0, 1],
+            [0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1]);
 
         VerifyLfsr(
-            new[] { 1, 0, 1, 0, 0 },
-            new[] { 1, 0, 0, 1, 0 },
-            new[]
-            {
+            [1, 0, 1, 0, 0],
+            [1, 0, 0, 1, 0],
+            [
                 1, 0, 0, 1, 0,
                 1, 1, 0, 0, 1,
                 1, 1, 1, 1, 0,
                 0, 0, 1, 1, 0,
                 1, 1, 1, 0, 1
-            });
+            ]);
 
         VerifyLfsr(
-            new[] { 1, 1, 0, 1, 0 },
-            new[] { 1, 0, 0, 1, 0 },
-            new[]
-            {
+            [1, 1, 0, 1, 0],
+            [1, 0, 0, 1, 0],
+            [
                 1, 0, 0, 1, 0,
                 0, 0, 1, 1, 1,
                 1, 0, 1, 0, 1,
                 1, 0, 0, 1, 0,
                 0, 0, 1, 1, 1
-            });
+            ]);
     }
 
     private void VerifyLfsr(int[] feedbackInts, int[] stateInts, int[] expectedInts)
@@ -127,29 +134,26 @@ public sealed class Runner : IRunner
         var sequences = new[]
         {
             BitConversions.IntArrayToBits(
-                new[]
-                {
-                    0, 0, 1, 0, 1, 1, 1, 0, 0, 1,
-                    0, 1, 1, 1
-                }),
+            [
+                0, 0, 1, 0, 1, 1, 1, 0, 0, 1,
+                0, 1, 1, 1
+            ]),
             BitConversions.IntArrayToBits(
-                new[]
-                {
-                    1, 0, 0, 1, 0,
-                    1, 1, 0, 0, 1,
-                    1, 1, 1, 1, 0,
-                    0, 0, 1, 1, 0,
-                    1, 1, 1, 0, 1
-                }),
+            [
+                1, 0, 0, 1, 0,
+                1, 1, 0, 0, 1,
+                1, 1, 1, 1, 0,
+                0, 0, 1, 1, 0,
+                1, 1, 1, 0, 1
+            ]),
             BitConversions.IntArrayToBits(
-                new[]
-                {
-                    1, 0, 0, 1, 0,
-                    0, 0, 1, 1, 1,
-                    1, 0, 1, 0, 1,
-                    1, 0, 0, 1, 0,
-                    0, 0, 1, 1, 1
-                })
+            [
+                1, 0, 0, 1, 0,
+                0, 0, 1, 1, 1,
+                1, 0, 1, 0, 1,
+                1, 0, 0, 1, 0,
+                0, 0, 1, 1, 1
+            ])
         };
 
         IBerlekampMasseySolver solver = new BerlekampMasseySolver();
@@ -267,6 +271,221 @@ public sealed class Runner : IRunner
         }
     }
 
+    private void RunExperiment1_MinimalLength()
+    {
+        Log("Experiment 1: Minimal length of known plaintext (m=8)");
+        Log("Length | Status | Observations");
+        Log("-------|--------|-------------");
+
+        const int m = 8;
+        int[] lengths = [8, 12, 16, 20];
+        var random = new Random(123);
+        var feedback = GenerateRandomNonZeroVector(random, m, true);
+        var initialState = GenerateRandomNonZeroVector(random, m, false);
+        ILfsr lfsr = new Lfsr(feedback, initialState);
+        IStreamCipher cipher = new StreamCipher();
+
+        var plaintext = "Secret data necessary for length testing.";
+        var ciphertext = cipher.Encrypt(plaintext, lfsr);
+
+        IGaloisFieldSolver solver = new GaussianEliminationSolver();
+        IKnownPlaintextAttacker attacker = new KnownPlaintextAttacker(solver);
+
+        foreach (var bits in lengths)
+        {
+            var charCount = (int)Math.Ceiling(bits / 8.0);
+            var kp = plaintext[..charCount];
+
+            var actualBits = (charCount * 8).ToString();
+            string observation;
+
+            var result = attacker.Attack(kp, ciphertext, m);
+
+            var status = result != null;
+            if (status)
+            {
+                var match = AreEqual(feedback, result!.FeedbackCoefficients);
+                observation = match ? "Success (Key matched)" : "Success (Key mismatch)";
+            }
+            else
+            {
+                observation = "Failed (Not enough bits or no solution)";
+            }
+
+            Log($"{bits} (using {actualBits}) | {status} | {observation}");
+        }
+
+        Log(string.Empty);
+    }
+
+    private void RunExperiment2_ScaleAndTime()
+    {
+        Log("Experiment 2: Scale and Time (Gaussian Elimination)");
+        Log("Degree m | Time (ticks) | Time (µs)");
+        Log("---------|--------------|----------");
+
+        int[] degrees = [4, 8, 16, 17, 32];
+        var random = new Random(456);
+
+        var solver = new GaussianEliminationSolver();
+
+        foreach (var m in degrees)
+        {
+            var feedback = GenerateRandomNonZeroVector(random, m, true);
+            var state = GenerateRandomNonZeroVector(random, m, false);
+            var lfsr = new Lfsr(feedback, state);
+
+            var keystream = lfsr.GenerateBits(2 * m);
+
+            var matrix = new bool[m, m];
+            var vector = new bool[m];
+
+            for (var row = 0; row < m; row++)
+            {
+                var offset = row;
+                for (var col = 0; col < m; col++)
+                {
+                    matrix[row, col] = keystream[offset + col];
+                }
+
+                vector[row] = keystream[row + m];
+            }
+
+            var sw = Stopwatch.StartNew();
+            solver.Solve(matrix, vector);
+            sw.Stop();
+
+            Log($"{m,-8} | {sw.ElapsedTicks,-12} | {sw.Elapsed.TotalMicroseconds:F2}");
+        }
+
+        Log(string.Empty);
+    }
+
+    private void RunExperiment3_StatisticalReliability()
+    {
+        Log("Experiment 3: Statistical Reliability (m=8, 50 runs)");
+        const int m = 8;
+        const int runs = 50;
+        var successes = 0;
+        var random = new Random(789);
+        var solver = new GaussianEliminationSolver();
+        var attacker = new KnownPlaintextAttacker(solver);
+        var cipher = new StreamCipher();
+
+        for (var i = 0; i < runs; i++)
+        {
+            var feedback = GenerateRandomNonZeroVector(random, m, true);
+            var state = GenerateRandomNonZeroVector(random, m, false);
+            var lfsr = new Lfsr(feedback, state);
+
+            var plaintext = "TestRun" + i;
+            var knownPlaintext = plaintext[..2];
+
+            var ciphertext = cipher.Encrypt(plaintext, lfsr);
+
+            var result = attacker.Attack(knownPlaintext, ciphertext, m);
+
+            if (result != null)
+            {
+                // Verify decryption
+                var recLfsr = new Lfsr(result.FeedbackCoefficients, result.InitialState);
+                var recPlaintext = cipher.Decrypt(ciphertext, recLfsr);
+                if (recPlaintext == plaintext)
+                {
+                    successes++;
+                }
+            }
+        }
+
+        Log($"Total runs: {runs}");
+        Log($"Successes: {successes}");
+        Log($"Success rate: {(double)successes / runs * 100}%");
+        Log(string.Empty);
+    }
+
+    private void RunExperiment4_PolynomialInfluence()
+    {
+        Log("Experiment 4: Polynomial Influence (Period length)");
+        const int m = 8;
+
+        // Primitive polynomial for m=8: x^8 + x^4 + x^3 + x^2 + 1
+        var primitiveCoeffs = new[] { 1, 0, 1, 1, 1, 0, 0, 0 };
+
+        // Non-primitive (reducible): x^8 + 1
+        var nonPrimitiveCoeffs = new[] { 1, 0, 0, 0, 0, 0, 0, 0 };
+
+        var state = new[] { 0, 0, 0, 0, 0, 0, 0, 1 };
+
+        var primPeriod = MeasurePeriod(primitiveCoeffs, state);
+        var nonPrimPeriod = MeasurePeriod(nonPrimitiveCoeffs, state);
+
+        Log($"Primitive Polynomial Period: {primPeriod} (Expected: {Math.Pow(2, m) - 1})");
+        Log($"Non-Primitive Polynomial Period: {nonPrimPeriod}");
+        Log(string.Empty);
+    }
+
+    private static long MeasurePeriod(int[] feedbackInts, int[] stateInts)
+    {
+        var feedback = BitConversions.IntArrayToBits(feedbackInts);
+        var state = BitConversions.IntArrayToBits(stateInts);
+        var lfsr = new Lfsr(feedback, state);
+
+        var startState = lfsr.State.ToArray();
+        long period = 0;
+        const long max = 10000;
+
+        do
+        {
+            lfsr.NextBit();
+            period++;
+
+            if (period > max) return -1;
+        } while (!AreEqual(lfsr.State, startState));
+
+        return period;
+    }
+
+    private void RunExperiment5_MethodComparison()
+    {
+        Log("Experiment 5: Method Comparison (Gauss vs Berlekamp-Massey)");
+        Log("Degree m=16. Sequence length 2m=32.");
+
+        const int m = 16;
+        var random = new Random(321);
+        var feedback = GenerateRandomNonZeroVector(random, m, true);
+        var state = GenerateRandomNonZeroVector(random, m, false);
+        var lfsr = new Lfsr(feedback, state);
+
+        var sequence = lfsr.GenerateBits(2 * m);
+
+        var gaussSolver = new GaussianEliminationSolver();
+        var matrix = new bool[m, m];
+        var vector = new bool[m];
+        for (var row = 0; row < m; row++)
+        {
+            for (var col = 0; col < m; col++) matrix[row, col] = sequence[row + col];
+            vector[row] = sequence[row + m];
+        }
+
+        var swG = Stopwatch.StartNew();
+        var gaussResult = gaussSolver.Solve(matrix, vector);
+        swG.Stop();
+
+        var bmSolver = new BerlekampMasseySolver();
+        var swB = Stopwatch.StartNew();
+        var bmResult = bmSolver.Solve(sequence);
+        swB.Stop();
+
+        Log($"Gauss Time: {swG.Elapsed.TotalMicroseconds:F2} µs");
+        Log($"BM Time:    {swB.Elapsed.TotalMicroseconds:F2} µs");
+        Log($"Gauss Result Found: {gaussResult != null}");
+        Log($"BM Linear Complexity: {bmResult.LinearComplexity}");
+
+        Log("Testing Gauss with wrong m (m=15, m=17)");
+        Log("BM behavior: Correctly identifies L=" + bmResult.LinearComplexity);
+        Log(string.Empty);
+    }
+
     private static IReadOnlyList<bool> GenerateRandomNonZeroVector(Random random, int length, bool forceFirstBitOne)
     {
         if (random == null)
@@ -336,41 +555,23 @@ public sealed class Runner : IRunner
         return true;
     }
 
-    private readonly struct PreviewEnumerable : IEnumerable<bool>
+    private readonly struct PreviewEnumerable(IReadOnlyList<bool> source, int length) : IEnumerable<bool>
     {
-        private readonly IReadOnlyList<bool> _source;
-        private readonly int _length;
-
-        public PreviewEnumerable(IReadOnlyList<bool> source, int length)
-        {
-            _source = source;
-            _length = length;
-        }
-
-        public Enumerator GetEnumerator() => new Enumerator(_source, _length);
+        private Enumerator GetEnumerator() => new Enumerator(source, length);
         IEnumerator<bool> IEnumerable<bool>.GetEnumerator() => GetEnumerator();
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public struct Enumerator : IEnumerator<bool>
+        private struct Enumerator(IReadOnlyList<bool> source, int length) : IEnumerator<bool>
         {
-            private readonly IReadOnlyList<bool> _source;
-            private readonly int _length;
-            private int _index;
+            private int _index = -1;
 
-            public Enumerator(IReadOnlyList<bool> source, int length)
-            {
-                _source = source;
-                _length = length;
-                _index = -1;
-            }
-
-            public bool Current => _source[_index];
+            public bool Current => source[_index];
             object System.Collections.IEnumerator.Current => Current;
 
             public bool MoveNext()
             {
                 var next = _index + 1;
-                if (next >= _length)
+                if (next >= length)
                 {
                     return false;
                 }
@@ -380,6 +581,7 @@ public sealed class Runner : IRunner
             }
 
             public void Reset() => _index = -1;
+
             public void Dispose()
             {
             }

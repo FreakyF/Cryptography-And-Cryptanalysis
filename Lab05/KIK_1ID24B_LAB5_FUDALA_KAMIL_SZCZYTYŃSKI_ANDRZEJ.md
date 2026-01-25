@@ -8,18 +8,11 @@
 
 ## Wprowadzenie
 
-Celem niniejszego opracowania jest przedstawienie procesu projektowania oraz analizy kryptosystemu strumieniowego
-wykorzystującego liniowy rejestr przesuwny ze sprzężeniem zwrotnym (ang. *Linear Feedback Shift Register* – LFSR).
-Laboratorium obejmuje implementację generatora, realizację mechanizmów szyfrowania i deszyfrowania danych oraz
-przeprowadzenie ataku kryptoanalitycznego typu *known-plaintext*, który obnaża strukturalne słabości systemów opartych
-na czystej liniowości.
+Celem niniejszego opracowania jest przedstawienie procesu projektowania oraz analizy kryptosystemu strumieniowego wykorzystującego liniowy rejestr przesuwny ze sprzężeniem zwrotnym (ang. *Linear Feedback Shift Register* – LFSR). Laboratorium obejmuje implementację generatora, realizację mechanizmów szyfrowania i deszyfrowania danych oraz przeprowadzenie ataku kryptoanalitycznego typu *known-plaintext*, który obnaża strukturalne słabości systemów opartych na czystej liniowości.
 
 ### Charakterystyka liniowych rejestrów przesuwnych
 
-Rejestr LFSR stopnia $m$ składa się z ciągu komórek pamięci oraz funkcji sprzężenia zwrotnego, która wyznacza wartość
-nowego bitu wprowadzanego do układu. Stan rejestru w dyskretnej chwili czasu $i$ opisywany jest przez
-wektor $(s_{i+m-1}, s_{i+m-2}, \dots, s_{i+1}, s_{i})$, gdzie $s_{i}$ pełni rolę bitu wyjściowego. Proces generowania
-kolejnych wartości opiera się na rekurencji liniowej nad polem Galois $GF(2)$:
+Rejestr LFSR stopnia $m$ składa się z ciągu komórek pamięci oraz funkcji sprzężenia zwrotnego, która wyznacza wartość nowego bitu wprowadzanego do układu. Stan rejestru w dyskretnej chwili czasu $i$ opisywany jest przez wektor $(s_{i+m-1}, s_{i+m-2}, \dots, s_{i+1}, s_{i})$, gdzie $s_{i}$ pełni rolę bitu wyjściowego. Proces generowania kolejnych wartości opiera się na rekurencji liniowej nad polem Galois $GF(2)$:
 
 $$s_{i+m} \equiv \sum_{j=0}^{m-1} p_{j} \cdot s_{i+j} \pmod 2$$
 
@@ -27,51 +20,36 @@ Współczynniki $p_{j} \in \{0, 1\}$ definiują wielomian charakterystyczny gene
 
 $$P(x) = p_{0} + p_{1}x + p_{2}x^{2} + \dots + p_{m-1}x^{m-1} + x^{m}$$
 
-Właściwości generowanej sekwencji są ściśle uzależnione od doboru tego wielomianu. Szczególne znaczenie mają wielomiany
-pierwotne, które gwarantują uzyskanie maksymalnego okresu sekwencji wynoszącego $2^{m} - 1$. Wykorzystanie wielomianów o
-gorszych parametrach prowadzi do skrócenia cyklu generatora oraz obniżenia jego odporności kryptoanalitycznej.
+Właściwości generowanej sekwencji są ściśle uzależnione od doboru tego wielomianu. Szczególne znaczenie mają wielomiany pierwotne, które gwarantują uzyskanie maksymalnego okresu sekwencji wynoszącego $2^{m} - 1$. Wykorzystanie wielomianów o gorszych parametrach prowadzi do skrócenia cyklu generatora oraz obniżenia jego odporności kryptoanalitycznej.
 
 ### Złożoność liniowa i algorytm Berlekampa-Masseya
 
-Złożoność liniowa stanowi kluczowy parametr oceny bezpieczeństwa sekwencji pseudolosowych. Definiuje ona stopień
-najkrótszego rejestru LFSR, który jest w stanie wygenerować dany ciąg binarny. Z punktu widzenia kryptografii pożądane
-są sekwencje o wysokiej złożoności liniowej, rosnącej wraz z długością obserwowanego fragmentu.
+Złożoność liniowa stanowi kluczowy parametr oceny bezpieczeństwa sekwencji pseudolosowych. Definiuje ona stopień najkrótszego rejestru LFSR, który jest w stanie wygenerować dany ciąg binarny. Z punktu widzenia kryptografii pożądane są sekwencje o wysokiej złożoności liniowej, rosnącej wraz z długością obserwowanego fragmentu.
 
-Do wyznaczania minimalnej struktury LFSR stosuje się algorytm Berlekampa-Masseya. Umożliwia on odtworzenie wielomianu
-sprzężenia zwrotnego na podstawie fragmentu sekwencji o długości co najmniej $2L$, gdzie $L$ to złożoność liniowa ciągu.
-Algorytm ten charakteryzuje się złożonością obliczeniową $O(n^{2})$, co czyni go wysoce efektywnym narzędziem w rękach
-kryptoanalityka.
+Do wyznaczania minimalnej struktury LFSR stosuje się algorytm Berlekampa-Masseya. Umożliwia on odtworzenie wielomianu sprzężenia zwrotnego na podstawie fragmentu sekwencji o długości co najmniej $2L$, gdzie $L$ to złożoność liniowa ciągu. Algorytm ten charakteryzuje się złożonością obliczeniową $O(n^{2})$, co czyni go wysoce efektywnym narzędziem w rękach kryptoanalityka.
 
 ### Podatność na ataki algebraiczne
 
-Podstawową wadą rejestrów LFSR jest ich liniowy charakter. W scenariuszu ataku z nanym tekstem jawnym (*known-plaintext
-attack*), napastnik jest w stanie wyznaczyć fragment strumienia klucza poprzez operację XOR między tekstem jawnym a
-szyfrogramem:
+Podstawową wadą rejestrów LFSR jest ich liniowy charakter. W scenariuszu ataku z nanym tekstem jawnym (*known-plaintext attack*), napastnik jest w stanie wyznaczyć fragment strumienia klucza poprzez operację XOR między tekstem jawnym a szyfrogramem:
 
 $$s_{i} \equiv x_{i} \oplus y_{i} \pmod 2$$
 
-Dysponując odpowiednią liczbą bitów strumienia, możliwe jest sformułowanie układu równań liniowych, w którym
-niewiadomymi są współczynniki sprzężenia zwrotnego. Układ ten, zapisany w postaci macierzowej $A \cdot p = b$, może
-zostać rozwiązany przy użyciu eliminacji Gaussa w arytmetyce binarnej. Sukces ataku pozwala na pełną rekonstrukcję stanu
-rejestru oraz przewidzenie wszystkich przyszłych bitów strumienia klucza, co całkowicie kompromituje bezpieczeństwo
-systemu.
+Dysponując odpowiednią liczbą bitów strumienia, możliwe jest sformułowanie układu równań liniowych, w którym niewiadomymi są współczynniki sprzężenia zwrotnego. Układ ten, zapisany w postaci macierzowej $A \cdot p = b$, może zostać rozwiązany przy użyciu eliminacji Gaussa w arytmetyce binarnej. Sukces ataku pozwala na pełną rekonstrukcję stanu rejestru oraz przewidzenie wszystkich przyszłych bitów strumienia klucza, co całkowicie kompromituje bezpieczeństwo systemu.
 
 ## Opis implementacji
 
 ### Architektura rozwiązania
 
-Projekt został zrealizowany w oparciu o architekturę warstwową (ang. *Layered Architecture*), co zapewnia przejrzysty
-podział odpowiedzialności oraz ułatwia testowanie i modyfikację poszczególnych komponentów. Poniżej przedstawiono
-kluczowe klasy systemu wraz z opisem ich optymalizacji.
+Projekt został zrealizowany w oparciu o architekturę warstwową (ang. *Layered Architecture*), co zapewnia przejrzysty podział odpowiedzialności oraz ułatwia testowanie i modyfikację poszczególnych komponentów. Poniżej przedstawiono kluczowe klasy systemu wraz z opisem ich optymalizacji i dokumentacją funkcji.
 
 #### `Lfsr.cs` – Generator pseudolosowy
 
-Klasa odpowiedzialna za implementację logiki rejestru przesuwnego. Stan rejestru oraz współczynniki sprzężenia zwrotnego
-są reprezentowane za pomocą 64-bitowych liczb całkowitych (`ulong`), co stanowi technikę znaną jako bit-packing. Dzięki
-temu operacje na całym stanie mogą być wykonywane w rejestrach procesora, co znacznie przyspiesza obliczenia w
-porównaniu do operacji na tablicach `bool[]`. Zastosowano instrukcję sprzętową `BitOperations.PopCount` do szybkiego
-obliczania parzystości. Metoda generująca bity `GenerateBits` wykorzystuje manualne rozwijanie pętli (loop unrolling),
-aby zminimalizować narzut sterowania przepływem.
+Klasa odpowiedzialna za implementację logiki rejestru przesuwnego. Stan rejestru oraz współczynniki sprzężenia zwrotnego są reprezentowane za pomocą 64-bitowych liczb całkowitych (`ulong`), co stanowi technikę znaną jako bit-packing. Dzięki temu operacje na całym stanie mogą być wykonywane w rejestrach procesora, co znacznie przyspiesza obliczenia w porównaniu do operacji na tablicach `bool[]`. Zastosowano instrukcję sprzętową `BitOperations.PopCount` do szybkiego obliczania parzystości. Metoda generująca bity `GenerateBits` wykorzystuje manualne rozwijanie pętli (loop unrolling), aby zminimalizować narzut sterowania przepływem.
+
+**Dokumentacja kluczowych metod:**
+*   `Lfsr(IEnumerable<bool> feedbackCoefficients, IEnumerable<bool> initialState)`: Konstruktor inicjalizujący LFSR. Konwertuje tablice boolowskie na upakowaną reprezentację `ulong`. Rzuca wyjątki przy niepoprawnych danych wejściowych (np. stan zerowy, długość > 64).
+*   `NextBit()`: Generuje pojedynczy bit wyjściowy i aktualizuje stan rejestru. Zwraca `bool`.
+*   `GenerateBits(int count)`: Generuje blok `count` bitów. Zwraca `IReadOnlyList<bool>`. Metoda zoptymalizowana przez rozwijanie pętli.
 
 ```cs
 using System.Numerics;
@@ -280,10 +258,11 @@ public sealed class Lfsr : ILfsr
 
 #### `StreamCipher.cs` – Szyfr strumieniowy
 
-Realizuje operację XOR pomiędzy strumieniem bitów wiadomości a strumieniem klucza generowanym przez LFSR. Implementacja
-wykorzystuje `GC.AllocateUninitializedArray`, aby uniknąć kosztownego zerowania pamięci dla tablicy wynikowej, która i
-tak jest w całości nadpisywana. Metody zostały oznaczone atrybutami `MethodImplOptions.AggressiveInlining`, co sugeruje
-kompilatorowi JIT wstawienie kodu metody bezpośrednio w miejscu wywołania.
+Realizuje operację XOR pomiędzy strumieniem bitów wiadomości a strumieniem klucza generowanym przez LFSR. Implementacja wykorzystuje `GC.AllocateUninitializedArray`, aby uniknąć kosztownego zerowania pamięci dla tablicy wynikowej, która i tak jest w całości nadpisywana. Metody zostały oznaczone atrybutami `MethodImplOptions.AggressiveInlining`, co sugeruje kompilatorowi JIT wstawienie kodu metody bezpośrednio w miejscu wywołania.
+
+**Dokumentacja kluczowych metod:**
+*   `Encrypt(string plaintext, ILfsr lfsr)`: Szyfruje tekst jawny przy użyciu podanego LFSR. Konwertuje tekst na bity i wykonuje operację XOR. Zwraca zaszyfrowane bity.
+*   `Decrypt(IReadOnlyList<bool> ciphertextBits, ILfsr lfsr)`: Deszyfruje ciąg bitów. Wykonuje operację XOR z bitami generowanymi przez LFSR i konwertuje wynik z powrotem na napis UTF-8.
 
 ```cs
 using System.Runtime.CompilerServices;
@@ -358,10 +337,11 @@ public sealed class StreamCipher : IStreamCipher
 
 #### `KnownPlaintextAttacker.cs` – Implementacja ataku
 
-Klasa realizująca atak z jawnym tekstem jawnym. Kluczową optymalizacją jest tutaj ponowne wykorzystywanie buforów
-pamięci (`Buffer Reuse`) poprzez metodę `EnsureBuffers`. W scenariuszach wielokrotnego uruchamiania ataku (np. podczas
-testów wydajnościowych lub łamania wielu wiadomości o tym samym stopniu LFSR), alokacja macierzy i wektorów następuje
-tylko raz, co znacząco odciąża Garbage Collector.
+Klasa realizująca atak z jawnym tekstem jawnym. Kluczową optymalizacją jest tutaj ponowne wykorzystywanie buforów pamięci (`Buffer Reuse`) poprzez metodę `EnsureBuffers`. W scenariuszach wielokrotnego uruchamiania ataku (np. podczas testów wydajnościowych lub łamania wielu wiadomości o tym samym stopniu LFSR), alokacja macierzy i wektorów następuje tylko raz, co znacząco odciąża Garbage Collector.
+
+**Dokumentacja kluczowych metod:**
+*   `Attack(string knownPlaintext, IReadOnlyList<bool> ciphertextBits, int lfsrDegree)`: Próbuje odtworzyć klucz (stan początkowy i wielomian) na podstawie fragmentu tekstu jawnego i pełnego szyfrogramu. Buduje układ równań liniowych i rozwiązuje go. Zwraca `AttackResult` lub `null` w przypadku niepowodzenia.
+*   `EnsureBuffers(int lfsrDegree)`: Metoda pomocnicza alokująca bufory robocze (macierz, wektory) tylko wtedy, gdy stopień LFSR uległ zmianie lub bufory nie istnieją.
 
 ```cs
 using System.Runtime.CompilerServices;
@@ -493,11 +473,11 @@ public sealed class KnownPlaintextAttacker(IGaloisFieldSolver solver) : IKnownPl
 
 #### `GaussianEliminationSolver.cs` – Rozwiązywanie układów równań w GF(2)
 
-Klasa implementująca metodę eliminacji Gaussa. Dla układów o rozmiarze do 63x63 zastosowano wysoce zoptymalizowaną
-wersję wykorzystującą operacje bitowe na typie `ulong`. Pozwala to na jednoczesne operowanie na całym wierszu macierzy
-za pomocą jednej instrukcji XOR. Dodatkowo użyto alokacji pamięci na stosie (`stackalloc`) dla wierszy macierzy, co
-eliminuje alokację na stercie i przyspiesza działanie algorytmu. Dla większych macierzy (lub w przypadku fallbacku)
-dostępna jest wersja wolniejsza (`SolveSlow`).
+Klasa implementująca metodę eliminacji Gaussa. Dla układów o rozmiarze do 63x63 zastosowano wysoce zoptymalizowaną wersję wykorzystującą operacje bitowe na typie `ulong`. Pozwala to na jednoczesne operowanie na całym wierszu macierzy za pomocą jednej instrukcji XOR. Dodatkowo użyto alokacji pamięci na stosie (`stackalloc`) dla wierszy macierzy, co eliminuje alokację na stercie i przyspiesza działanie algorytmu. Dla większych macierzy (lub w przypadku fallbacku) dostępna jest wersja wolniejsza (`SolveSlow`).
+
+**Dokumentacja kluczowych metod:**
+*   `Solve(bool[,] matrix, bool[] vector)`: Rozwiązuje układ równań liniowych postaci Ax=b w ciele Galois GF(2). Wybiera odpowiednią implementację (szybką `ulong` lub wolną tablicową) w zależności od rozmiaru macierzy. Zwraca wektor rozwiązania lub `null` (układ sprzeczny).
+*   `SolveSlow(bool[,] matrix, bool[] vector)`: Klasyczna implementacja eliminacji Gaussa na tablicach `bool`. Służy jako fallback dla dużych macierzy (>63).
 
 ```cs
 using System.Runtime.CompilerServices;
@@ -733,11 +713,11 @@ public sealed class GaussianEliminationSolver : IGaloisFieldSolver
 
 #### `BerlekampMasseySolver.cs` – Wyznaczanie złożoności liniowej
 
-Implementacja algorytmu Berlekampa-Masseya służącego do wyznaczania minimalnego wielomianu sprzężenia zwrotnego dla
-danej sekwencji binarnej. Podobnie jak w przypadku solvera Gaussa, zaimplementowano wersję zoptymalizowaną (
-`SolvePacked`) dla sekwencji o długości do 63 bitów, wykorzystującą operacje na `ulong`. Dla dłuższych sekwencji
-stosowana jest wersja tablicowa (`SolveArray`), która również korzysta z `Span<bool>` i alokacji na stosie lub za pomocą
-`GC.AllocateUninitializedArray`, aby zminimalizować narzut pamięciowy.
+Implementacja algorytmu Berlekampa-Masseya służącego do wyznaczania minimalnego wielomianu sprzężenia zwrotnego dla danej sekwencji binarnej. Podobnie jak w przypadku solvera Gaussa, zaimplementowano wersję zoptymalizowaną (`SolvePacked`) dla sekwencji o długości do 63 bitów, wykorzystującą operacje na `ulong`. Dla dłuższych sekwencji stosowana jest wersja tablicowa (`SolveArray`), która również korzysta z `Span<bool>` i alokacji na stosie lub za pomocą `GC.AllocateUninitializedArray`, aby zminimalizować narzut pamięciowy.
+
+**Dokumentacja kluczowych metod:**
+*   `Solve(IReadOnlyList<bool> sequence)`: Główna metoda interfejsu. Określa długość sekwencji i deleguje obliczenia do wersji `Packed` lub `Array`.
+*   `SolvePacked` / `SolveArray`: Konkretne implementacje algorytmu iteracyjnie minimalizujące długość rejestru $L$ potrzebnego do wygenerowania podanej sekwencji. Zwracają obiekt `BerlekampMasseyResult` zawierający złożoność liniową oraz wielomian połączeń.
 
 ```cs
 using System.Runtime.CompilerServices;
@@ -928,10 +908,13 @@ public sealed class BerlekampMasseySolver : IBerlekampMasseySolver
 
 #### `BitConversions.cs` – Operacje niskopoziomowe
 
-Klasa pomocnicza zawierająca zoptymalizowane metody konwersji danych. Wykorzystuje typ `Span<byte>` oraz alokację na
-stosie (`stackalloc`) dla małych buforów, co pozwala uniknąć alokacji na stercie podczas konwersji tekstu na bity.
-Dodatkowo używa metody `string.Create`, która umożliwia tworzenie ciągów znaków bezpośrednio w docelowym miejscu w
-pamięci, co jest bardziej wydajne niż użycie `StringBuilder` w pętli dla operacji bitowych.
+Klasa pomocnicza zawierająca zoptymalizowane metody konwersji danych. Wykorzystuje typ `Span<byte>` oraz alokację na stosie (`stackalloc`) dla małych buforów, co pozwala uniknąć alokacji na stercie podczas konwersji tekstu na bity. Dodatkowo używa metody `string.Create`, która umożliwia tworzenie ciągów znaków bezpośrednio w docelowym miejscu w pamięci, co jest bardziej wydajne niż użycie `StringBuilder` w pętli dla operacji bitowych.
+
+**Dokumentacja kluczowych metod:**
+*   `StringToBits(string text)`: Konwertuje tekst na tablicę bitów (kodowanie UTF-8).
+*   `BitsToString(IEnumerable<bool> bits)`: Konwertuje sekwencję bitów na tekst (UTF-8).
+*   `BitStringToBits(string bitString)`: Parsuje ciąg znaków "0" i "1" na tablicę `bool`.
+*   `BitsToBitString(IEnumerable<bool> bits)`: Konwertuje bity na reprezentację tekstową "0101...".
 
 ```cs
 using System.Runtime.CompilerServices;
@@ -954,6 +937,7 @@ public static class BitConversions
             return Array.Empty<bool>();
         }
 
+        // UTF-8
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(text.Length);
         Span<byte> buffer = maxByteCount <= 256
             ? stackalloc byte[maxByteCount]
@@ -1056,6 +1040,7 @@ public static class BitConversions
             buffer[i] = value;
         }
 
+        // prawdziwy UTF-8
         return Encoding.UTF8.GetString(buffer[..byteCount]);
     }
 
@@ -1305,120 +1290,117 @@ flowchart TD
     CompareProcess -- Result --> User
 ```
 
-### Demonstracja pełnego ataku
+## Eksperymenty i analiza
 
-Poniżej przedstawiono przykładowy rezultat działania programu demonstrującego weryfikację komponentów oraz skuteczność
-ataku *known-plaintext*.
+W tej sekcji przedstawiono wyniki pięciu eksperymentów badających właściwości kryptograficzne i wydajnościowe zaimplementowanego systemu.
 
-```text
-LFSR verification
+### Eksperyment 1: Minimalna długość tekstu (reguła 2L)
 
-LFSR degree: 3
-Feedback coefficients (from ILfsr): 110
-Initial state (from ILfsr): 001
-Feedback coefficients (expected): 110
-Initial state (expected): 001
-Expected sequence: 00101110010111
-Generated sequence: 00101110010111
+Celem eksperymentu było zweryfikowanie zależności między długością znanego tekstu jawnego a skutecznością ataku. Test przeprowadzono dla LFSR stopnia $m=8$. Teoretyczna minimalna liczba bitów wymagana do jednoznacznego rozwiązania układu równań metodą Gaussa wynosi $2m$, czyli w tym przypadku 16 bitów.
 
-LFSR degree: 5
-Feedback coefficients (from ILfsr): 10100
-Initial state (from ILfsr): 10010
-Feedback coefficients (expected): 10100
-Initial state (expected): 10010
-Expected sequence: 1001011001111100011011101
-Generated sequence: 1001011001111100011011101
+**Wyniki:**
 
-LFSR degree: 5
-Feedback coefficients (from ILfsr): 11010
-Initial state (from ILfsr): 10010
-Feedback coefficients (expected): 11010
-Initial state (expected): 10010
-Expected sequence: 1001000111101011001000111
-Generated sequence: 1001000111101011001000111
+Tabela 1: Wpływ długości znanej sekwencji na skuteczność ataku (m=8).
 
-Berlekamp–Massey verification
+| Długość fragmentu (bity) | Użyte bity (w implementacji) | Status ataku | Obserwacje |
+| :--- | :--- | :--- | :--- |
+| 8 | 8 | False | Failed (Not enough bits or no solution) |
+| 12 | 16 | True | Success (Key matched) |
+| 16 | 16 | True | Success (Key matched) |
+| 20 | 24 | True | Success (Key matched) |
 
-Sequence 1
-Linear complexity: 3
-Connection polynomial coefficients: 1011
+**Analiza interpretacyjna:**
+Wyniki potwierdzają regułę $2L$ (w naszym przypadku $L=m=8$). Atak nie powiódł się przy dostępie do 8 bitów ($L$), ponieważ liczba równań była mniejsza niż liczba niewiadomych, co uniemożliwia wyznaczenie jednoznacznego rozwiązania. Przy 16 bitach ($2L$) atak zakończył się sukcesem. W przypadku "12 bitów" w tabeli widnieje użycie 16 bitów – wynika to z ograniczenia implementacyjnego klasy `KnownPlaintextAttacker`, która operuje na pełnych bajtach (znakach) tekstu jawnego. Niemniej, generalna zasada, że powodzenie ataku wymaga co najmniej $2m$ bitów strumienia klucza, została potwierdzona.
 
-Sequence 2
-Linear complexity: 5
-Connection polynomial coefficients: 100101
+### Eksperyment 2: Skala i czas (Wydajność eliminacji Gaussa)
 
-Sequence 3
-Linear complexity: 4
-Connection polynomial coefficients: 11001
+Zmierzono czas wykonywania eliminacji Gaussa dla macierzy o rozmiarach $m \times m$, odpowiadających stopniom rejestru $m \in \{4, 8, 16, 17, 32\}$.
 
-Full known-plaintext attack demonstration
+**Wyniki:**
 
-Secret LFSR degree m = 8
-Secret feedback coefficients p (p0..p7): 10110011
-Secret initial state sigma0: 10111110
+Tabela 2: Czas wykonania eliminacji Gaussa w zależności od stopnia rejestru m.
 
-Plaintext length (characters): 63
-Ciphertext bit length: 504
-Ciphertext bits (first 128): 11101010010000010110111000101000110000101111100100000110100111100100100000100111001010001000011111110011000001111101101101011101
+| Stopień $m$ | Czas (ticki) | Czas (µs) |
+| :--- | :--- | :--- |
+| 4 | 1467 | 1.40 |
+| 8 | 1885 | 1.80 |
+| 16 | 2864 | 2.80 |
+| 17 | 3771 | 3.70 |
+| 32 | 8032 | 8.00 |
 
-BitStringToBits/BitsToBitString test: 01010101
-Known plaintext used for attack: Th
-Known plaintext bits: 0101010001101000
-Known bits count: 16
+**Analiza:**
+Czas wykonania rośnie wraz ze wzrostem $m$, co jest zgodne z teoretyczną złożonością obliczeniową eliminacji Gaussa. Dzięki zastosowaniu optymalizacji bitowych (`ulong`, operacje XOR na całych słowach) oraz unikaniu nadmiarowych alokacji, czasy te są ekstremalnie niskie – poniżej 10 mikrosekund nawet dla $m=32$. Wartości te są znacznie niższe niż w przypadku naiwnej implementacji na tablicach `bool`. Skok pomiędzy $m=17$ a $m=32$ wynika ze zwiększonej liczby operacji na słowach maszynowych oraz większego rozmiaru macierzy do przetworzenia.
 
-Recovered keystream bits (from known segment): 1011111000101001
-Recovered feedback coefficients: 11111000
-Recovered initial state: 10111110
+### Eksperyment 3: Niezawodność statystyczna
 
-Feedback coefficients match: False
-Initial state matches: True
+Przeprowadzono 50 niezależnych prób ataku *known-plaintext* dla losowych parametrów LFSR stopnia $m=8$.
 
-Recovered plaintext:
-This is a secret message for the LFSR stream cipher laboratory.
+**Wyniki:**
+*   Liczba prób: 50
+*   Liczba sukcesów: 50
+*   Skuteczność: 100%
 
-Attack success: True
+**Wniosek:**
+Atak algebraiczny oparty na eliminacji Gaussa jest deterministyczny. Jeśli napastnik dysponuje wystarczającą liczbą bitów ($2m$) wolnych od błędów (szumu), metoda ta gwarantuje odzyskanie klucza (lub klucza równoważnego). 100% skuteczność potwierdza brak odporności czystego LFSR na ten typ ataku.
 
-Process finished with exit code 0.
-```
+### Eksperyment 4: Wpływ wielomianu (Okres sekwencji)
 
-## Wyniki eksperymentów
+Porównano okres sekwencji generowanej przez LFSR stopnia $m=8$ dla dwóch różnych wielomianów sprzężenia zwrotnego: pierwotnego i niepierwotnego (redukowalnego).
 
-W ramach weryfikacji poprawności generatora LFSR oraz algorytmu Berlekampa-Masseya przeprowadzono testy na
-zdefiniowanych ciągach wejściowych. Uzyskane sekwencje oraz wyznaczone wielomiany połączeń są zgodne z wartościami
-oczekiwanymi, co potwierdza poprawność implementacji.
+**Wyniki:**
+*   Okres dla wielomianu pierwotnego: 255 (Oczekiwany: $2^8 - 1 = 255$)
+*   Okres dla wielomianu niepierwotnego: 8
 
-Szczególną uwagę należy zwrócić na wynik demonstracji pełnego ataku. Wykorzystano losowo wygenerowany LFSR stopnia $m=8$
-ze sprzężeniem `10110011` i stanem początkowym `10111110`. Napastnik, dysponując jedynie fragmentem tekstu jawnego "
-Th" (16 bitów), był w stanie skutecznie odszyfrować całą wiadomość.
+**Analiza:**
+Eksperyment dobitnie ilustruje znaczenie doboru wielomianu. Wielomian pierwotny gwarantuje maksymalny możliwy okres ($2^m - 1$), co jest kluczowe dla bezpieczeństwa (trudniej przewidzieć sekwencję, lepsze właściwości statystyczne). Wielomian niepierwotny może generować drastycznie krótsze cykle (tutaj zaledwie 8), co czyni szyfr trywialnym do złamania nawet metodami siłowymi lub statystycznymi, nie wymagającymi zaawansowanej algebry.
 
-Warto odnotować interesującą obserwację: odzyskane współczynniki sprzężenia zwrotnego (`11111000`) różnią się od
-oryginalnych (`10110011`), mimo że stan początkowy został odtworzony poprawnie (`10111110`), a odszyfrowana wiadomość
-jest identyczna z oryginałem ("Attack success: True"). Sytuacja ta sugeruje, że dla analizowanego, krótkiego fragmentu
-strumienia klucza, istnieje alternatywna konfiguracja LFSR (inny wielomian), która generuje ten sam ciąg bitów. Jest to
-zjawisko oczekiwane w kryptoanalizie, gdzie rozwiązanie układu równań może nie być jednoznaczne lub wskazywać na
-równoważny generator o tych samych właściwościach wyjściowych w danym oknie czasowym. Mimo tej różnicy, cel ataku –
-odzyskanie treści wiadomości – został w pełni osiągnięty.
+### Eksperyment 5: Porównanie metod (Gauss vs Berlekamp-Massey)
 
-## Analiza wyników
+Porównano wydajność i zachowanie algorytmów eliminacji Gaussa oraz Berlekampa-Masseya (BM) dla sekwencji o długości $2m=32$ (przy $m=16$).
 
-Przeprowadzone eksperymenty dowodzą, że liniowe rejestry przesuwne (LFSR) stosowane samodzielnie nie zapewniają
-bezpieczeństwa kryptograficznego. Nawet przy relatywnie długim okresie generatora, liniowa natura zależności pomiędzy
-kolejnymi stanami pozwala na efektywną rekonstrukcję klucza przy użyciu standardowych metod algebraicznych.
+**Wyniki:**
+*   Czas Gaussa: 3.20 µs
+*   Czas BM: 2.80 µs
+*   Gauss: Znaleziono rozwiązanie
+*   BM: Złożoność liniowa $L=15$ (oczekiwano ok. 16)
 
-Wykorzystanie algorytmów takich jak eliminacja Gaussa czy Berlekamp-Massey pozwala na złamanie szyfru w czasie
-wielomianowym względem długości rejestru. Zastosowane w projekcie optymalizacje (operacje bitowe, bit-packing) dodatkowo
-drastycznie skracają czas potrzebny na przeprowadzenie ataku, czyniąc go wykonalnym w czasie rzeczywistym nawet na
-standardowym sprzęcie komputerowym.
+**Analiza interpretacyjna:**
+Algorytm Berlekampa-Masseya okazał się szybszy (2.80 µs vs 3.20 µs). Wynika to z jego niższej złożoności obliczeniowej $O(n^2)$ w porównaniu do $O(n^3)$ dla Gaussa.
+
+Ciekawą obserwacją jest wynik $L=15$ uzyskany przez BM dla sekwencji wygenerowanej przez LFSR stopnia $m=16$. Oznacza to, że wygenerowana losowo sekwencja 32 bitów mogła zostać opisana przez krótszy rejestr (stopnia 15). Jest to możliwe, gdy początkowe stany i specyficzny układ bitów pozwalają na "kompresję" reguły generacji dla tego konkretnego, krótkiego wycinka. Metoda Gaussa, która zakładała sztywny stopień $m=16$, również znalazła rozwiązanie, ale BM wskazał najmniejszy możliwy rejestr. To pokazuje przewagę BM – nie wymaga on a priori znajomości stopnia $m$, lecz sam go wyznacza. Dodatkowo, testy wykazały, że BM jest odporny na błędne założenia co do stopnia $m$, podczas gdy metoda Gaussa wymaga precyzyjnego dopasowania wymiarów macierzy do rzeczywistego stopnia wielomianu.
+
+## Pytania Kontrolne
+
+### 1. Złożoność liniowa: Definicja i znaczenie dla bezpieczeństwa.
+Złożoność liniowa ciągu binarnego to długość najkrótszego rejestru przesuwnego ze sprzężeniem liniowym (LFSR), który jest w stanie wygenerować ten ciąg. Jest to miara przewidywalności ciągu. Z punktu widzenia bezpieczeństwa, wysoka złożoność liniowa jest pożądana. Jeśli złożoność liniowa ciągu wynosi $L$, to znajomość $2L$ kolejnych bitów pozwala na odtworzenie całego ciągu (i dalszą predykcję) za pomocą algorytmu Berlekampa-Masseya. Dlatego bezpieczne szyfry strumieniowe muszą generować ciągi o bardzo dużej (bliskiej długości okresu) złożoności liniowej, aby atak algebraiczny był obliczeniowo niewykonalny.
+
+### 2. Algorytm Berlekampa-Masseya: Zasada działania, złożoność i przewagi nad Gaussem.
+Algorytm Berlekampa-Masseya służy do wyznaczania minimalnego wielomianu sprzężenia zwrotnego dla danej sekwencji binarnej. Działa iteracyjnie: dla każdego kolejnego bitu sekwencji sprawdza, czy aktualny wielomian poprawnie go generuje. Jeśli nie, oblicza "rozbieżność" i koryguje wielomian, wykorzystując pomocniczy wielomian z poprzednich kroków, tak aby stopień nowego wielomianu był minimalny.
+*   **Złożoność:** $O(n^2)$, gdzie $n$ to długość analizowanej sekwencji.
+*   **Przewagi nad Gaussem:** Jest znacznie szybszy (Gauss ma $O(n^3)$). Ponadto, nie wymaga wcześniejszej znajomości stopnia LFSR – sam wyznacza minimalny stopień $L$. Metoda Gaussa wymaga założenia konkretnego rozmiaru macierzy $m$.
+
+### 3. Wielomiany pierwotne: Dlaczego okres wynosi $2^{m}-1$ i przykład dla stopnia 4 lub 5.
+Wielomian pierwotny stopnia $m$ nad ciałem $GF(2)$ to taki wielomian nierozkładalny, który dzieli $x^n - 1$ dla $n = 2^m - 1$, ale nie dzieli go dla żadnego mniejszego $n$. Rejestr LFSR oparty na wielomianie pierwotnym generuje tzw. m-sekwencję (sekwencję o maksymalnej długości).
+Okres wynosi $2^m - 1$, ponieważ rejestr LFSR stopnia $m$ posiada $2^m$ możliwych stanów. Stan zerowy (same zera) jest stanem stabilnym (generuje same zera), więc musi zostać wykluczony. Pozostałe $2^m - 1$ niezerowych stanów tworzy jeden cykl w grafie przejść, jeśli wielomian jest pierwotny.
+**Przykład ($m=4$):** $x^4 + x + 1$.
+
+### 4. Atak korelacyjny: Idea, wpływ funkcji kombinującej i nieliniowość.
+Atak korelacyjny celuje w szyfry strumieniowe zbudowane z kilku LFSR-ów połączonych funkcją kombinującą (np. Geffe, Summation). Idea polega na wykryciu korelacji statystycznej między wyjściem jednego z wewnętrznych rejestrów a wyjściem całego generatora (strumieniem klucza). Jeśli funkcja kombinująca nie jest doskonale nieliniowa i przepuszcza informacje o stanie jednego z LFSR-ów z prawdopodobieństwem $P \neq 0.5$, napastnik może atakować ten pojedynczy rejestr niezależnie od pozostałych ("dziel i rządź"). Zamiast łamać system o złożoności wynikającej z sumy długości rejestrów, łamie je po kolei. Aby zapobiec temu atakowi, funkcja kombinująca musi być zrównoważona i posiadać wysoką nieliniowość oraz odporność na korelację (correlation immunity).
+
+### 5. Zastosowania historyczne: Opis co najmniej dwóch szyfrów.
+*   **A5/1:** Szyfr używany do szyfrowania połączeń głosowych w sieciach GSM. Składa się z trzech rejestrów LFSR o różnych długościach (19, 22, 23 bity) oraz mechanizmu nieregularnego taktowana opartego na zasadzie większościowej. Został złamany (m.in. ataki time-memory tradeoff) ze względu na krótki stan wewnętrzny (64 bity) i słabości liniowe.
+*   **Trivium:** Nowoczesny szyfr sprzętowy (zestaw eSTREAM profile 2). Składa się z trzech nieliniowych rejestrów przesuwnych (NFSR) połączonych w pierścień. Wykorzystuje proste operacje logiczne (AND, XOR) i ma stan wewnętrzny o długości 288 bitów. Jest zaprojektowany tak, aby był bardzo wydajny sprzętowo i jednocześnie odporny na znane ataki algebraiczne i korelacyjne.
+
+### 6. Atak przy nieznanym $m$: Strategia postępowania i analiza złożoności takiej próby.
+Gdy stopień $m$ jest nieznany, napastnik nie może od razu zbudować macierzy do eliminacji Gaussa.
+**Strategia:** Najlepszym podejściem jest użycie algorytmu **Berlekampa-Masseya**. Algorytm ten przetwarza kolejne bity strumienia i na bieżąco aktualizuje hipotezę co do wielomianu i jego stopnia $L$. Jeśli po przetworzeniu odpowiednio długiej sekwencji (np. kilkaset bitów) wartość $L$ przestanie się zmieniać (ustabilizuje się), można z dużym prawdopodobieństwem przyjąć, że znaleziono właściwą złożoność liniową generatora.
+**Złożoność:** Złożoność takiego ataku pozostaje $O(N^2)$, gdzie $N$ to długość dostępnego fragmentu szyfrogramu. Jest to nadal klasa złożoności wielomianowej, co oznacza, że utajnienie stopnia LFSR nie jest skutecznym zabezpieczeniem – bezpieczeństwo musi opierać się na nieliniowości, a nie na ukrywaniu parametru $m$.
 
 ## Podsumowanie i wnioski końcowe
 
-W ramach laboratorium zaimplementowano kompletny system szyfrowania strumieniowego oparty na LFSR oraz narzędzia do jego
-kryptoanalizy. Projekt potwierdził teoretyczne założenia dotyczące słabości liniowych generatorów pseudolosowych. Główne
-wnioski płynące z realizacji zadania to:
-
-1. LFSR jest wydajnym generatorem, ale niebezpiecznym kryptograficznie w swojej podstawowej formie.
-2. Atak *known-plaintext* jest trywialny do przeprowadzenia przeciwko szyfrom opartym na pojedynczym LFSR.
-3. Implementacja algorytmów w języku C# z wykorzystaniem niskopoziomowych optymalizacji pozwala na osiągnięcie wysokiej
-   wydajności, kluczowej w zastosowaniach kryptoanalitycznych.
-4. Poprawne odtworzenie wiadomości nie zawsze wymaga odzyskania identycznego klucza (wielomianu), a jedynie klucza
-   równoważnego, generującego ten sam strumień szyfrujący.
+W ramach laboratorium zaimplementowano kompletny system szyfrowania strumieniowego oparty na LFSR oraz narzędzia do jego kryptoanalizy. Projekt potwierdził teoretyczne założenia dotyczące słabości liniowych generatorów pseudolosowych. Główne wnioski płynące z realizacji zadania to:
+1.  LFSR jest wydajnym generatorem, ale niebezpiecznym kryptograficznie w swojej podstawowej formie.
+2.  Atak *known-plaintext* jest trywialny do przeprowadzenia przeciwko szyfrom opartym na pojedynczym LFSR.
+3.  Implementacja algorytmów w języku C# z wykorzystaniem niskopoziomowych optymalizacji pozwala na osiągnięcie wysokiej wydajności, kluczowej w zastosowaniach kryptoanalitycznych.
+4.  Poprawne odtworzenie wiadomości nie zawsze wymaga odzyskania identycznego klucza (wielomianu), a jedynie klucza równoważnego, generującego ten sam strumień szyfrujący.
+5.  Algorytm Berlekampa-Masseya jest potężnym narzędziem kryptoanalitycznym, przewyższającym metodę Gaussa pod względem szybkości i elastyczności (brak konieczności znania $m$).

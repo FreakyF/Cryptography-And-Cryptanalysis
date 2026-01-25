@@ -18,7 +18,6 @@ public static class BitConversions
             return Array.Empty<bool>();
         }
 
-        // UTF-8
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(text.Length);
         Span<byte> buffer = maxByteCount <= 256
             ? stackalloc byte[maxByteCount]
@@ -121,7 +120,6 @@ public static class BitConversions
             buffer[i] = value;
         }
 
-        // prawdziwy UTF-8
         return Encoding.UTF8.GetString(buffer[..byteCount]);
     }
 
