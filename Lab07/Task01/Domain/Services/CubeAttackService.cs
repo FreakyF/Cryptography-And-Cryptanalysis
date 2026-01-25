@@ -1,5 +1,6 @@
 namespace Task01.Domain.Services;
 
+using System.Diagnostics;
 using Core;
 using Math;
 
@@ -17,36 +18,40 @@ public class CubeAttackService(ITriviumCipher cipher)
             var iv = (bool[])fixedIv.Clone();
             for (var b = 0; b < cube.Indices.Count; b++)
             {
-                if (((i >> b) & 1) == 1)
-                    iv[cube.Indices[b]] = true;
+                if (((i >> b) & 1) == 1) iv[cube.Indices[b]] = true;
             }
 
             cipher.Initialize(key, iv, rounds);
             sum ^= cipher.GenerateBit();
         }
-
         return sum;
     }
 
     public List<(Cube Cube, int KeyIndex)> FindLinearCubes(int rounds)
     {
         var found = new List<(Cube, int)>();
-        var random = new Random(123);
+        var random = new Random(42);
 
-        for (var size = 1; size <= 2; size++)
+        for (var size = 1; size <= 6; size++)
         {
-            for (var i = 0; i < 100; i++)
+            var swSize = Stopwatch.StartNew();
+            var sizeCount = 0;
+            for (var i = 0; i < 20; i++)
             {
                 var indices = Enumerable.Range(0, 80).OrderBy(_ => random.Next()).Take(size).ToList();
                 var cube = new Cube(indices);
 
-                if (TryIdentifyLinearity(cube, rounds, out var kIdx))
+                if (!TryIdentifyLinearity(cube, rounds, out var kIdx))
                 {
-                    found.Add((cube, kIdx));
+                    continue;
                 }
-            }
-        }
 
+                found.Add((cube, kIdx));
+                sizeCount++;
+            }
+            swSize.Stop();
+            Console.WriteLine($"Size {size}: {sizeCount} cubes in {swSize.Elapsed.TotalMicroseconds:F2} μs");
+        }
         return found;
     }
 
@@ -56,59 +61,58 @@ public class CubeAttackService(ITriviumCipher cipher)
         var random = new Random();
         var candidates = Enumerable.Range(0, 80).ToList();
 
-        for (var test = 0; test < 10; test++)
+        for (var test = 0; test < 5; test++)
         {
             var testKey = new bool[80];
             for (var k = 0; k < 80; k++) testKey[k] = random.Next(2) == 1;
 
             var val = ComputeSuperpoly(cube, testKey, new bool[80], rounds);
-
             candidates.RemoveAll(kIdx => testKey[kIdx] != val);
+            
             if (candidates.Count == 0) return false;
         }
 
-        if (candidates.Count != 1)
+        if (candidates.Count == 1)
         {
-            return false;
+            keyIndex = candidates[0];
+            return true;
         }
-
-        keyIndex = candidates[0];
-        return true;
+        return false;
     }
 
     public static bool[] RecoverKey(List<(Cube Cube, int KeyIndex)> linearCubes, ITriviumCipher oracle, int rounds)
     {
-        var matrix = new List<bool[]>();
+        var swOnline = Stopwatch.StartNew();
         var results = new bool[linearCubes.Count];
-        var currentRow = 0;
-
-        foreach (var item in linearCubes)
+        for (var i = 0; i < linearCubes.Count; i++)
         {
             var sum = false;
-            var iterations = 1 << item.Cube.Indices.Count;
-            for (var i = 0; i < iterations; i++)
+            var iterations = 1 << linearCubes[i].Cube.Indices.Count;
+            for (var j = 0; j < iterations; j++)
             {
                 var iv = new bool[80];
-                for (var b = 0; b < item.Cube.Indices.Count; b++)
+                for (var b = 0; b < linearCubes[i].Cube.Indices.Count; b++)
                 {
-                    if (((i >> b) & 1) == 1)
-                        iv[item.Cube.Indices[b]] = true;
+                    if (((j >> b) & 1) == 1) iv[linearCubes[i].Cube.Indices[b]] = true;
                 }
-                
-                oracle.Initialize(new bool[80], iv, rounds); 
+                oracle.Initialize(new bool[80], iv, rounds);
                 sum ^= oracle.GenerateBit();
             }
+            results[i] = sum;
+        }
 
-            results[currentRow] = sum;
-
+        var matrix = new List<bool[]>();
+        foreach (var item in linearCubes)
+        {
             var row = new bool[80];
-            row[item.KeyIndex] = true; 
+            row[item.KeyIndex] = true;
             matrix.Add(row);
-
-            currentRow++;
         }
 
         var recoveredBits = Gf2Solver.SolveLinearSystem(matrix, results, 80);
+        swOnline.Stop();
+        Console.WriteLine($"Online phase: recovery took {swOnline.Elapsed.TotalMicroseconds:F2} μs");
+        
         return recoveredBits;
     }
 }

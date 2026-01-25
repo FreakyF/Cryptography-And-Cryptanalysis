@@ -25,15 +25,6 @@ public class ExperimentRunner(ITriviumCipher cipher)
         Console.WriteLine($"Generated: {hex}");
         Console.WriteLine($"Expected:  {expected}");
         Console.WriteLine($"Match:     {hex.Equals(expected, StringComparison.OrdinalIgnoreCase)}");
-
-        var testMsg = "TriviumTest"u8.ToArray();
-        cipher.Initialize(key, iv);
-        var enc = cipher.Encrypt(testMsg);
-
-        cipher.Initialize(key, iv);
-        var dec = cipher.Decrypt(enc);
-
-        Console.WriteLine($"Decrypt Check: {testMsg.SequenceEqual(dec)}");
         Console.WriteLine();
     }
 
@@ -43,130 +34,116 @@ public class ExperimentRunner(ITriviumCipher cipher)
         var key = TestKeyHex.HexToBits();
         var iv = TestIvHex.HexToBits();
 
-        const string p1Str = "Secret message number one!!";
-        const string p2Str = "Another secret message number two!!";
+        const string p1Str = "Tajna wiadomosc nr jeden!!";
+        const string p2Str = "Inna sekretna informacja!!";
 
         var p1 = System.Text.Encoding.ASCII.GetBytes(p1Str);
         var p2 = System.Text.Encoding.ASCII.GetBytes(p2Str);
 
+        var swEnc = Stopwatch.StartNew();
         cipher.Initialize(key, iv);
         var c1 = cipher.Encrypt(p1);
 
-        cipher.Initialize(key, iv); 
+        cipher.Initialize(key, iv);
         var c2 = cipher.Encrypt(p2);
+        swEnc.Stop();
+        Console.WriteLine($"Encryption (C1, C2) took: {swEnc.Elapsed.TotalMicroseconds:F2} μs");
 
+        var swXor = Stopwatch.StartNew();
         var xorCipher = new byte[c1.Length];
         for (var i = 0; i < c1.Length; i++) xorCipher[i] = (byte)(c1[i] ^ c2[i]);
+        swXor.Stop();
+        Console.WriteLine($"XOR elimination took: {swXor.Elapsed.TotalMicroseconds:F2} μs");
 
-        var xorPlain = new byte[p1.Length];
-        for (var i = 0; i < p1.Length; i++) xorPlain[i] = (byte)(p1[i] ^ p2[i]);
-
-        Console.WriteLine($"C1 ^ C2 == P1 ^ P2: {xorCipher.SequenceEqual(xorPlain)}");
-
-        var recoveredP2 = new byte[p1.Length];
-        for (var i = 0; i < p1.Length; i++) recoveredP2[i] = (byte)(xorCipher[i] ^ p1[i]);
-
-        Console.WriteLine($"Recovered P2: {recoveredP2.ToAsciiString()}");
-
-        Console.WriteLine("Crib Dragging 'secret':");
-        var crib = "secret"u8.ToArray();
-        for (var i = 0; i < xorCipher.Length - crib.Length; i++)
+        int[] cribLengths = [2, 4, 8, 16];
+        foreach (var len in cribLengths)
         {
-            var attempt = new byte[crib.Length];
-            for (var j = 0; j < crib.Length; j++) attempt[j] = (byte)(xorCipher[i + j] ^ crib[j]);
-
-            if (attempt.All(b => b is >= 32 and <= 126))
+            var swCrib = Stopwatch.StartNew();
+            var crib = p1.Take(len).ToArray();
+            var matches = 0;
+            for (var i = 0; i < xorCipher.Length - crib.Length; i++)
             {
-                Console.WriteLine($"Pos {i}: {attempt.ToAsciiString()}");
-            }
-        }
+                var attempt = new byte[crib.Length];
+                for (var j = 0; j < crib.Length; j++) attempt[j] = (byte)(xorCipher[i + j] ^ crib[j]);
 
+                if (attempt.All(b => b is >= 32 and <= 126)) matches++;
+            }
+            swCrib.Stop();
+            Console.WriteLine($"Length {len}: {matches} matches found in {swCrib.Elapsed.TotalMicroseconds:F2} μs");
+        }
         Console.WriteLine();
     }
 
     public void RunExperiment3_RoundsAnalysis()
     {
-        Console.WriteLine("--- Experiment 3: Rounds Analysis ---");
-        int[] rounds = [0, 192, 288, 576, 1152];
+        Console.WriteLine("--- Experiment 3: Rounds Analysis Performance ---");
+        int[] roundsList = [0, 192, 288, 384, 480, 576, 768, 1152];
         var key = TestKeyHex.HexToBits();
         var iv = TestIvHex.HexToBits();
 
-        Console.WriteLine($"{"Rounds",-10} {"Ones",-10} {"Balance",-10} {"Time(ms)",-10}");
+        Console.WriteLine($"{"Rounds",-8} | {"Warmup (μs)",-12} | {"Gen 1Mb (μs)",-12} | {"Throughput",-12}");
 
-        foreach (var r in rounds)
+        foreach (var r in roundsList)
         {
-            var sw = Stopwatch.StartNew();
             cipher.Initialize(key, iv, r);
-            sw.Stop();
+            var warmupUs = ((TriviumCipher)cipher).LastWarmupTicks * 1_000_000.0 / Stopwatch.Frequency;
 
-            var stats = cipher.GetStateStatistics();
-            Console.WriteLine(
-                $"{r,-10} {stats.OnesCount,-10} {stats.Balance,-10:F3} {sw.Elapsed.TotalMilliseconds,-10:F2}");
+            cipher.GenerateKeystream(1_000_000);
+            var genUs = ((TriviumCipher)cipher).LastGenerationTicks * 1_000_000.0 / Stopwatch.Frequency;
+            var mbps = 1_000_000.0 / (genUs / 1_000_000.0) / 1_000_000.0;
+
+            Console.WriteLine($"{r,-8} | {warmupUs,-12:F2} | {genUs,-12:F2} | {mbps,-12:F2} Mbps");
         }
-
         Console.WriteLine();
     }
 
     public void RunExperiment4_CubeAttack()
     {
-        Console.WriteLine("--- Experiment 4: Cube Attack (Reduced 288 rounds) ---");
-        var rounds = 288;
-        var attackService = new CubeAttackService(cipher);
-
-        Console.WriteLine("Offline Phase: Finding cubes...");
-        var cubes = attackService.FindLinearCubes(rounds);
-        Console.WriteLine($"Found {cubes.Count} usable cubes.");
-
-        Console.WriteLine("Online Phase: Recovering key bits...");
+        Console.WriteLine("--- Experiment 4: Cube Attack (Reduced Versions) ---");
+        int[] testRounds = [192, 288, 384, 480];
         var targetKey = TestKeyHex.HexToBits();
 
-        var oracle = new OracleTriviumWrapper(targetKey);
-
-        var recoveredKey = CubeAttackService.RecoverKey(cubes, oracle, rounds);
-
-        var correct = 0;
-        var total = 0;
-        foreach (var (_, keyIdx) in cubes)
+        foreach (var r in testRounds)
         {
-            total++;
-            if (recoveredKey[keyIdx] == targetKey[keyIdx]) correct++;
-            Console.WriteLine($"Index {keyIdx}: Rec={recoveredKey[keyIdx]} Act={targetKey[keyIdx]}");
+            var attackService = new CubeAttackService(cipher);
+            var swOffline = Stopwatch.StartNew();
+            var cubes = attackService.FindLinearCubes(r);
+            swOffline.Stop();
+
+            var oracle = new OracleTriviumWrapper(targetKey);
+            var recovered = CubeAttackService.RecoverKey(cubes, oracle, r);
+
+            var correct = cubes.Count(item => recovered[item.KeyIndex] == targetKey[item.KeyIndex]);
+
+            Console.WriteLine($"Rounds: {r} | Found: {cubes.Count} | Accuracy: {(cubes.Count > 0 ? (double)correct / cubes.Count : 0):P1} | Offline: {swOffline.Elapsed.TotalMicroseconds:F2} μs");
         }
-
-        Console.WriteLine(total > 0
-            ? $"Accuracy: {(double)correct / total:P2}"
-            : "No linear cubes found.");
-
         Console.WriteLine();
     }
 
     public void RunExperiment5_Statistics()
     {
-        Console.WriteLine("--- Experiment 5: Statistical Analysis ---");
+        Console.WriteLine("--- Experiment 5: Statistical Comparison ---");
+        int[] rounds = [0, 288, 1152];
         var key = TestKeyHex.HexToBits();
         var iv = TestIvHex.HexToBits();
 
-        // ReSharper disable once RedundantArgumentDefaultValue
-        cipher.Initialize(key, iv, 1152);
-        var stream = cipher.GenerateKeystream(1_000_000);
-
-        StatisticalTestService.RunTests(stream);
-        Console.WriteLine();
+        foreach (var r in rounds)
+        {
+            Console.WriteLine($"Testing rounds: {r}");
+            cipher.Initialize(key, iv, r);
+            var stream = cipher.GenerateKeystream(100000);
+            StatisticalTestService.RunTests(stream);
+        }
     }
 
     private sealed class OracleTriviumWrapper(bool[] hiddenKey) : ITriviumCipher
     {
         private readonly TriviumCipher _internal = new();
-
-        public void Initialize(bool[] key, bool[] iv, int warmupRounds = 1152)
-        {
-            _internal.Initialize(hiddenKey, iv, warmupRounds);
-        }
-
+        public void Initialize(bool[] key, bool[] iv, int warmupRounds = 1152) => _internal.Initialize(hiddenKey, iv, warmupRounds);
         public bool GenerateBit() => _internal.GenerateBit();
-        public bool[] GenerateKeystream(int length) => throw new NotImplementedException();
-        public byte[] Encrypt(byte[] plaintext) => throw new NotImplementedException();
-        public byte[] Decrypt(byte[] ciphertext) => throw new NotImplementedException();
-        public (int OnesCount, double Balance) GetStateStatistics() => throw new NotImplementedException();
+        public bool[] GenerateKeystream(int length) => _internal.GenerateKeystream(length);
+        public byte[] Encrypt(byte[] plaintext) => _internal.Encrypt(plaintext);
+        public byte[] Decrypt(byte[] ciphertext) => _internal.Decrypt(ciphertext);
+        public (int OnesCount, double Balance) GetStateStatistics() => _internal.GetStateStatistics();
     }
 }

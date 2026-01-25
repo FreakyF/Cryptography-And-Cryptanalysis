@@ -1,14 +1,18 @@
 namespace Task01.Domain.Core;
 
+using System.Diagnostics;
 using Shared;
 
 public class TriviumCipher : ITriviumCipher
 {
     private readonly bool[] _state = new bool[288];
+    public long LastWarmupTicks { get; private set; }
+    public long LastGenerationTicks { get; private set; }
 
     public void Initialize(bool[] key, bool[] iv, int warmupRounds = 1152)
     {
         Array.Clear(_state, 0, _state.Length);
+        var sw = Stopwatch.StartNew();
 
         for (var i = 0; i < 80; i++)
         {
@@ -24,6 +28,9 @@ public class TriviumCipher : ITriviumCipher
         {
             UpdateState();
         }
+
+        sw.Stop();
+        LastWarmupTicks = sw.ElapsedTicks;
     }
 
     public bool GenerateBit()
@@ -60,11 +67,14 @@ public class TriviumCipher : ITriviumCipher
 
     public bool[] GenerateKeystream(int length)
     {
+        var sw = Stopwatch.StartNew();
         var keystream = new bool[length];
         for (var i = 0; i < length; i++)
         {
             keystream[i] = GenerateBit();
         }
+        sw.Stop();
+        LastGenerationTicks = sw.ElapsedTicks;
         return keystream;
     }
 
