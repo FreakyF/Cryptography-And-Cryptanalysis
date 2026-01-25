@@ -1300,6 +1300,8 @@ Celem eksperymentu było zweryfikowanie zależności między długością znaneg
 
 **Wyniki:**
 
+Tabela 1: Wpływ długości znanej sekwencji na skuteczność ataku (m=8).
+
 | Długość fragmentu (bity) | Użyte bity (w implementacji) | Status ataku | Obserwacje |
 | :--- | :--- | :--- | :--- |
 | 8 | 8 | False | Failed (Not enough bits or no solution) |
@@ -1316,16 +1318,18 @@ Zmierzono czas wykonywania eliminacji Gaussa dla macierzy o rozmiarach $m \times
 
 **Wyniki:**
 
+Tabela 2: Czas wykonania eliminacji Gaussa w zależności od stopnia rejestru m.
+
 | Stopień $m$ | Czas (ticki) | Czas (µs) |
 | :--- | :--- | :--- |
-| 4 | 14081 | 14.00 |
-| 8 | 2454 | 2.40 |
-| 16 | 3701 | 3.70 |
-| 17 | 4305 | 4.30 |
-| 32 | 13595 | 13.50 |
+| 4 | 1467 | 1.40 |
+| 8 | 1885 | 1.80 |
+| 16 | 2864 | 2.80 |
+| 17 | 3771 | 3.70 |
+| 32 | 8032 | 8.00 |
 
 **Analiza:**
-Czas wykonania rośnie nieliniowo wraz ze wzrostem $m$, co jest zgodne z teoretyczną złożonością obliczeniową eliminacji Gaussa wynoszącą $O(m^3)$ (lub $O(m^3 / \text{word\_size})$ przy optymalizacjach bitowych). Warto zauważyć, że przy pierwszym uruchomieniu (dla $m=4$) czas jest znacznie dłuższy (14.00 µs), co wynika z narzutu związanego z kompilacją JIT oraz "rozgrzewaniem" kodu. Dla kolejnych pomiarów ($m=8, 16, 17$) czasy są bardzo niskie i rosną w sposób przewidywalny. Skok wydajnościowy pomiędzy $m=17$ a $m=32$ jest wyraźny (z 4.30 µs do 13.50 µs). Dzięki zastosowaniu optymalizacji bitowych (`ulong`, operacje XOR na całych słowach), czasy te pozostają ekstremalnie niskie (rzędu kilkunastu mikrosekund) nawet dla $m=32$.
+Czas wykonania rośnie wraz ze wzrostem $m$, co jest zgodne z teoretyczną złożonością obliczeniową eliminacji Gaussa. Dzięki zastosowaniu optymalizacji bitowych (`ulong`, operacje XOR na całych słowach) oraz unikaniu nadmiarowych alokacji, czasy te są ekstremalnie niskie – poniżej 10 mikrosekund nawet dla $m=32$. Wartości te są znacznie niższe niż w przypadku naiwnej implementacji na tablicach `bool`. Skok pomiędzy $m=17$ a $m=32$ wynika ze zwiększonej liczby operacji na słowach maszynowych oraz większego rozmiaru macierzy do przetworzenia.
 
 ### Eksperyment 3: Niezawodność statystyczna
 
@@ -1355,13 +1359,13 @@ Eksperyment dobitnie ilustruje znaczenie doboru wielomianu. Wielomian pierwotny 
 Porównano wydajność i zachowanie algorytmów eliminacji Gaussa oraz Berlekampa-Masseya (BM) dla sekwencji o długości $2m=32$ (przy $m=16$).
 
 **Wyniki:**
-*   Czas Gaussa: 4.60 µs
-*   Czas BM: 3.10 µs
+*   Czas Gaussa: 3.20 µs
+*   Czas BM: 2.80 µs
 *   Gauss: Znaleziono rozwiązanie
 *   BM: Złożoność liniowa $L=15$ (oczekiwano ok. 16)
 
 **Analiza interpretacyjna:**
-Algorytm Berlekampa-Masseya okazał się szybszy (3.10 µs vs 4.60 µs). Wynika to z jego niższej złożoności obliczeniowej $O(n^2)$ w porównaniu do $O(n^3)$ dla Gaussa.
+Algorytm Berlekampa-Masseya okazał się szybszy (2.80 µs vs 3.20 µs). Wynika to z jego niższej złożoności obliczeniowej $O(n^2)$ w porównaniu do $O(n^3)$ dla Gaussa.
 
 Ciekawą obserwacją jest wynik $L=15$ uzyskany przez BM dla sekwencji wygenerowanej przez LFSR stopnia $m=16$. Oznacza to, że wygenerowana losowo sekwencja 32 bitów mogła zostać opisana przez krótszy rejestr (stopnia 15). Jest to możliwe, gdy początkowe stany i specyficzny układ bitów pozwalają na "kompresję" reguły generacji dla tego konkretnego, krótkiego wycinka. Metoda Gaussa, która zakładała sztywny stopień $m=16$, również znalazła rozwiązanie, ale BM wskazał najmniejszy możliwy rejestr. To pokazuje przewagę BM – nie wymaga on a priori znajomości stopnia $m$, lecz sam go wyznacza. Dodatkowo, testy wykazały, że BM jest odporny na błędne założenia co do stopnia $m$, podczas gdy metoda Gaussa wymaga precyzyjnego dopasowania wymiarów macierzy do rzeczywistego stopnia wielomianu.
 
