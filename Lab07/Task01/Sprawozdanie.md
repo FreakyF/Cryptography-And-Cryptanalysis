@@ -31,54 +31,48 @@ Proces inicjalizacji polega na załadowaniu 80-bitowego klucza $K$ do pierwszych
 ### Diagram przepływu danych
 ```mermaid
 graph TD
-    subgraph "Internal State (288 bits)"
-        subgraph "Register A (93 bits)"
-            A_reg[State s1...s93]
-        end
-        subgraph "Register B (84 bits)"
-            B_reg[State s94...s177]
-        end
-        subgraph "Register C (111 bits)"
-            C_reg[State s178...s288]
-        end
+    User([User / CLI]) -->|Start| Program[Program.cs]
+    Program -->|Instantiate| Runner[ExperimentRunner]
+
+    subgraph "Application Layer"
+        Runner -->|Run| Exp1[Exp 1: Verification]
+        Runner -->|Run| Exp2[Exp 2: IV Reuse Attack]
+        Runner -->|Run| Exp3[Exp 3: Rounds Analysis]
+        Runner -->|Run| Exp4[Exp 4: Cube Attack]
+        Runner -->|Run| Exp5[Exp 5: Statistics]
+        Runner -->|Run| Exp6[Exp 6: Saturation Test]
     end
 
-    Input_Key[Key (80 bits)] --> A_reg
-    Input_IV[IV (80 bits)] --> B_reg
-    Const[Constants 111] --> C_reg
+    subgraph "Domain Core"
+        Cipher[TriviumCipher]
+        Exp1 -->|Encrypt/Decrypt| Cipher
+        Exp2 -->|Encrypt x2| Cipher
+        Exp3 -->|Generate Keystream| Cipher
+        Exp6 -->|Generate 1Gbit| Cipher
+    end
 
-    %% Taps
-    A_reg -- s66, s93 --> XOR_A[XOR]
-    B_reg -- s162, s177 --> XOR_B[XOR]
-    C_reg -- s243, s288 --> XOR_C[XOR]
+    subgraph "Domain Services & Math"
+        Stats[StatisticalTestService]
+        CubeService[CubeAttackService]
+        Solver[Gf2Solver]
 
-    %% Output Generation
-    XOR_A --> XOR_Out[XOR Sum]
-    XOR_B --> XOR_Out
-    XOR_C --> XOR_Out
-    XOR_Out --> Keystream[Keystream Bit z]
+        Exp3 -->|Analyze| Stats
+        Exp5 -->|Analyze| Stats
 
-    %% Feedback Logic (Non-linear)
-    A_reg -- s91 & s92 --> AND_A[AND]
-    B_reg -- s175 & s176 --> AND_B[AND]
-    C_reg -- s286 & s287 --> AND_C[AND]
+        Exp4 -->|Execute Attack| CubeService
+        CubeService -->|Oracle Queries| Cipher
+        CubeService -->|Solve Linear System| Solver
+    end
 
-    XOR_A --> Sum_A[Feedback A]
-    AND_A --> Sum_A
-    C_reg -- s264 (Cross) --> Sum_A
-
-    XOR_B --> Sum_B[Feedback B]
-    AND_B --> Sum_B
-    A_reg -- s69 (Cross) --> Sum_B
-
-    XOR_C --> Sum_C[Feedback C]
-    AND_C --> Sum_C
-    B_reg -- s171 (Cross) --> Sum_C
-
-    %% State Update
-    Sum_C --> A_reg
-    Sum_A --> B_reg
-    Sum_B --> C_reg
+    subgraph "Output"
+        Results[Console Output / Logs]
+        Exp1 --> Results
+        Exp2 --> Results
+        Exp3 --> Results
+        Exp4 --> Results
+        Exp5 --> Results
+        Exp6 --> Results
+    end
 ```
 
 ### Kluczowe algorytmy
