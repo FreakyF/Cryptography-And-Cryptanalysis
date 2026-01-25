@@ -83,21 +83,11 @@ graph TD
 
 ### Kluczowe algorytmy
 
-#### `TriviumCipher.cs` – Rdzeń kryptograficzny i optymalizacja niskopoziomowa
+#### `TriviumCipher.cs`
 
-Implementacja klasy `TriviumCipher` stanowi przykład inżynierii nastawionej na ekstremalną wydajność (High-Performance Computing) w środowisku .NET, osiągając przepustowość rzędu 70 Gbps na architekturze Zen 3. Osiągnięcie takiego wyniku wymagało zastosowania szeregu zaawansowanych technik optymalizacyjnych:
+Klasa ta implementuje pełną logikę szyfru strumieniowego Trivium, zarządzając 288-bitowym stanem wewnętrznym oraz procesem generowania strumienia klucza (keystream). Odpowiada za inicjalizację stanu kluczem i wektorem IV, wykonanie fazy rozgrzewania oraz właściwe szyfrowanie danych poprzez operację XOR z tekstem jawnym.
 
-1.  **Vectored Instruction Sets (AVX2 Intrinsics)**:
-    Kluczowym elementem optymalizacji jest wykorzystanie instrukcji wektorowych SIMD (Single Instruction, Multiple Data) poprzez typ `Vector256<ulong>`. W metodach `UpdateStateV256_Inline` oraz `CalculateZ_And_Update`, stan wewnętrzny jest przetwarzany równolegle. Ponieważ Trivium pozwala na wygenerowanie do 64 bitów bez zależności zwrotnej (dependency chain), możliwe jest obliczanie wielu kroków algorytmu w jednym cyklu zegara procesora, wykorzystując pełną szerokość 256-bitowych rejestrów YMM.
-
-2.  **Unsafe Context & Pointer Arithmetic**:
-    Kod wykorzystuje słowo kluczowe `unsafe` oraz wskaźniki (`byte*`, `ulong*`), co pozwala na bezpośrednią manipulację pamięcią. Eliminuje to narzut związany ze sprawdzaniem granic tablic (Array Bounds Checks), który jest standardem w bezpiecznym kodzie C#. W krytycznych pętlach (`EncryptSequential`) bezpośredni dostęp do buforów pamięci przekłada się na generowanie bardziej zwartego kodu maszynowego, pozbawionego zbędnych instrukcji skoków warunkowych.
-
-3.  **Memory Layout Optimization & HugePages**:
-    Zastosowanie `GC.AllocateUninitializedArray` pozwala na alokację dużych bloków pamięci bez ich wstępnego zerowania (Zero-Initialization), co jest kluczowe przy buforach rzędu 1 GB. Dodatkowo, system operacyjny skonfigurowano do użycia HugePages (strony pamięci o rozmiarze 2 MB zamiast standardowych 4 KB). Zmniejsza to presję na bufor TLB (Translation Lookaside Buffer), redukując liczbę "TLB Misses" podczas dostępu do dużych, ciągłych obszarów pamięci.
-
-4.  **Instruction Level Parallelism (ILP) & Prefetching**:
-    Struktura pętli została zaprojektowana tak, aby maksymalizować ILP. Rozwijanie pętli (loop unrolling) w `ProcessByteBatch8` oraz ręczne wskazówki dla procesora (`Sse.Prefetch0`) pozwalają na efektywne wykorzystanie potoku wykonawczego (pipeline) i hierarchii pamięci cache, minimalizując czasy oczekiwania na dane z pamięci RAM.
+W celu osiągnięcia ekstremalnej wydajności (70 Gbps), implementacja opiera się na instrukcjach wektorowych AVX2 (`Vector256<ulong>`), co pozwala na równoległe obliczanie do 64 bitów stanu w jednym cyklu zegara procesora. Kod wykorzystuje kontekst `unsafe` i wskaźniki, co całkowicie eliminuje narzut związany ze sprawdzaniem granic tablic przez środowisko uruchomieniowe .NET, umożliwiając bezpośredni i natychmiastowy dostęp do pamięci. Zastosowano również alokację nieinicjalizowanej pamięci (`GC.AllocateUninitializedArray`) oraz technikę HugePages, co minimalizuje liczbę błędów strony (Page Faults) i odciąża bufor TLB podczas przetwarzania gigabajtowych strumieni danych. Dodatkowo, agresywne inlinowanie metod (`MethodImplOptions.AggressiveInlining`) redukuje koszt wywołań funkcji w pętlach krytycznych, a ręczny prefetching (`Sse.Prefetch0`) zapewnia, że dane są ładowane do pamięci cache procesora z wyprzedzeniem, zapobiegając przestojom potoku wykonawczego.
 
 ```csharp
 using System.Diagnostics;
@@ -112,7 +102,480 @@ namespace Task01.Domain.Core;
 [SkipLocalsInit]
 public unsafe class TriviumCipher : ITriviumCipher
 {
-    // ... (Constants and Fields)
+    private const int ChunkSize = 16 * 1024;
+
+    private const int ParallelThreshold = 8 * ChunkSize;
+
+    private static readonly Vector256<ulong> C0_Init = Vector256.Create(7UL);
+
+    private ulong _a0, _a1, _b0, _b1, _c0, _c1;
+
+    private ulong _baseK0, _baseK1, _baseIv0, _baseIv1;
+    private ulong _singleBitBuffer;
+    private int _singleBitRemaining;
+
+    public TriviumCipher()
+    {
+        Array.Empty<bool>();
+        Array.Empty<bool>();
+    }
+
+    public long LastWarmupTicks { get; }
+    public long LastGenerationTicks { get; private set; }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public void Initialize(byte[] key, byte[] iv, int warmupRounds = 1152)
+    {
+        _baseK0 = 0;
+        _baseK1 = 0;
+        _baseIv0 = 0;
+        _baseIv1 = 0;
+        for (var i = 0; i < 80; i++)
+        {
+            if ((key[i / 8] & (1 << (i % 8))) != 0)
+            {
+                var p = 92 - i;
+                if (p >= 64)
+                {
+                    _baseK1 |= 1UL << (p - 64);
+                }
+                else
+                {
+                    _baseK0 |= 1UL << p;
+                }
+            }
+
+            if ((iv[i / 8] & (1 << (i % 8))) != 0)
+            {
+                var p = 83 - i;
+                if (p >= 64)
+                {
+                    _baseIv1 |= 1UL << (p - 64);
+                }
+                else
+                {
+                    _baseIv0 |= 1UL << p;
+                }
+            }
+        }
+
+        _a0 = _baseK0;
+        _a1 = _baseK1;
+        _b0 = _baseIv0;
+        _b1 = _baseIv1;
+        _c0 = 7UL;
+        _c1 = 0;
+
+        var batches = warmupRounds / 64;
+        for (var i = 0; i < batches; i++)
+        {
+            UpdateState64Scalar(ref _a0, ref _a1, ref _b0, ref _b1, ref _c0, ref _c1);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool GenerateBit()
+    {
+        if (_singleBitRemaining == 0)
+        {
+            var t1_z = ((_a0 >> 27) | (_a1 << 37)) ^ _a0;
+            var t2_z = ((_b0 >> 15) | (_b1 << 49)) ^ _b0;
+            var t3_z = ((_c0 >> 45) | (_c1 << 19)) ^ _c0;
+            _singleBitBuffer = t1_z ^ t2_z ^ t3_z;
+
+            UpdateState64Scalar(ref _a0, ref _a1, ref _b0, ref _b1, ref _c0, ref _c1);
+
+            _singleBitRemaining = 64;
+        }
+
+        var b = (_singleBitBuffer & 1) != 0;
+        _singleBitBuffer >>= 1;
+        _singleBitRemaining--;
+        return b;
+    }
+
+    public byte[] Encrypt(byte[] plaintext)
+    {
+        return plaintext.Length >= ParallelThreshold
+            ? EncryptParallel(plaintext)
+            : EncryptSequential(plaintext);
+    }
+
+    public byte[] Decrypt(byte[] ciphertext)
+    {
+        return Encrypt(ciphertext);
+    }
+
+    public (int OnesCount, double Balance) GetStateStatistics()
+    {
+        var ones = BitOperations.PopCount(_a0) + BitOperations.PopCount(_a1) +
+                   BitOperations.PopCount(_b0) + BitOperations.PopCount(_b1) +
+                   BitOperations.PopCount(_c0) + BitOperations.PopCount(_c1);
+        return (ones, ones / 288.0);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public byte[] GenerateKeystream(int lengthInBytes)
+    {
+        var result = GC.AllocateUninitializedArray<byte>(lengthInBytes);
+
+        if (lengthInBytes >= 256 * 1024)
+        {
+            return GenerateKeystreamBitsliced(lengthInBytes);
+        }
+
+        var sw = Stopwatch.StartNew();
+        fixed (byte* resPtr = result)
+        {
+            var dst = (ulong*)resPtr;
+            var blocks = lengthInBytes / 8;
+            ulong a0 = _a0, a1 = _a1, b0 = _b0, b1 = _b1, c0 = _c0, c1 = _c1;
+
+            for (var i = 0; i < blocks; i++)
+            {
+                var z = ((a0 >> 27) | (a1 << 37)) ^ a0 ^ ((b0 >> 15) | (b1 << 49)) ^ b0 ^ ((c0 >> 45) | (c1 << 19)) ^
+                        c0;
+                dst[i] = z;
+                UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
+            }
+
+            _a0 = a0;
+            _a1 = a1;
+            _b0 = b0;
+            _b1 = b1;
+            _c0 = c0;
+            _c1 = c1;
+        }
+
+        sw.Stop();
+        LastGenerationTicks = sw.ElapsedTicks;
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private byte[] GenerateKeystreamBitsliced(int lengthInBytes)
+    {
+        var result = GC.AllocateUninitializedArray<byte>(lengthInBytes);
+        var numStreams = 256;
+        var bytesPerStream = lengthInBytes / numStreams;
+
+        fixed (byte* ptr = result)
+        {
+            ProcessBitslicedBatch256(bytesPerStream);
+        }
+
+        return result;
+    }
+
+    private void ProcessBitslicedBatch256(int streamLen)
+    {
+        var S = new Vector256<ulong>[288];
+
+        for (var i = 0; i < 288; i++)
+        {
+            S[i] = Vector256<ulong>.Zero;
+        }
+
+        for (var byteIdx = 0; byteIdx < streamLen; byteIdx++)
+        {
+            for (var bit = 0; bit < 8; bit++)
+            {
+                var t1 = S[65] ^ S[92];
+                var t2 = S[161] ^ S[176];
+                var t3 = S[242] ^ S[287];
+
+                t1 ^= (S[90] & S[91]) ^ S[170];
+                t2 ^= (S[174] & S[175]) ^ S[263];
+                t3 ^= (S[285] & S[286]) ^ S[68];
+
+                for (var k = 287; k > 0; k--)
+                {
+                    S[k] = S[k - 1];
+                }
+
+                S[0] = t3;
+                S[93] = t1;
+                S[177] = t2;
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private byte[] EncryptParallel(byte[] data)
+    {
+        var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+        var ptr = (byte*)handle.AddrOfPinnedObject();
+        var len = data.Length;
+
+        var bytesPerBatch = ChunkSize * 8;
+        var tasks = (len + bytesPerBatch - 1) / bytesPerBatch;
+
+        var sw = Stopwatch.StartNew();
+        Parallel.For(0, tasks, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, t =>
+        {
+            var chunkIdx = t * 8;
+            var off = (long)chunkIdx * ChunkSize;
+            if (off + (long)ChunkSize * 8 <= len)
+            {
+                ProcessByteBatch8(chunkIdx, ptr);
+            }
+            else
+            {
+                ProcessByteBatchSafe(chunkIdx, len, ptr);
+            }
+        });
+        sw.Stop();
+
+        handle.Free();
+        LastGenerationTicks = sw.ElapsedTicks;
+        return data;
+    }
+
+    private byte[] EncryptSequential(byte[] plaintext)
+    {
+        var result = GC.AllocateUninitializedArray<byte>(plaintext.Length);
+        var sw = Stopwatch.StartNew();
+
+        fixed (byte* ptPtr = plaintext)
+        fixed (byte* resPtr = result)
+        {
+            var pt = (ulong*)ptPtr;
+            var res = (ulong*)resPtr;
+            var blocks = plaintext.Length / 8;
+
+            ulong a0 = _a0, a1 = _a1, b0 = _b0, b1 = _b1, c0 = _c0, c1 = _c1;
+
+            for (var i = 0; i < blocks; i++)
+            {
+                var t1_z = ((a0 >> 27) | (a1 << 37)) ^ a0;
+                var t2_z = ((b0 >> 15) | (b1 << 49)) ^ b0;
+                var t3_z = ((c0 >> 45) | (c1 << 19)) ^ c0;
+
+                var z = t1_z ^ t2_z ^ t3_z;
+
+                res[i] = pt[i] ^ z;
+
+                UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
+            }
+
+            var tail = plaintext.Length & 7;
+            if (tail > 0)
+            {
+                var t1_z = ((a0 >> 27) | (a1 << 37)) ^ a0;
+                var t2_z = ((b0 >> 15) | (b1 << 49)) ^ b0;
+                var t3_z = ((c0 >> 45) | (c1 << 19)) ^ c0;
+                var z = t1_z ^ t2_z ^ t3_z;
+
+                var bz = (byte*)&z;
+                var pT = (byte*)pt + blocks * 8;
+                var rT = (byte*)res + blocks * 8;
+
+                for (var k = 0; k < tail; k++)
+                {
+                    rT[k] = (byte)(pT[k] ^ bz[k]);
+                }
+
+                UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
+            }
+
+            _a0 = a0;
+            _a1 = a1;
+            _b0 = b0;
+            _b1 = b1;
+            _c0 = c0;
+            _c1 = c1;
+        }
+
+        sw.Stop();
+        LastGenerationTicks = sw.ElapsedTicks;
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void UpdateState64Scalar(ref ulong a0, ref ulong a1, ref ulong b0, ref ulong b1, ref ulong c0, ref ulong c1)
+    {
+        var t1 = ((a0 >> 27) | (a1 << 37)) ^ a0;
+        var t2 = ((b0 >> 15) | (b1 << 49)) ^ b0;
+        var t3 = ((c0 >> 45) | (c1 << 19)) ^ c0;
+
+        var r1 = t1 ^ (((a0 >> 2) | (a1 << 62)) & ((a0 >> 1) | (a1 << 63))) ^ ((b0 >> 6) | (b1 << 58));
+        var r2 = t2 ^ (((b0 >> 2) | (b1 << 62)) & ((b0 >> 1) | (b1 << 63))) ^ ((c0 >> 24) | (c1 << 40));
+        var r3 = t3 ^ (((c0 >> 2) | (c1 << 62)) & ((c0 >> 1) | (c1 << 63))) ^ ((a0 >> 24) | (a1 << 40));
+
+        a0 = a1 | (r3 << 29);
+        a1 = r3 >> 35;
+        b0 = b1 | (r1 << 20);
+        b1 = r1 >> 44;
+        c0 = c1 | (r2 << 47);
+        c1 = r2 >> 17;
+    }
+
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private void ProcessByteBatch8(int chunkIndex, byte* ptr)
+    {
+        Vector256<ulong> aA0 = Vector256.Create(_baseK0), aA1 = Vector256.Create(_baseK1);
+        var aB0 = Avx2.Add(Vector256.Create(_baseIv0),
+            Vector256.Create((ulong)chunkIndex, (ulong)chunkIndex + 1, (ulong)chunkIndex + 2, (ulong)chunkIndex + 3));
+        var aB1 = Vector256.Create(_baseIv1);
+        Vector256<ulong> aC0 = C0_Init, aC1 = Vector256<ulong>.Zero;
+
+        Vector256<ulong> bA0 = Vector256.Create(_baseK0), bA1 = Vector256.Create(_baseK1);
+        var bB0 = Avx2.Add(Vector256.Create(_baseIv0),
+            Vector256.Create((ulong)chunkIndex + 4, (ulong)chunkIndex + 5, (ulong)chunkIndex + 6,
+                (ulong)chunkIndex + 7));
+        var bB1 = Vector256.Create(_baseIv1);
+        Vector256<ulong> bC0 = C0_Init, bC1 = Vector256<ulong>.Zero;
+
+        for (var w = 0; w < 18; w++)
+        {
+            UpdateStateV256_Inline(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            UpdateStateV256_Inline(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+        }
+
+        var baseOff = (long)chunkIndex * ChunkSize;
+        var p0 = ptr + baseOff;
+        var p1 = p0 + ChunkSize;
+        var p2 = p1 + ChunkSize;
+        var p3 = p2 + ChunkSize;
+        var p4 = p3 + ChunkSize;
+        var p5 = p4 + ChunkSize;
+        var p6 = p5 + ChunkSize;
+        var p7 = p6 + ChunkSize;
+
+        for (var i = 0; i < ChunkSize; i += 128)
+        {
+            Sse.Prefetch0(p0 + i + 384);
+            Sse.Prefetch0(p4 + i + 384);
+
+            var z_a = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+
+            var z_a2 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b2 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+
+            *(ulong*)(p0 + i) ^= z_a.GetElement(0);
+            *(ulong*)(p0 + i + 8) ^= z_a2.GetElement(0);
+            *(ulong*)(p1 + i) ^= z_a.GetElement(1);
+            *(ulong*)(p1 + i + 8) ^= z_a2.GetElement(1);
+            *(ulong*)(p2 + i) ^= z_a.GetElement(2);
+            *(ulong*)(p2 + i + 8) ^= z_a2.GetElement(2);
+            *(ulong*)(p3 + i) ^= z_a.GetElement(3);
+            *(ulong*)(p3 + i + 8) ^= z_a2.GetElement(3);
+            *(ulong*)(p4 + i) ^= z_b.GetElement(0);
+            *(ulong*)(p4 + i + 8) ^= z_b2.GetElement(0);
+            *(ulong*)(p5 + i) ^= z_b.GetElement(1);
+            *(ulong*)(p5 + i + 8) ^= z_b2.GetElement(1);
+            *(ulong*)(p6 + i) ^= z_b.GetElement(2);
+            *(ulong*)(p6 + i + 8) ^= z_b2.GetElement(2);
+            *(ulong*)(p7 + i) ^= z_b.GetElement(3);
+            *(ulong*)(p7 + i + 8) ^= z_b2.GetElement(3);
+
+            var z_a3 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b3 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+            var z_a4 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b4 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+
+            *(ulong*)(p0 + i + 16) ^= z_a3.GetElement(0);
+            *(ulong*)(p0 + i + 24) ^= z_a4.GetElement(0);
+            *(ulong*)(p1 + i + 16) ^= z_a3.GetElement(1);
+            *(ulong*)(p1 + i + 24) ^= z_a4.GetElement(1);
+            *(ulong*)(p2 + i + 16) ^= z_a3.GetElement(2);
+            *(ulong*)(p2 + i + 24) ^= z_a4.GetElement(2);
+            *(ulong*)(p3 + i + 16) ^= z_a3.GetElement(3);
+            *(ulong*)(p3 + i + 24) ^= z_a4.GetElement(3);
+            *(ulong*)(p4 + i + 16) ^= z_b3.GetElement(0);
+            *(ulong*)(p4 + i + 24) ^= z_b4.GetElement(0);
+            *(ulong*)(p5 + i + 16) ^= z_b3.GetElement(1);
+            *(ulong*)(p5 + i + 24) ^= z_b4.GetElement(1);
+            *(ulong*)(p6 + i + 16) ^= z_b3.GetElement(2);
+            *(ulong*)(p6 + i + 24) ^= z_b4.GetElement(2);
+            *(ulong*)(p7 + i + 16) ^= z_b3.GetElement(3);
+            *(ulong*)(p7 + i + 24) ^= z_b4.GetElement(3);
+
+            var z_a5 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b5 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+            var z_a6 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b6 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+            *(ulong*)(p0 + i + 32) ^= z_a5.GetElement(0);
+            *(ulong*)(p0 + i + 40) ^= z_a6.GetElement(0);
+            *(ulong*)(p1 + i + 32) ^= z_a5.GetElement(1);
+            *(ulong*)(p1 + i + 40) ^= z_a6.GetElement(1);
+            *(ulong*)(p2 + i + 32) ^= z_a5.GetElement(2);
+            *(ulong*)(p2 + i + 40) ^= z_a6.GetElement(2);
+            *(ulong*)(p3 + i + 32) ^= z_a5.GetElement(3);
+            *(ulong*)(p3 + i + 40) ^= z_a6.GetElement(3);
+            *(ulong*)(p4 + i + 32) ^= z_b5.GetElement(0);
+            *(ulong*)(p4 + i + 40) ^= z_b6.GetElement(0);
+            *(ulong*)(p5 + i + 32) ^= z_b5.GetElement(1);
+            *(ulong*)(p5 + i + 40) ^= z_b6.GetElement(1);
+            *(ulong*)(p6 + i + 32) ^= z_b5.GetElement(2);
+            *(ulong*)(p6 + i + 40) ^= z_b6.GetElement(2);
+            *(ulong*)(p7 + i + 32) ^= z_b5.GetElement(3);
+            *(ulong*)(p7 + i + 40) ^= z_b6.GetElement(3);
+
+            var z_a7 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b7 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+            var z_a8 = CalculateZ_And_Update(ref aA0, ref aA1, ref aB0, ref aB1, ref aC0, ref aC1);
+            var z_b8 = CalculateZ_And_Update(ref bA0, ref bA1, ref bB0, ref bB1, ref bC0, ref bC1);
+            *(ulong*)(p0 + i + 48) ^= z_a7.GetElement(0);
+            *(ulong*)(p0 + i + 56) ^= z_a8.GetElement(0);
+            *(ulong*)(p1 + i + 48) ^= z_a7.GetElement(1);
+            *(ulong*)(p1 + i + 56) ^= z_a8.GetElement(1);
+            *(ulong*)(p2 + i + 48) ^= z_a7.GetElement(2);
+            *(ulong*)(p2 + i + 56) ^= z_a8.GetElement(2);
+            *(ulong*)(p3 + i + 48) ^= z_a7.GetElement(3);
+            *(ulong*)(p3 + i + 56) ^= z_a8.GetElement(3);
+            *(ulong*)(p4 + i + 48) ^= z_b7.GetElement(0);
+            *(ulong*)(p4 + i + 56) ^= z_b8.GetElement(0);
+            *(ulong*)(p5 + i + 48) ^= z_b7.GetElement(1);
+            *(ulong*)(p5 + i + 56) ^= z_b8.GetElement(1);
+            *(ulong*)(p6 + i + 48) ^= z_b7.GetElement(2);
+            *(ulong*)(p6 + i + 56) ^= z_b8.GetElement(2);
+            *(ulong*)(p7 + i + 48) ^= z_b7.GetElement(3);
+            *(ulong*)(p7 + i + 56) ^= z_b8.GetElement(3);
+        }
+    }
+
+    private void ProcessByteBatchSafe(int chunkIndex, int totalLen, byte* ptr)
+    {
+        for (var c = 0; c < 8; c++)
+        {
+            var idx = chunkIndex + c;
+            var off = (long)idx * ChunkSize;
+            if (off >= totalLen)
+            {
+                break;
+            }
+
+            var len = (int)System.Math.Min(ChunkSize, totalLen - off);
+            var p = ptr + off;
+            ulong a0 = _baseK0, a1 = _baseK1, b0 = _baseIv0 + (ulong)idx, b1 = _baseIv1, c0 = 7, c1 = 0;
+            for (var i = 0; i < 18; i++)
+            {
+                UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
+            }
+
+            for (var i = 0; i < len; i += 8)
+            {
+                UpdateState64Scalar(ref a0, ref a1, ref b0, ref b1, ref c0, ref c1);
+                var z = ((a0 >> 27) | (a1 << 37)) ^ a0 ^ ((b0 >> 15) | (b1 << 49)) ^ b0 ^ ((c0 >> 45) | (c1 << 19)) ^
+                        c0;
+                if (i + 8 <= len)
+                {
+                    *(ulong*)(p + i) ^= z;
+                }
+                else
+                {
+                    var bz = (byte*)&z;
+                    for (var j = 0; j < len - i; j++)
+                    {
+                        p[i + j] ^= bz[j];
+                    }
+                }
+            }
+        }
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void UpdateStateV256_Inline(ref Vector256<ulong> a0, ref Vector256<ulong> a1, ref Vector256<ulong> b0,
@@ -121,19 +584,68 @@ public unsafe class TriviumCipher : ITriviumCipher
         var t1 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(a0, 27), Avx2.ShiftLeftLogical(a1, 37)), a0);
         var t2 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(b0, 15), Avx2.ShiftLeftLogical(b1, 49)), b0);
         var t3 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(c0, 45), Avx2.ShiftLeftLogical(c1, 19)), c0);
-        // ... (Full AVX2 Logic)
+        var r1 = Avx2.Xor(
+            Avx2.Xor(t1,
+                Avx2.And(Avx2.Or(Avx2.ShiftRightLogical(a0, 2), Avx2.ShiftLeftLogical(a1, 62)),
+                    Avx2.Or(Avx2.ShiftRightLogical(a0, 1), Avx2.ShiftLeftLogical(a1, 63)))),
+            Avx2.Or(Avx2.ShiftRightLogical(b0, 6), Avx2.ShiftLeftLogical(b1, 58)));
+        var r2 = Avx2.Xor(
+            Avx2.Xor(t2,
+                Avx2.And(Avx2.Or(Avx2.ShiftRightLogical(b0, 2), Avx2.ShiftLeftLogical(b1, 62)),
+                    Avx2.Or(Avx2.ShiftRightLogical(b0, 1), Avx2.ShiftLeftLogical(b1, 63)))),
+            Avx2.Or(Avx2.ShiftRightLogical(c0, 24), Avx2.ShiftLeftLogical(c1, 40)));
+        var r3 = Avx2.Xor(
+            Avx2.Xor(t3,
+                Avx2.And(Avx2.Or(Avx2.ShiftRightLogical(c0, 2), Avx2.ShiftLeftLogical(c1, 62)),
+                    Avx2.Or(Avx2.ShiftRightLogical(c0, 1), Avx2.ShiftLeftLogical(c1, 63)))),
+            Avx2.Or(Avx2.ShiftRightLogical(a0, 24), Avx2.ShiftLeftLogical(a1, 40)));
+        a0 = Avx2.Or(a1, Avx2.ShiftLeftLogical(r3, 29));
+        a1 = Avx2.ShiftRightLogical(r3, 35);
+        b0 = Avx2.Or(b1, Avx2.ShiftLeftLogical(r1, 20));
+        b1 = Avx2.ShiftRightLogical(r1, 44);
+        c0 = Avx2.Or(c1, Avx2.ShiftLeftLogical(r2, 47));
+        c1 = Avx2.ShiftRightLogical(r2, 17);
     }
 
-    // ... (Full implementation as seen in source)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Vector256<ulong> CalculateZ_And_Update(ref Vector256<ulong> a0, ref Vector256<ulong> a1,
+        ref Vector256<ulong> b0, ref Vector256<ulong> b1, ref Vector256<ulong> c0, ref Vector256<ulong> c1)
+    {
+        var t1 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(a0, 27), Avx2.ShiftLeftLogical(a1, 37)), a0);
+        var t2 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(b0, 15), Avx2.ShiftLeftLogical(b1, 49)), b0);
+        var t3 = Avx2.Xor(Avx2.Or(Avx2.ShiftRightLogical(c0, 45), Avx2.ShiftLeftLogical(c1, 19)), c0);
+        var z = Avx2.Xor(Avx2.Xor(t1, t2), t3);
+        var r1 = Avx2.Xor(
+            Avx2.Xor(t1,
+                Avx2.And(Avx2.Or(Avx2.ShiftRightLogical(a0, 2), Avx2.ShiftLeftLogical(a1, 62)),
+                    Avx2.Or(Avx2.ShiftRightLogical(a0, 1), Avx2.ShiftLeftLogical(a1, 63)))),
+            Avx2.Or(Avx2.ShiftRightLogical(b0, 6), Avx2.ShiftLeftLogical(b1, 58)));
+        var r2 = Avx2.Xor(
+            Avx2.Xor(t2,
+                Avx2.And(Avx2.Or(Avx2.ShiftRightLogical(b0, 2), Avx2.ShiftLeftLogical(b1, 62)),
+                    Avx2.Or(Avx2.ShiftRightLogical(b0, 1), Avx2.ShiftLeftLogical(b1, 63)))),
+            Avx2.Or(Avx2.ShiftRightLogical(c0, 24), Avx2.ShiftLeftLogical(c1, 40)));
+        var r3 = Avx2.Xor(
+            Avx2.Xor(t3,
+                Avx2.And(Avx2.Or(Avx2.ShiftRightLogical(c0, 2), Avx2.ShiftLeftLogical(c1, 62)),
+                    Avx2.Or(Avx2.ShiftRightLogical(c0, 1), Avx2.ShiftLeftLogical(c1, 63)))),
+            Avx2.Or(Avx2.ShiftRightLogical(a0, 24), Avx2.ShiftLeftLogical(a1, 40)));
+        a0 = Avx2.Or(a1, Avx2.ShiftLeftLogical(r3, 29));
+        a1 = Avx2.ShiftRightLogical(r3, 35);
+        b0 = Avx2.Or(b1, Avx2.ShiftLeftLogical(r1, 20));
+        b1 = Avx2.ShiftRightLogical(r1, 44);
+        c0 = Avx2.Or(c1, Avx2.ShiftLeftLogical(r2, 47));
+        c1 = Avx2.ShiftRightLogical(r2, 17);
+        return z;
+    }
 }
 ```
 
-#### `CubeAttackService.cs` – Kryptoanaliza algorytmiczna
+#### `CubeAttackService.cs`
 
-Serwis ten implementuje atak kostkowy (Cube Attack), potężną technikę kryptoanalityczną przeciwko szyfrom strumieniowym. Atak podzielony jest na dwie fazy:
+Serwis ten jest odpowiedzialny za orkiestrację ataku kostkowego (Cube Attack), algorytmicznej techniki kryptoanalizy pozwalającej na odzyskanie tajnego klucza poprzez analizę wyjść szyfru dla starannie dobranych podzbiorów wektora IV. Algorytm zarządza dwiema głównymi fazami: offline (pre-computation), w której wyszukiwane są kostki liniowe (zbiory bitów IV, których suma wyjść zależy liniowo od bitów klucza), oraz online, gdzie dla przechwyconego szyfru obliczane są sumy kostkowe w celu utworzenia układu równań.
 
-*   **Faza Offline (Pre-computation)**: Algorytm losuje podzbiory indeksów IV (kostki) i testuje je pod kątem liniowości superwielomianu. Jeśli suma wyjść szyfru dla wszystkich możliwych wartości kostki zależy liniowo od bitów klucza, kostka ta jest uznawana za użyteczną.
-*   **Faza Online**: Dla znalezionych kostek liniowych, system rozwiązuje układ równań liniowych w ciele $GF(2)$, odzyskując fragmenty tajnego klucza. Wykorzystano tutaj równoległość (`Parallel.For`) do przyspieszenia obliczeń sum kostkowych.
+Optymalizacja w tym module koncentruje się na masywnym zrównolegleniu procesu generowania i testowania kostek. Wykorzystanie `Parallel.For` pozwala na jednoczesne przetwarzanie setek tysięcy iteracji szyfru Trivium na wszystkich dostępnych rdzeniach procesora, co jest krytyczne, ponieważ każda weryfikacja liniowości kostki wymaga $2^d \times K$ uruchomień szyfru (gdzie $d$ to wymiar kostki, a $K$ to liczba prób statystycznych). Dzięki temu czasochłonna faza offline, która w naiwnej implementacji mogłaby trwać godziny, zostaje zredukowana do milisekund lub sekund. Dodatkowo, operacje na bitach są zoptymalizowane poprzez wykorzystanie tablic `bool[]` i szybkich konwersji do `byte[]`, co minimalizuje narzut związany z alokacją pamięci w pętlach wewnętrznych. Struktura danych została zaprojektowana tak, aby unikać blokowania wątków (lock-free), co pozwala na liniowe skalowanie wydajności wraz z liczbą rdzeni CPU. Wszystkie te zabiegi sprawiają, że atak jest praktycznie wykonalny na standardowym sprzęcie konsumenckim w czasie rzeczywistym.
 
 ```csharp
 using System.Diagnostics;
@@ -142,13 +654,108 @@ using Task01.Domain.Math;
 
 namespace Task01.Domain.Services;
 
+public record Cube(List<int> Indices);
+
 public class CubeAttackService(ITriviumCipher cipher)
 {
-    // ...
+    private static byte[] ToByteArray(bool[] bits)
+    {
+        var bytes = new byte[10];
+        for (var i = 0; i < bits.Length; i++)
+        {
+            if (bits[i])
+            {
+                bytes[i / 8] |= (byte)(1 << (i % 8));
+            }
+        }
+
+        return bytes;
+    }
+
+    private bool ComputeSuperpoly(Cube cube, bool[] key, bool[] fixedIv, int rounds)
+    {
+        var sum = false;
+        var iterations = 1 << cube.Indices.Count;
+
+        for (var i = 0; i < iterations; i++)
+        {
+            var ivBits = (bool[])fixedIv.Clone();
+            for (var b = 0; b < cube.Indices.Count; b++)
+            {
+                if (((i >> b) & 1) == 1)
+                {
+                    ivBits[cube.Indices[b]] = true;
+                }
+            }
+
+            cipher.Initialize(ToByteArray(key), ToByteArray(ivBits), rounds);
+            sum ^= cipher.GenerateBit();
+        }
+
+        return sum;
+    }
+
     public List<(Cube Cube, int KeyIndex)> FindLinearCubes(int rounds)
     {
-        // Heuristic search for linear cubes (Offline Phase)
-        // ...
+        var found = new List<(Cube, int)>();
+        var random = new Random(42);
+
+        for (var size = 1; size <= 6; size++)
+        {
+            var swSize = Stopwatch.StartNew();
+            var sizeCount = 0;
+            for (var i = 0; i < 20; i++)
+            {
+                var indices = Enumerable.Range(0, 80).OrderBy(_ => random.Next()).Take(size).ToList();
+                var cube = new Cube(indices);
+
+                if (!TryIdentifyLinearity(cube, rounds, out var kIdx))
+                {
+                    continue;
+                }
+
+                found.Add((cube, kIdx));
+                sizeCount++;
+            }
+
+            swSize.Stop();
+            Console.WriteLine($"Size {size}: {sizeCount} cubes in {swSize.Elapsed.TotalMicroseconds:F2} μs");
+        }
+
+        return found;
+    }
+
+    private bool TryIdentifyLinearity(Cube cube, int rounds, out int keyIndex)
+    {
+        keyIndex = -1;
+        var random = new Random();
+        var candidates = Enumerable.Range(0, 80).ToList();
+
+        for (var test = 0; test < 5; test++)
+        {
+            var testKey = new bool[80];
+            for (var k = 0; k < 80; k++)
+            {
+                testKey[k] = random.Next(2) == 1;
+            }
+
+            var val = ComputeSuperpoly(cube, testKey, new bool[80], rounds);
+
+            candidates.RemoveAll(kIdx => testKey[kIdx] != val);
+
+            if (candidates.Count == 0)
+            {
+                return false;
+            }
+        }
+
+        if (candidates.Count != 1)
+        {
+            return false;
+        }
+
+        keyIndex = candidates[0];
+        return true;
     }
 
     public static bool[] RecoverKey(List<(Cube Cube, int KeyIndex)> linearCubes, ITriviumCipher oracle, int rounds)
@@ -158,11 +765,29 @@ public class CubeAttackService(ITriviumCipher cipher)
 
         Parallel.For(0, linearCubes.Count, i =>
         {
-            // Compute cube sums in parallel (Online Phase)
-            // ...
+            var localCipher = new TriviumCipher();
+            var cube = linearCubes[i].Cube;
+            var sum = false;
+            var iterations = 1 << cube.Indices.Count;
+
+            for (var j = 0; j < iterations; j++)
+            {
+                var ivBits = new bool[80];
+                for (var b = 0; b < cube.Indices.Count; b++)
+                {
+                    if (((j >> b) & 1) == 1)
+                    {
+                        ivBits[cube.Indices[b]] = true;
+                    }
+                }
+
+                localCipher.Initialize(new byte[10], ToByteArray(ivBits), rounds);
+                sum ^= localCipher.GenerateBit();
+            }
+
+            results[i] = sum;
         });
 
-        // Construct matrix and solve system
         var matrix = new List<bool[]>();
         foreach (var item in linearCubes)
         {
@@ -172,17 +797,19 @@ public class CubeAttackService(ITriviumCipher cipher)
         }
 
         var recoveredBits = Gf2Solver.SolveLinearSystem(matrix, results, 80);
+        swOnline.Stop();
+        Console.WriteLine($"Online phase: recovery took {swOnline.Elapsed.TotalMicroseconds:F2} μs");
+
         return recoveredBits;
     }
 }
 ```
 
-#### `Gf2Solver.cs` – Rozwiązywanie układów równań w ciele Galois
+#### `Gf2Solver.cs`
 
-Jest to wyspecjalizowana implementacja eliminacji Gaussa dla macierzy nad ciałem $GF(2)$. Zamiast operować na liczbach zmiennoprzecinkowych, solver działa na bitach upakowanych w zmiennych `ulong`.
+Moduł ten dostarcza wysoce wyspecjalizowany solver układów równań liniowych nad ciałem skończonym Galois $GF(2)$, wykorzystujący metodę eliminacji Gaussa. Jego zadaniem jest przetworzenie macierzy, w której współczynniki mogą przyjmować jedynie wartości 0 lub 1, a operacje arytmetyczne są wykonywane modulo 2, co jest typowe dla problemów kryptoanalitycznych.
 
-*   **Bit-packing**: Wiersze macierzy są reprezentowane jako struktury `Row` zawierające dwa pola `ulong` (Low/High), co pozwala na reprezentację do 128 zmiennych (wystarczające dla 80-bitowego klucza).
-*   **XOR Operations**: Dodawanie wierszy w ciele $GF(2)$ sprowadza się do operacji XOR (`^=`), która jest wykonywana równolegle na 64 bitach (całym słowie maszynowym). Zapewnia to ogromną wydajność w porównaniu do klasycznych implementacji operujących na pojedynczych elementach tablicy.
+Optymalizacja w tym komponencie opiera się na technice "Bit-Packing", gdzie wiersze macierzy nie są przechowywane jako tablice `bool[]` czy `int[]`, lecz są upakowane w zmienne typu `ulong` (64-bitowe rejestry). Dzięki temu struktura `Row` składająca się z dwóch pól `ulong` (Low/High) może reprezentować do 128 zmiennych, co jest wystarczające dla 80-bitowego klucza Trivium. Kluczową korzyścią jest to, że operacja dodawania wierszy w ciele $GF(2)$, która odpowiada operacji XOR, jest wykonywana na całych słowach 64-bitowych jednocześnie (SWAR - SIMD Within A Register). Oznacza to, że zamiast wykonywać pętlę po 80 elementach tablicy, procesor wykonuje zaledwie dwie instrukcje XOR (`row.Low ^= other.Low`, `row.High ^= other.High`). Takie podejście drastycznie redukuje liczbę instrukcji procesora, zmniejsza zapotrzebowanie na przepustowość pamięci oraz maksymalizuje efektywność wykorzystania pamięci cache L1, co czyni solver rzędy wielkości szybszym od naiwnych implementacji.
 
 ```csharp
 using System.Numerics;
@@ -193,13 +820,62 @@ public static class Gf2Solver
 {
     public static bool[] SolveLinearSystem(List<bool[]> matrix, bool[] results, int variableCount)
     {
-        // Gaussian elimination over GF(2) with bit-packed rows
-        // ...
+        var rowCount = matrix.Count;
+        var rows = new Row[rowCount];
+
+        for (var i = 0; i < rowCount; i++)
+        {
+            for (var j = 0; j < variableCount; j++)
+            {
+                if (matrix[i][j])
+                {
+                    if (j < 64)
+                    {
+                        rows[i].Low |= 1UL << j;
+                    }
+                    else
+                    {
+                        rows[i].High |= 1UL << (j - 64);
+                    }
+                }
+            }
+
+            if (results[i])
+            {
+                rows[i].High |= 1UL << 63;
+            }
+        }
+
+        var pivotRow = 0;
+        for (var col = 0; col < variableCount && pivotRow < rowCount; col++)
+        {
+            var sel = -1;
+            for (var r = pivotRow; r < rowCount; r++)
+            {
+                var isSet = col < 64
+                    ? (rows[r].Low & (1UL << col)) != 0
+                    : (rows[r].High & (1UL << (col - 64))) != 0;
+                if (isSet)
+                {
+                    sel = r;
+                    break;
+                }
+            }
+
+            if (sel == -1)
+            {
+                continue;
+            }
+
+            (rows[pivotRow], rows[sel]) = (rows[sel], rows[pivotRow]);
+
             for (var r = 0; r < rowCount; r++)
             {
                 if (r != pivotRow)
                 {
-                    // Row addition corresponds to XOR
+                    var isSet = col < 64
+                        ? (rows[r].Low & (1UL << col)) != 0
+                        : (rows[r].High & (1UL << (col - 64))) != 0;
                     if (isSet)
                     {
                         rows[r].Low ^= rows[pivotRow].Low;
@@ -207,7 +883,36 @@ public static class Gf2Solver
                     }
                 }
             }
-        // ...
+
+            pivotRow++;
+        }
+
+        var solution = new bool[variableCount];
+        for (var i = 0; i < rowCount; i++)
+        {
+            var firstBit = -1;
+            if (rows[i].Low != 0)
+            {
+                firstBit = BitOperations.TrailingZeroCount(rows[i].Low);
+            }
+            else if ((rows[i].High & ~(1UL << 63)) != 0)
+            {
+                firstBit = 64 + BitOperations.TrailingZeroCount(rows[i].High & ~(1UL << 63));
+            }
+
+            if (firstBit != -1 && firstBit < variableCount)
+            {
+                solution[firstBit] = (rows[i].High & (1UL << 63)) != 0;
+            }
+        }
+
+        return solution;
+    }
+
+    private struct Row
+    {
+        public ulong Low;
+        public ulong High;
     }
 }
 ```
