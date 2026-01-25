@@ -3,8 +3,20 @@ using System.Text;
 
 namespace Task01.Domain.Utils;
 
+/// <summary>
+/// Provides high-performance utility methods for bit manipulation and conversion between different data formats.
+/// </summary>
 public static class BitConversions
 {
+    /// <summary>
+    /// Converts a UTF-8 string into a sequence of bits.
+    /// </summary>
+    /// <param name="text">The string to convert.</param>
+    /// <returns>A read-only list of booleans representing the bits of the input string.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="text"/> is null.</exception>
+    /// <remarks>
+    /// This method uses <c>stackalloc</c> for small strings to minimize heap allocations.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<bool> StringToBits(string text)
     {
@@ -41,6 +53,12 @@ public static class BitConversions
         return bits;
     }
 
+    /// <summary>
+    /// Converts a sequence of bits into a UTF-8 string.
+    /// </summary>
+    /// <param name="bits">The sequence of bits to convert.</param>
+    /// <returns>The string representation of the bits.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="bits"/> is null.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static string BitsToString(IEnumerable<bool> bits)
     {
@@ -88,6 +106,11 @@ public static class BitConversions
         return BitsArrayToUtf8String(copy);
     }
 
+    /// <summary>
+    /// Converts a boolean array of bits to a UTF-8 string.
+    /// </summary>
+    /// <param name="bits">The boolean array containing bits.</param>
+    /// <returns>The decoded UTF-8 string.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private static string BitsArrayToUtf8String(bool[] bits)
     {
@@ -123,6 +146,13 @@ public static class BitConversions
         return Encoding.UTF8.GetString(buffer[..byteCount]);
     }
 
+    /// <summary>
+    /// Converts a string representation of bits (e.g., "0101") into a sequence of booleans.
+    /// </summary>
+    /// <param name="bitString">The string containing '0' and '1' characters.</param>
+    /// <returns>A read-only list of booleans.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="bitString"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when the string contains characters other than '0' or '1'.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<bool> BitStringToBits(string bitString)
     {
@@ -152,6 +182,12 @@ public static class BitConversions
         return bits;
     }
 
+    /// <summary>
+    /// Converts a sequence of booleans into a string of '0's and '1's.
+    /// </summary>
+    /// <param name="bits">The sequence of bits.</param>
+    /// <returns>A string of '0's and '1's.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="bits"/> is null.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static string BitsToBitString(IEnumerable<bool> bits)
     {
@@ -211,6 +247,13 @@ public static class BitConversions
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Converts a sequence of integers (0 or 1) into a sequence of booleans.
+    /// </summary>
+    /// <param name="values">The sequence of integers.</param>
+    /// <returns>A read-only list of booleans.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="values"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when an integer value is not 0 or 1.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<bool> IntArrayToBits(IEnumerable<int> values)
     {
@@ -257,6 +300,12 @@ public static class BitConversions
         return bits;
     }
 
+    /// <summary>
+    /// Converts a sequence of booleans into a sequence of integers (0 or 1).
+    /// </summary>
+    /// <param name="bits">The sequence of bits.</param>
+    /// <returns>A read-only list of integers.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="bits"/> is null.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static IReadOnlyList<int> BitsToIntArray(IEnumerable<bool> bits)
     {

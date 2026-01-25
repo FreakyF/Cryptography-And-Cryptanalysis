@@ -3,8 +3,18 @@ using Task01.Domain.Models;
 
 namespace Task01.Domain.Services.LinearComplexity;
 
+/// <summary>
+/// Provides a high-performance implementation of the Berlekamp-Massey algorithm
+/// to determine the linear complexity and connection polynomial of a binary sequence.
+/// </summary>
 public sealed class BerlekampMasseySolver : IBerlekampMasseySolver
 {
+    /// <summary>
+    /// Computes the minimal connection polynomial and linear complexity of the given binary sequence.
+    /// </summary>
+    /// <param name="sequence">The binary sequence to analyze.</param>
+    /// <returns>A <see cref="BerlekampMasseyResult"/> containing the connection polynomial and linear complexity.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="sequence"/> is null.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public BerlekampMasseyResult Solve(IReadOnlyList<bool> sequence)
     {
@@ -29,6 +39,12 @@ public sealed class BerlekampMasseySolver : IBerlekampMasseySolver
         return SolveArray(sequence, n);
     }
 
+    /// <summary>
+    /// Optimized solver for sequences with length up to 63 using bit-packed <see cref="ulong"/> arithmetic.
+    /// </summary>
+    /// <param name="sequence">The binary sequence.</param>
+    /// <param name="n">The length of the sequence.</param>
+    /// <returns>The result of the Berlekamp-Massey algorithm.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     static BerlekampMasseyResult SolvePacked(IReadOnlyList<bool> sequence, int n)
     {
@@ -94,6 +110,12 @@ public sealed class BerlekampMasseySolver : IBerlekampMasseySolver
         return new BerlekampMasseyResult(resultCoeffs, l);
     }
 
+    /// <summary>
+    /// General solver for sequences of any length using array-based arithmetic and <see cref="Span{T}"/>.
+    /// </summary>
+    /// <param name="sequence">The binary sequence.</param>
+    /// <param name="n">The length of the sequence.</param>
+    /// <returns>The result of the Berlekamp-Massey algorithm.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     static BerlekampMasseyResult SolveArray(IReadOnlyList<bool> sequence, int n)
     {

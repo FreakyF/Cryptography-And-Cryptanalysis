@@ -3,6 +3,10 @@ using System.Runtime.CompilerServices;
 
 namespace Task01.Domain.Services.Lfsr;
 
+/// <summary>
+/// Provides a high-performance implementation of a Linear Feedback Shift Register (LFSR)
+/// optimized for degrees up to 64 using bit-packed <see cref="ulong"/> state.
+/// </summary>
 public sealed class Lfsr : ILfsr
 {
     private readonly bool[] _feedback;
@@ -12,6 +16,13 @@ public sealed class Lfsr : ILfsr
 
     private ulong _stateBits;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Lfsr"/> class.
+    /// </summary>
+    /// <param name="feedbackCoefficients">The feedback coefficients defining the connection polynomial.</param>
+    /// <param name="initialState">The initial state of the register.</param>
+    /// <exception cref="ArgumentException">Thrown when feedback coefficients are empty, state length mismatches feedback length, or if the feedback/state is invalid.</exception>
+    /// <exception cref="NotSupportedException">Thrown when the degree exceeds 64.</exception>
     public Lfsr(IEnumerable<bool> feedbackCoefficients, IEnumerable<bool> initialState)
     {
         _feedback = feedbackCoefficients as bool[] ?? feedbackCoefficients.ToArray();
@@ -50,10 +61,19 @@ public sealed class Lfsr : ILfsr
         }
     }
 
+    /// <inheritdoc />
     public int Degree => _degree;
+
+    /// <inheritdoc />
     public IReadOnlyList<bool> FeedbackCoefficients => _feedback;
+
+    /// <inheritdoc />
     public IReadOnlyList<bool> State => UnpackState(_stateBits, _degree);
 
+    /// <summary>
+    /// Advances the LFSR by one step and returns the output bit.
+    /// </summary>
+    /// <returns>The generated bit.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public bool NextBit()
     {
@@ -63,6 +83,11 @@ public sealed class Lfsr : ILfsr
         return output;
     }
 
+    /// <summary>
+    /// Resets the LFSR to a specified state.
+    /// </summary>
+    /// <param name="state">The new state to load.</param>
+    /// <exception cref="ArgumentException">Thrown when the state length is incorrect or the state consists of all zeros.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public void Reset(IEnumerable<bool> state)
     {
@@ -81,6 +106,12 @@ public sealed class Lfsr : ILfsr
         }
     }
 
+    /// <summary>
+    /// Generates a sequence of bits by advancing the LFSR multiple times.
+    /// </summary>
+    /// <param name="count">The number of bits to generate.</param>
+    /// <returns>A read-only list of generated bits.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when count is negative.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public IReadOnlyList<bool> GenerateBits(int count)
     {
@@ -125,6 +156,13 @@ public sealed class Lfsr : ILfsr
         return result;
     }
 
+    /// <summary>
+    /// Core logic for calculating the next state and output bit using bitwise operations.
+    /// </summary>
+    /// <param name="state">Reference to the current state bits.</param>
+    /// <param name="tapMask">The bitmask representing feedback taps.</param>
+    /// <param name="highBitMask">The bitmask for the most significant bit.</param>
+    /// <returns>The output bit.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private static bool NextBitCore(ref ulong state, ulong tapMask, ulong highBitMask)
     {
@@ -147,6 +185,12 @@ public sealed class Lfsr : ILfsr
         return output;
     }
 
+    /// <summary>
+    /// Creates a bitmask representing the feedback coefficients.
+    /// </summary>
+    /// <param name="feedback">The feedback coefficients array.</param>
+    /// <param name="hasTap">Out parameter indicating if at least one tap exists.</param>
+    /// <returns>A <see cref="ulong"/> bitmask.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private static ulong CreateTapMask(bool[] feedback, out bool hasTap)
     {
@@ -167,6 +211,12 @@ public sealed class Lfsr : ILfsr
         return mask;
     }
 
+    /// <summary>
+    /// Packs a boolean array state into a <see cref="ulong"/>.
+    /// </summary>
+    /// <param name="state">The state array.</param>
+    /// <param name="hasOne">Out parameter indicating if the state contains at least one '1'.</param>
+    /// <returns>The packed state bits.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private static ulong PackState(bool[] state, out bool hasOne)
     {
@@ -187,6 +237,12 @@ public sealed class Lfsr : ILfsr
         return bits;
     }
 
+    /// <summary>
+    /// Unpacks a <see cref="ulong"/> state into a boolean array.
+    /// </summary>
+    /// <param name="bits">The packed state bits.</param>
+    /// <param name="length">The length of the state.</param>
+    /// <returns>The unpacked boolean array.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private static bool[] UnpackState(ulong bits, int length)
     {
