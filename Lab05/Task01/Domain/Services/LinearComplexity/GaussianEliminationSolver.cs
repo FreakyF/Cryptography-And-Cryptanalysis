@@ -2,8 +2,20 @@ using System.Runtime.CompilerServices;
 
 namespace Task01.Domain.Services.LinearComplexity;
 
+/// <summary>
+/// Provides a high-performance implementation of Gaussian elimination over GF(2)
+/// to solve systems of linear equations.
+/// </summary>
 public sealed class GaussianEliminationSolver : IGaloisFieldSolver
 {
+    /// <summary>
+    /// Solves the system of linear equations Ax = b over GF(2).
+    /// </summary>
+    /// <param name="matrix">The square matrix A (m x m).</param>
+    /// <param name="vector">The result vector b (length m).</param>
+    /// <returns>The solution vector x if a unique solution exists; otherwise, <c>null</c>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="matrix"/> or <paramref name="vector"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when the matrix is not square or dimensions do not match the vector.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public bool[]? Solve(bool[,] matrix, bool[] vector)
     {
@@ -130,6 +142,12 @@ public sealed class GaussianEliminationSolver : IGaloisFieldSolver
         return solution;
     }
 
+    /// <summary>
+    /// Fallback solver for larger matrices (m > 63) using standard array operations.
+    /// </summary>
+    /// <param name="matrix">The matrix A.</param>
+    /// <param name="vector">The vector b.</param>
+    /// <returns>The solution vector x, or <c>null</c> if no solution exists.</returns>
     [MethodImpl(MethodImplOptions.NoInlining)]
     static bool[]? SolveSlow(bool[,] matrix, bool[] vector)
     {

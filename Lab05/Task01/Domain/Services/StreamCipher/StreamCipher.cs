@@ -4,8 +4,18 @@ using Task01.Domain.Utils;
 
 namespace Task01.Domain.Services.StreamCipher;
 
+/// <summary>
+/// Provides a high-performance implementation of a stream cipher using an LFSR for keystream generation.
+/// </summary>
 public sealed class StreamCipher : IStreamCipher
 {
+    /// <summary>
+    /// Encrypts the plaintext using the provided LFSR.
+    /// </summary>
+    /// <param name="plaintext">The text to encrypt.</param>
+    /// <param name="lfsr">The LFSR instance to use for key stream generation.</param>
+    /// <returns>A read-only list of encrypted bits.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="plaintext"/> or <paramref name="lfsr"/> is null.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public IReadOnlyList<bool> Encrypt(string plaintext, ILfsr lfsr)
     {
@@ -37,6 +47,13 @@ public sealed class StreamCipher : IStreamCipher
         return cipherBits;
     }
 
+    /// <summary>
+    /// Decrypts the ciphertext bits using the provided LFSR.
+    /// </summary>
+    /// <param name="ciphertextBits">The encrypted bits.</param>
+    /// <param name="lfsr">The LFSR instance initialized with the same key/state as encryption.</param>
+    /// <returns>The decrypted plaintext string.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="ciphertextBits"/> or <paramref name="lfsr"/> is null.</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public string Decrypt(IReadOnlyList<bool> ciphertextBits, ILfsr lfsr)
     {

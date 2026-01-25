@@ -9,12 +9,19 @@ using Task01.Domain.Utils;
 
 namespace Task01.Application;
 
+/// <summary>
+/// Orchestrates the execution of cryptographic component verifications and experimental scenarios.
+/// </summary>
 [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance")]
 public sealed class Runner : IRunner
 {
     private readonly bool _quiet;
     private readonly StringBuilder? _logBuilder;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Runner"/> class.
+    /// </summary>
+    /// <param name="quiet">If set to <c>true</c>, suppresses console output.</param>
     public Runner(bool quiet)
     {
         _quiet = quiet;
@@ -24,6 +31,9 @@ public sealed class Runner : IRunner
         }
     }
 
+    /// <summary>
+    /// Executes all verification checks and experimental scenarios.
+    /// </summary>
     public void RunAll()
     {
         RunLfsrVerification();
@@ -42,6 +52,10 @@ public sealed class Runner : IRunner
         Flush();
     }
 
+    /// <summary>
+    /// Appends a message to the internal log buffer.
+    /// </summary>
+    /// <param name="message">The message to log.</param>
     private void Log(string message)
     {
         if (_quiet)
@@ -52,6 +66,9 @@ public sealed class Runner : IRunner
         _logBuilder!.AppendLine(message);
     }
 
+    /// <summary>
+    /// Flushes the internal log buffer to the console and clears the buffer.
+    /// </summary>
     private void Flush()
     {
         if (_quiet)
@@ -68,6 +85,9 @@ public sealed class Runner : IRunner
         _logBuilder.Clear();
     }
 
+    /// <summary>
+    /// Verifies the correctness of the LFSR implementation against known test vectors.
+    /// </summary>
     private void RunLfsrVerification()
     {
         Log("LFSR verification");
@@ -101,6 +121,12 @@ public sealed class Runner : IRunner
             ]);
     }
 
+    /// <summary>
+    /// Helper method to verify a single LFSR test case.
+    /// </summary>
+    /// <param name="feedbackInts">Feedback coefficients as integers (0/1).</param>
+    /// <param name="stateInts">Initial state as integers (0/1).</param>
+    /// <param name="expectedInts">Expected output sequence as integers (0/1).</param>
     private void VerifyLfsr(int[] feedbackInts, int[] stateInts, int[] expectedInts)
     {
         var feedback = BitConversions.IntArrayToBits(feedbackInts);
@@ -126,6 +152,9 @@ public sealed class Runner : IRunner
         Log(string.Empty);
     }
 
+    /// <summary>
+    /// Verifies the Berlekamp-Massey algorithm against known sequences.
+    /// </summary>
     private void RunBerlekampMasseyVerification()
     {
         Log("Berlekamp–Massey verification");
@@ -171,6 +200,9 @@ public sealed class Runner : IRunner
         }
     }
 
+    /// <summary>
+    /// Demonstrates a full known-plaintext attack on a stream cipher with random parameters.
+    /// </summary>
     private void RunFullAttack()
     {
         Log("Full known-plaintext attack demonstration");
@@ -271,6 +303,9 @@ public sealed class Runner : IRunner
         }
     }
 
+    /// <summary>
+    /// Experiment 1: Evaluates the success of the attack with varying lengths of known plaintext.
+    /// </summary>
     private void RunExperiment1_MinimalLength()
     {
         Log("Experiment 1: Minimal length of known plaintext (m=8)");
@@ -318,6 +353,9 @@ public sealed class Runner : IRunner
         Log(string.Empty);
     }
 
+    /// <summary>
+    /// Experiment 2: Measures the execution time of Gaussian Elimination for increasing degrees.
+    /// </summary>
     private void RunExperiment2_ScaleAndTime()
     {
         Log("Experiment 2: Scale and Time (Gaussian Elimination)");
@@ -361,6 +399,9 @@ public sealed class Runner : IRunner
         Log(string.Empty);
     }
 
+    /// <summary>
+    /// Experiment 3: Verifies the statistical reliability of the attack over multiple runs.
+    /// </summary>
     private void RunExperiment3_StatisticalReliability()
     {
         Log("Experiment 3: Statistical Reliability (m=8, 50 runs)");
@@ -403,6 +444,9 @@ public sealed class Runner : IRunner
         Log(string.Empty);
     }
 
+    /// <summary>
+    /// Experiment 4: Compares the period of primitive vs. non-primitive polynomials.
+    /// </summary>
     private void RunExperiment4_PolynomialInfluence()
     {
         Log("Experiment 4: Polynomial Influence (Period length)");
@@ -424,6 +468,12 @@ public sealed class Runner : IRunner
         Log(string.Empty);
     }
 
+    /// <summary>
+    /// Measures the period of an LFSR configuration.
+    /// </summary>
+    /// <param name="feedbackInts">Feedback coefficients.</param>
+    /// <param name="stateInts">Initial state.</param>
+    /// <returns>The measured period, or -1 if it exceeds the maximum limit.</returns>
     private static long MeasurePeriod(int[] feedbackInts, int[] stateInts)
     {
         var feedback = BitConversions.IntArrayToBits(feedbackInts);
@@ -445,6 +495,9 @@ public sealed class Runner : IRunner
         return period;
     }
 
+    /// <summary>
+    /// Experiment 5: Compares the performance and results of Gaussian Elimination and Berlekamp-Massey.
+    /// </summary>
     private void RunExperiment5_MethodComparison()
     {
         Log("Experiment 5: Method Comparison (Gauss vs Berlekamp-Massey)");
@@ -486,6 +539,15 @@ public sealed class Runner : IRunner
         Log(string.Empty);
     }
 
+    /// <summary>
+    /// Generates a random boolean array with at least one '1' bit.
+    /// </summary>
+    /// <param name="random">The random number generator.</param>
+    /// <param name="length">The length of the array.</param>
+    /// <param name="forceFirstBitOne">If true, forces the first bit to be '1'.</param>
+    /// <returns>A random boolean array.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when random is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when length is non-positive.</exception>
     private static IReadOnlyList<bool> GenerateRandomNonZeroVector(Random random, int length, bool forceFirstBitOne)
     {
         if (random == null)
@@ -526,6 +588,13 @@ public sealed class Runner : IRunner
         }
     }
 
+    /// <summary>
+    /// Checks if two read-only lists of booleans are equal.
+    /// </summary>
+    /// <param name="first">The first list.</param>
+    /// <param name="second">The second list.</param>
+    /// <returns>True if both lists contain the same elements in the same order.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when either list is null.</exception>
     private static bool AreEqual(IReadOnlyList<bool> first, IReadOnlyList<bool> second)
     {
         if (first == null)
@@ -555,6 +624,11 @@ public sealed class Runner : IRunner
         return true;
     }
 
+    /// <summary>
+    /// A lightweight enumerable wrapper for previewing a subset of a bit sequence.
+    /// </summary>
+    /// <param name="source">The source list of bits.</param>
+    /// <param name="length">The number of items to enumerate.</param>
     private readonly struct PreviewEnumerable(IReadOnlyList<bool> source, int length) : IEnumerable<bool>
     {
         private Enumerator GetEnumerator() => new Enumerator(source, length);
