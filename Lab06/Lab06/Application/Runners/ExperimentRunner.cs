@@ -4,8 +4,18 @@ using Lab06.Infrastructure.Utils;
 
 namespace Lab06.Application.Runners;
 
+/// <summary>
+/// Executes experiments to evaluate the performance and accuracy of the cryptanalysis attacks.
+/// </summary>
 public static class ExperimentRunner
 {
+    /// <summary>
+    /// Runs a series of correlation attack experiments with varying keystream lengths.
+    /// </summary>
+    /// <remarks>
+    /// Measures success rates and average execution times for different keystream lengths.
+    /// Suppresses console output during the attack phase to keep the experiment log clean.
+    /// </remarks>
     public static void RunExperiments()
     {
         Console.WriteLine("\n=== RUNNING EXPERIMENTS ===");

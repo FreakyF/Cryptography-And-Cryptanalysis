@@ -1,7 +1,17 @@
 namespace Lab06.Infrastructure.Utils;
 
+/// <summary>
+/// Provides statistical utility methods.
+/// </summary>
 public static class Statistics
 {
+    /// <summary>
+    /// Calculates the Pearson correlation coefficient between two integer arrays.
+    /// </summary>
+    /// <param name="x">The first array of values.</param>
+    /// <param name="y">The second array of values.</param>
+    /// <returns>The Pearson correlation coefficient (between -1 and 1).</returns>
+    /// <exception cref="ArgumentException">Thrown when the input arrays do not have the same length.</exception>
     public static double PearsonCorrelation(int[] x, int[] y)
     {
         if (x.Length != y.Length)
