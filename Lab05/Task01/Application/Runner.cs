@@ -327,7 +327,7 @@ public sealed class Runner : IRunner
     private void RunExperiment2_ScaleAndTime()
     {
         Log("Experiment 2: Scale and Time (Gaussian Elimination)");
-        Log("Degree m | Time (ticks) | Time (ms)");
+        Log("Degree m | Time (ticks) | Time (µs)");
         Log("---------|--------------|----------");
 
         int[] degrees = { 4, 8, 16, 17, 32 };
@@ -360,7 +360,7 @@ public sealed class Runner : IRunner
             solver.Solve(matrix, vector);
             sw.Stop();
 
-            Log($"{m,-8} | {sw.ElapsedTicks,-12} | {sw.ElapsedMilliseconds}");
+            Log($"{m,-8} | {sw.ElapsedTicks,-12} | {sw.Elapsed.TotalMicroseconds:F2}");
         }
         Log(string.Empty);
     }
@@ -481,8 +481,8 @@ public sealed class Runner : IRunner
         var bmResult = bmSolver.Solve(sequence);
         swB.Stop();
 
-        Log($"Gauss Time: {swG.ElapsedTicks} ticks");
-        Log($"BM Time:    {swB.ElapsedTicks} ticks");
+        Log($"Gauss Time: {swG.Elapsed.TotalMicroseconds:F2} µs");
+        Log($"BM Time:    {swB.Elapsed.TotalMicroseconds:F2} µs");
         Log($"Gauss Result Found: {gaussResult != null}");
         Log($"BM Linear Complexity: {bmResult.LinearComplexity}");
 
