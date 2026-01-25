@@ -72,12 +72,13 @@ public class CubeAttackService(ITriviumCipher cipher)
             if (candidates.Count == 0) return false;
         }
 
-        if (candidates.Count == 1)
+        if (candidates.Count != 1)
         {
-            keyIndex = candidates[0];
-            return true;
+            return false;
         }
-        return false;
+
+        keyIndex = candidates[0];
+        return true;
     }
 
     public static bool[] RecoverKey(List<(Cube Cube, int KeyIndex)> linearCubes, ITriviumCipher oracle, int rounds)
