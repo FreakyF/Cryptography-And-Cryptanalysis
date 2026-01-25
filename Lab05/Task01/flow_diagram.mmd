@@ -1,0 +1,49 @@
+flowchart TD
+    %% Entities and Data Sources
+    User((User))
+    RandomGen[Random Generator]
+
+    %% Data Objects
+    Plaintext[Plaintext Message]
+    SecretKey[Secret Key\n(Feedback Coeffs, Initial State)]
+    Ciphertext[Ciphertext]
+    KnownPlaintext[Known Plaintext Segment]
+    KeyStream[Key Stream Segment]
+    LinearEqSystem[System of Linear Equations]
+    RecoveredKey[Recovered Key\n(Feedback Coeffs, Initial State)]
+    RecoveredPlaintext[Recovered Plaintext]
+
+    %% Processes
+    EncryptProcess[[Encryption Process\n(Stream Cipher + LFSR)]]
+    AttackProcess[[Attack Process\n(Known Plaintext Attacker)]]
+    SolverProcess[[Gaussian Elimination Solver]]
+    DecryptProcess[[Decryption Process\n(Stream Cipher + LFSR)]]
+    CompareProcess{Verification}
+
+    %% Main Flow
+    User -- Starts --> RandomGen
+    RandomGen -- Generates --> SecretKey
+    Plaintext -- Input --> EncryptProcess
+    SecretKey -- Input --> EncryptProcess
+    EncryptProcess -- Output --> Ciphertext
+
+    %% Attack Phase
+    Plaintext -- Select Subset --> KnownPlaintext
+    KnownPlaintext -- Input --> AttackProcess
+    Ciphertext -- Input --> AttackProcess
+
+    subgraph "Attack Logic"
+        AttackProcess -- XOR with Ciphertext --> KeyStream
+        KeyStream -- Formulate --> LinearEqSystem
+        LinearEqSystem -- Input --> SolverProcess
+        SolverProcess -- Solve --> RecoveredKey
+    end
+
+    %% Verification Phase
+    Ciphertext -- Input --> DecryptProcess
+    RecoveredKey -- Input --> DecryptProcess
+    DecryptProcess -- Output --> RecoveredPlaintext
+
+    RecoveredPlaintext -- Compare --> CompareProcess
+    Plaintext -- Compare --> CompareProcess
+    CompareProcess -- Result --> User
