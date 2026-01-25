@@ -9,3 +9,4 @@ runner.RunExperiment2IvReuse();
 runner.RunExperiment3RoundsAnalysis();
 runner.RunExperiment4CubeAttack();
 runner.RunExperiment5Statistics();
+runner.RunExperiment6HighVolumeThroughput();

@@ -1,13 +1,27 @@
-namespace Task01.Domain.Services;
-
 using System.Diagnostics;
-using Core;
-using Math;
+using Task01.Domain.Core;
+using Task01.Domain.Math;
+
+namespace Task01.Domain.Services;
 
 public record Cube(List<int> Indices);
 
 public class CubeAttackService(ITriviumCipher cipher)
 {
+    private static byte[] ToByteArray(bool[] bits)
+    {
+        var bytes = new byte[10];
+        for (var i = 0; i < bits.Length; i++)
+        {
+            if (bits[i])
+            {
+                bytes[i / 8] |= (byte)(1 << (i % 8));
+            }
+        }
+
+        return bytes;
+    }
+
     private bool ComputeSuperpoly(Cube cube, bool[] key, bool[] fixedIv, int rounds)
     {
         var sum = false;
@@ -15,15 +29,19 @@ public class CubeAttackService(ITriviumCipher cipher)
 
         for (var i = 0; i < iterations; i++)
         {
-            var iv = (bool[])fixedIv.Clone();
+            var ivBits = (bool[])fixedIv.Clone();
             for (var b = 0; b < cube.Indices.Count; b++)
             {
-                if (((i >> b) & 1) == 1) iv[cube.Indices[b]] = true;
+                if (((i >> b) & 1) == 1)
+                {
+                    ivBits[cube.Indices[b]] = true;
+                }
             }
 
-            cipher.Initialize(key, iv, rounds);
+            cipher.Initialize(ToByteArray(key), ToByteArray(ivBits), rounds);
             sum ^= cipher.GenerateBit();
         }
+
         return sum;
     }
 
@@ -49,9 +67,11 @@ public class CubeAttackService(ITriviumCipher cipher)
                 found.Add((cube, kIdx));
                 sizeCount++;
             }
+
             swSize.Stop();
             Console.WriteLine($"Size {size}: {sizeCount} cubes in {swSize.Elapsed.TotalMicroseconds:F2} μs");
         }
+
         return found;
     }
 
@@ -64,12 +84,19 @@ public class CubeAttackService(ITriviumCipher cipher)
         for (var test = 0; test < 5; test++)
         {
             var testKey = new bool[80];
-            for (var k = 0; k < 80; k++) testKey[k] = random.Next(2) == 1;
+            for (var k = 0; k < 80; k++)
+            {
+                testKey[k] = random.Next(2) == 1;
+            }
 
             var val = ComputeSuperpoly(cube, testKey, new bool[80], rounds);
+
             candidates.RemoveAll(kIdx => testKey[kIdx] != val);
-            
-            if (candidates.Count == 0) return false;
+
+            if (candidates.Count == 0)
+            {
+                return false;
+            }
         }
 
         if (candidates.Count != 1)
@@ -85,22 +112,31 @@ public class CubeAttackService(ITriviumCipher cipher)
     {
         var swOnline = Stopwatch.StartNew();
         var results = new bool[linearCubes.Count];
-        for (var i = 0; i < linearCubes.Count; i++)
+
+        Parallel.For(0, linearCubes.Count, i =>
         {
+            var localCipher = new TriviumCipher();
+            var cube = linearCubes[i].Cube;
             var sum = false;
-            var iterations = 1 << linearCubes[i].Cube.Indices.Count;
+            var iterations = 1 << cube.Indices.Count;
+
             for (var j = 0; j < iterations; j++)
             {
-                var iv = new bool[80];
-                for (var b = 0; b < linearCubes[i].Cube.Indices.Count; b++)
+                var ivBits = new bool[80];
+                for (var b = 0; b < cube.Indices.Count; b++)
                 {
-                    if (((j >> b) & 1) == 1) iv[linearCubes[i].Cube.Indices[b]] = true;
+                    if (((j >> b) & 1) == 1)
+                    {
+                        ivBits[cube.Indices[b]] = true;
+                    }
                 }
-                oracle.Initialize(new bool[80], iv, rounds);
-                sum ^= oracle.GenerateBit();
+
+                localCipher.Initialize(new byte[10], ToByteArray(ivBits), rounds);
+                sum ^= localCipher.GenerateBit();
             }
+
             results[i] = sum;
-        }
+        });
 
         var matrix = new List<bool[]>();
         foreach (var item in linearCubes)
@@ -113,7 +149,7 @@ public class CubeAttackService(ITriviumCipher cipher)
         var recoveredBits = Gf2Solver.SolveLinearSystem(matrix, results, 80);
         swOnline.Stop();
         Console.WriteLine($"Online phase: recovery took {swOnline.Elapsed.TotalMicroseconds:F2} μs");
-        
+
         return recoveredBits;
     }
 }

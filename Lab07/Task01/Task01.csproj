@@ -6,6 +6,21 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <InvariantGlobalization>true</InvariantGlobalization>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+        <PublishAot>true</PublishAot>
+        <OptimizationPreference>Speed</OptimizationPreference>
+        <StackTraceSupport>false</StackTraceSupport>
+        <InvariantGlobalization>true</InvariantGlobalization>
+
+        <IlcInstructionSet>avx2,bmi2</IlcInstructionSet>
+
+        <ServerGarbageCollection>true</ServerGarbageCollection>
     </PropertyGroup>
+
+    <ItemGroup>
+        <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.MinThreads" Value="16"/>
+        <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.MaxThreads" Value="32"/>
+    </ItemGroup>
 
 </Project>
